@@ -18,10 +18,10 @@ Contributors
 Advanced Scientific Computing (ASC) Division
 
 * Emanuele Donno (<emanuele.donno@cmcc.it>)  &rarr; maintainer of the repo
+* Davide Donno (<davide.donno@cmcc.it>)
+* Gabriele Accarino (<gabriele.accarino@cmcc.it>)
 * Donatello Elia (<donatello.elia@cmcc.it>)
-* Italo Epicoco (<italo.epicoco@cmcc.it>)
-* Giovanni Aloisio (<giovanni.aloisio@cmcc.it>) 
-
+* Giovanni Aloisio (<giovanni.aloisio@cmcc.it>)
 
 ## Data
 
