@@ -91,13 +91,32 @@ SeasFire Cube v3 provides a list of 59 variables on a regular grid that are rela
 
 In order to have a dataset with _time_, _latitude_ and _longitude_ coordinates, some of the chosen variables must be adjusted, in particular `fcci_ba_valid_mask` and `gwis_ba_valid_mask` must be regenerated as maps with the _latitude_ and _longitude_ coordinates for each timestamp present in the _time_ coordinate. For this purpose, for each timestamp, the burned area map (`fcci_ba` and `gwis_ba`) is taken and the binary mask is calculated by placing 1 in pixels where the burned area map has hectare values greater than 0, otherwise 0. Whereas, the variable `lsm` has _latitude_ and _longitude_ as coordinates, since it is a binary map of the globe in which pixels are equal to 1 in land areas and 0 in sea areas. To add the _time_ coordinate to the variable `lsm`, the map was repeated for each timestamp in the dataset.
 
-Following these operations, `merged_ba` and `merged_ba_valid_mask` varaible maps were composed by merging FCCI and GWIS data. It was intended to construct these maps because burned areas present in FCCI were missing in the GWIS data and vice versa. The pixel values of the common burned areas were averaged. Conversely, pixels where burned areas were 0 in one source (FCCI or GWIS) were replaced with values from the other. With this operation, the complete burned area maps were obtained.
+Following these operations, `merged_ba` and `merged_ba_valid_mask` variable maps were composed by merging FCCI and GWIS data. It was intended to construct these maps because burned areas present in FCCI were missing in the GWIS data and vice versa. The pixel values of the common burned areas were averaged. Conversely, pixels where burned areas were 0 in one source (FCCI or GWIS) were replaced with values from the other. With this operation, the complete burned area maps were obtained.
 
 #### Scalers Creation
 
+Once the dataset has been created, it is necessary to choose a scaler to scale data. Tipically, the data are scaled using Standard or MinMax scalers. To achieve this, several maps have been created:
+
+- Standard Scaler: Mean and Standard Deviation maps;
+- MinMax Scaler: Maximum and Minimum maps.
+
+> Why create maps to scale data?
+
+A pixel-wise scaling is needed because the climate variables under consideration vary not only in time but also have different values by spatial domain. Therefore, it is necessary to have to calculate for each variable, along the time axis, maps of Mean, Standard Deviation, Minimum and Maximum. Thus, we obtain bidimensional maps containing only the `latitude` and `longitude` coordinates for each variable in the dataset.
 
 Conda Environment
 -----------------
+
+Python version 3.11.2 or higher is needed.
+
+A conda env containing all the packages and versions required to run the scripts can be created by running the following command:
+
+      conda env create --file wildfires.yaml
+
+> [!TIP]
+> **Important**: Remember to replace `“YOUR WORK DIRECTORY“` with the path to your work directory in the `wildfires.yaml` file in order to install properly the conda environment.
+
+This makes the installation easy and fast. The Tensorflow v2.12.0 was used to train and test the ML4Fires architecture on the [Juno](https://www.cmcc.it/super-computing-center-scc) supercomputer at CMCC.
 
 Models
 ------
