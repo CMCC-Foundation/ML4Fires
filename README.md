@@ -1,7 +1,6 @@
 ML4Fires
 ========
 
-## Overview
 
 This repository includes the code to develop and test data-driven models for Wildfire Burned Areas Prediction and Projection case studies in InterTwin Project on Wildfires.
 
@@ -9,7 +8,23 @@ This repository includes the code to develop and test data-driven models for Wil
 
 The main aim is to provide ML pipelines and models to investigate the Wildfires spread and propagation around the world focusing on Burned Areas.
 
+## Overview
+
+Fire plays an important role in shaping ecosystems, but its long-term carbon-neutral status can be altered by climate change; in fact, climate change is the main cause of worsening fire-related weather factors and increasing global fire activity.
+
+The expansion of fires in evergreen forest regions could weaken their ability to act as carbon sinks, releasing stored carbon into the atmosphere and providing feedback to climate change.
+
+Therefore, it is crucial to improve understanding and anticipation of fires in the Earth system, particularly by assessing the likelihood of occurrence of large events, as climate change and human activity continue to influence fire regimes globally.
+
+Detecting and predicting wildfires is challenging and recent advances in Machine Learning (ML) provide cutting-edge modeling techniques to deal with detection and prediction tasks, offering also cost-effective and fast-computing solutions.
+
 ## The backbone architecture
+
+A Digital Twin (DT), based on data-driven models, will help understand how climate change is affecting the frequency and location of wildfire events, according to different future projection scenarios based on different socioeconomic changes.
+
+Different DNN architectures must be evaluated to address the various use cases, including Convolutional and Graph networks. The trained models will be used as a base for understanding how different climate scenarios can affect extreme events frequency, locations, probability, etc. Future projection data from large experiments, like the Climate Model Intercomparison Project 6th phase (CMIP6), will be used as input for the trained models.
+
+Inspired by the paper [_"Deep Learning for Global Wildfire Forecasting (Prapas et al.)"_](https://arxiv.org/abs/2211.00534), the [UNet++](https://arxiv.org/abs/1807.10165) was chosen as the backbone architecture of the **first version** of our DT to predict fire danger (burned area maps) based on future climate change projections.
 
 Contributors
 ============
@@ -27,7 +42,7 @@ Advanced Scientific Computing (ASC) Division
 ## Data
 
 Data from different sources will be considered.
-The first data source is the [SeasFire Cube v3](https://zenodo.org/records/8055879), a data cube of pre-processed data provided by SeasFire project integrating multiple sources. The **SeasFire Cube Dataset** contains a set of 54 climate variables aligned on a **regular grid**. All variables have a **spatial resolution** of **$0.25° \times 0.25°$** and a **temporal resolution** of **8 days**
+The first data source is the [SeasFire Cube v3](https://zenodo.org/records/8055879), a data cube of pre-processed data provided by SeasFire project integrating multiple sources. The **SeasFire Cube Dataset** contains a set of 54 climate variables aligned on a **regular grid**. All variables have a **spatial resolution** of **$\small{0.25° \times 0.25°}$** and a **temporal resolution** of **8 days**
 
 | Feature | Value |
 | :-- | :-- |
@@ -120,6 +135,9 @@ This makes the installation easy and fast. The Tensorflow v2.12.0 was used to tr
 
 Models
 ------
+
+To study Wildfires danger and Burned Areas around the globe, several Machine Learning models have been considered
+
 
 Library Structure
 -----------------
