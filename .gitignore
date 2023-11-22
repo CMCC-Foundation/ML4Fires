@@ -1,0 +1,5 @@
+.DS_Store
+# seasfire.zarr
+*.pyc
+# data
+*.log
