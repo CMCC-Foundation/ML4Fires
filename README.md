@@ -203,10 +203,4 @@ bsub < launch.sh
 
 <!-- ## Output -->
 
-## Future Investigations
-
-```[tasklist]
-### Done
-- [x] [Ciao](#choosing-the-variables)
-
-```
+<!-- ## Future Investigations -->
