@@ -122,7 +122,7 @@ Once the dataset has been created, it is necessary to choose a scaler to scale d
 
 > Why create maps to scale data?
 
-A pixel-wise scaling is needed because the climate variables under consideration vary not only in time but also have different values by spatial domain. Therefore, it is necessary to have to calculate for each variable, along the time axis, maps of Mean, Standard Deviation, Minimum and Maximum. Thus, we obtain bidimensional maps containing only the `latitude` and `longitude` coordinates for each variable in the dataset.
+A pixel-wise scaling is needed because the climate variables under consideration vary not only in time but also have different values by spatial domain. Therefore, it is necessary to compute for each variable, along the time axis, maps of Mean, Standard Deviation, Minimum and Maximum. Thus, we obtain bidimensional maps containing only the `latitude` and `longitude` coordinates for each variable in the dataset. These maps can be used to build Standard and MinMax scalers and scale data.
 
 Conda Environment
 -----------------
