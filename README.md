@@ -138,7 +138,6 @@ A conda env containing all the packages and versions required to run the scripts
 
 This makes the installation easy and fast. The Tensorflow v2.12.0 was used to train and test the ML4Fires architecture on the [Juno](https://www.cmcc.it/super-computing-center-scc) supercomputer at CMCC.
 
-
 Library Structure
 -----------------
 
@@ -203,4 +202,11 @@ bsub < launch.sh
 ```
 
 <!-- ## Output -->
-<!-- ## Future Investigations -->
+
+## Future Investigations
+
+```[tasklist]
+### Done
+- [x] [Ciao](#choosing-the-variables)
+
+```
