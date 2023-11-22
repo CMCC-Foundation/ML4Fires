@@ -144,6 +144,9 @@ Library Structure
 The library is structured as follows:
 ```bash
 ├── README.md
+├── config
+│   ├── configuration.toml
+│   ├── models.toml
 ├── data
 │   ├── seasfire_v03.zarr
 │   ├── scaler
@@ -159,19 +162,23 @@ The library is structured as follows:
 │   │   ├── 00_days_dataset
 ├── experiments
 ├── library
-│   ├── file.py
+│   ├── __init__.py
+│   ├── augmentation.py
+│   ├── cache.py
+│   ├── configuration.py
+│   ├── dataset_builder_wf.py
+│   ├── dataset_builder.py
+│   ├── dataset_creator.py
+│   ├── decorators.py
+│   ├── hyperparams.py
 │   ├── layers.py
 │   ├── macros.py
 │   ├── models.py
-│   ├── hyperparams.py
 │   ├── scaling.py
-│   ├── utils.py
-├── src
-│   ├── config
-│   │   ├── configuration.toml
-│   │   ├── models.toml
-│   ├── main.py
-│   ├── launch.sh
+│   ├── tfr_io.py
+│   ├── timer_class.py
+├── main.py
+├── launch.sh
 ```
 
 ### How to run the code on a LSF cluster (with GPUs)
