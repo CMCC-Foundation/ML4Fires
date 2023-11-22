@@ -1,0 +1,28 @@
+
+#####################################################################
+#								DATA								#
+#####################################################################
+[toml_configuration_files]
+toml_model = "load_global_config(config_fname='models.toml')"
+
+[data]
+seasfirecube_path = "os.path.join(DATA_DIR, 'seasfire_v03.zarr')"
+seed = 34698270934765 # "int(str(dt.now().timestamp()).split('.')[0])"
+tfrecords_dir = "00_days_dataset"
+selected_configuration = 'config_1'
+
+[data.features]
+drivers = ['lst_day', 'lai', 'rel_hum', 'ssr', 'sst', 't2m_min', 'tp']
+targets = ['fcci_ba', 'gwis_ba']
+target_masks = ['fcci_ba_valid_mask', 'gwis_ba_valid_mask']
+landsea_mask = ['lsm']
+merged_ba = ['merged_ba']
+merged_ba_mask = ['merged_ba_valid_mask']
+
+
+#####################################################################
+#								DATETIME							#
+#####################################################################
+
+[datetime]
+today = "str(dt.now()).replace('-','').replace(' ','_').replace(':','').split('.')[0]"
