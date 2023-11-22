@@ -41,8 +41,9 @@ Advanced Scientific Computing (ASC) Division
 
 ## Data
 
-Data from different sources will be considered.
-The first data source is the [SeasFire Cube v3](https://zenodo.org/records/8055879), a data cube of pre-processed data provided by SeasFire project integrating multiple sources. The **SeasFire Cube Dataset** contains a set of 54 climate variables aligned on a **regular grid**. All variables have a **spatial resolution** of **$\small{0.25° \times 0.25°}$** and a **temporal resolution** of **8 days**
+### Sources
+
+The first data source is the [SeasFire Cube v3](https://zenodo.org/records/8055879), a data cube of pre-processed data provided by SeasFire project integrating multiple sources. The **SeasFire Cube Dataset** contains a set of 59 climate variables aligned on a **regular grid**. All variables have a **spatial resolution** of **$\small{0.25° \times 0.25°}$** and a **temporal resolution** of **8 days**.
 
 | Feature | Value |
 | :-- | :-- |
@@ -66,11 +67,15 @@ The second data source is [CMIP6](https://esgf-node.llnl.gov/projects/cmip6/) da
 
 ### Overview
 
-Of the 54 variables provided by SeasFire Cube, 12 variables have been selected and the last 2 (`merged_ba` and `merged_ba_valid_mask`) have been obtained from a merge of _FCCI_ (`fcci_ba` and `fcci_ba_valid_mask`) and _GWIS_ (`gwis_ba` and `gwis_ba_valid_mask`) burned areas variables.
+The dataset used to carry on the development of the code for InterTwin DT on wildfires is composed by 14 climate variables:
 
-In the table below are provided additional details regarding the list of all used variables. As can be seen, for each variable we put the CMIP6 variable short name near to the SeasFire Cube v3 variable short name in order to provide a match between them.
+- 12 climate variables belong to SeasFire Cube v3;
+- 2 (`merged_ba` and `merged_ba_valid_mask`) are obtained by merging _FCCI_ (`fcci_ba` and `fcci_ba_valid_mask`) and _GWIS_ (`gwis_ba` and `gwis_ba_valid_mask`) variables on burned areas.
+
 
 #### Drivers
+
+The table below provides additional details regarding the list of all used variables. As can be seen, for each SeasFire Cube v3 climate variable is associated the CMIP6 climate variable short name in order to provide a match between them.
 
 | Variable | CMIP6 | SeasFire Cube | Shape | Units |  Origin |
 | :--- | :--- | :--- | :--- | :--- |  :--- |
@@ -96,11 +101,11 @@ The table below contains all the targets used to train the Deep Neural Network m
 | _Burned Areas - MERGE_ | - | `merge_ba` | (**time**, lat, lon) | ha | _Computed_ |
 | _Valid mask (B.A.) - MERGE_ | - | `merge_ba_valid_mask` | (**time**) | 0-1| _Computed_ |
 
-### Input Data Preparation
+## Input Data Preparation
 
 #### Choosing the variables
 
-SeasFire Cube v3 provides a list of 59 variables on a regular grid that are related to wildfires in an xArray dataset stored in `.zarr` format. From these, a subset of 12 variables was chosen. Most of them have _time_, _latitude_ and _longitude_ as their coordinates. Other variables, such as `fcci_ba_valid_mask` and `gwis_ba_valid_mask`, have only _time_ coordinates. Finally, the variable `lsm` has _latitude_ and _longitude_ as its coordinates; this is because the Land-Sea Mask is a binary map of water bodies.
+SeasFire Cube v3 provides a list of 59 climate variables on a regular grid that are related to wildfires in an xArray dataset stored in `.zarr` format. As described previously in the [Data](#overview-1) section, a subset of 12 climate variables was chosen. Most of them have _time_, _latitude_ and _longitude_ as their coordinates. Other variables, such as `fcci_ba_valid_mask` and `gwis_ba_valid_mask`, have only _time_ coordinates. Finally, the variable `lsm` has _latitude_ and _longitude_ as its coordinates; this is because the Land-Sea Mask is a binary map of water bodies.
 
 #### Preprocessing data
 
@@ -197,9 +202,5 @@ cd src
 bsub < launch.sh
 ```
 
-## Output
-
-
-
-## Future Investigations
-
+<!-- ## Output -->
+<!-- ## Future Investigations -->
