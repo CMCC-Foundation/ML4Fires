@@ -87,6 +87,18 @@ class UNETPlusPlus():
 
 	@debug(log=_old_unet_log)
 	def __EncoderBranch(self, input, filters):
+		"""
+		UNET++ model Encoder branch
+
+		Parameters
+		----------
+		input : Keras Input Layer
+			Input layer
+		filters : list
+			List of filters used during the construction of the Encoder branch
+
+		"""
+
 		fn_name = inspect.currentframe().f_code.co_name
 		self.logger.info(f'{fn_name} | Encoder branch')
 
@@ -104,6 +116,10 @@ class UNETPlusPlus():
 
 	@debug(log=_old_unet_log)
 	def __MiddleLayers(self):
+		"""
+		UNET++ Middle Layers that connect Encoder and Decoder layers.
+
+		"""
 		fn_name = inspect.currentframe().f_code.co_name
 		self.logger.info(f'{fn_name} | Middle layers and Decoder branch computation')
 
@@ -134,23 +150,25 @@ class UNETPlusPlus():
 	@debug(log=_old_unet_log)
 	def __EncodeUnit(self, input, stage, filter):
 		"""
-		Encode Unit
-		-----------
 		The `Encode Unit` is used to build the UNET++ Encoder branch
 
-		### Args:
-		- `input` (keras Layer):\\
-			input layer used to build encoder branch
-		- `stage` (str):\\
-			string that describes in which stage is the creation of UNET++ encoder branch
-		- `filter` (int):\\
-			filter used in the current stage
+		Parameters
+		----------
+		input : Keras Input Layer
+			Input layer used to build encoder branch
+		stage : str
+			String that describes in which stage is the creation of UNET++ encoder branch
+		filter : int
+			Filter used in the current stage
 
-		### Returns:
-		- `conv_unit`, `max_pool` (tuple):\\
-			the first one is the skip connection used to build middle layers during UNET++ creation\\
+		Returns
+		-------
+		conv_unit, max_pool : tuple
+			The first one is the skip connection used to build middle layers during UNET++ creation,
 			the second one is used as input to the next Encode Unit in order to build Encoder branch
+		
 		"""
+
 		conv_unit = ConvUnit(filter=filter, stage=stage, name=f"ENC_{stage}_Conv_Unit")(input)
 		max_pool = tf.keras.layers.MaxPooling2D(**max_pool_params(stage=stage))(conv_unit)
 		return conv_unit, max_pool
@@ -159,24 +177,25 @@ class UNETPlusPlus():
 	@debug(log=_old_unet_log)
 	def __DecodeUnit(self, input1, input2, filter, stage):
 		"""
-		Decode Unit
-		-----------
 		The `Decode Unit` is used to build UNET++ middle layers and Decoder branch.
 
-		### Args:
-		- `input1` (keras Layer):\\
-			this is used as input layer in the upsampling stage
-		- `input2` (list, keras Layer):\\
-			this is a list of layers and are used as input in the concatenation stage
-		- `filter` (int):\\
-			filter used during the current stage
-		- `stage` (str):\\
-			string that describes in which stage is the creation of UNET++ decoder branch
+		Parameters
+		----------
+		input1 : keras Layer
+			This is used as input layer in the upsampling stage
+		input2 : keras Layer
+			This is a list of layers and are used as input in the concatenation stage
+		filter : int
+			Filter used during the current stage
+		stage : str
+			String that describes in which stage is the creation of UNET++ decoder branch
 
-		### Returns:
-		- `x` (Conv Unit Layer):\\
+		Returns
+		-------
+		x : Conv Unit Layer
 			Conv Unit layer that is at the end of Decode Unit block
 		"""
+
 		x = tf.keras.layers.Conv2DTranspose(filter, (2, 2), strides=(2, 2), name=f'DEC_{stage}_Upsampling', padding='same')(input1)
 		x = tf.keras.layers.Concatenate(name=f'DEC_{stage}_Merge')([x]+input2)
 		x = ConvUnit(filter=filter, stage=stage, name=f"DEC_{stage}_Conv_Unit")(x)
@@ -186,18 +205,30 @@ class UNETPlusPlus():
 	@debug(log=_old_unet_log)
 	def __CreationUnit(self, inputs, row, col, filter, mid_layers):
 		"""
-		CREATION UNIT
-		-------------
-		The `CreationUnit` is used to compute the input layers for the `DecodeUnit`.\\	
+		The `CreationUnit` is used to compute the input layers for the `DecodeUnit`.\\
 		The `in_1` variable is the reversed input layer and is the first input for Decode Unit.\\	
 		The `in_2` variable is the list of layers to concatenate in the `DecodeUnit`.\\
 		In the beginning, the `in_2` must contain only the second reversed input layer;\\
 		later, it must contain the second reversed input layer + list of previous middle layers.\\
 		These layers must be concatenated to the upsampled layer in the `DecodeUnit`.
+		
+		Parameters
+		----------
+		inputs : list
+			List of two keras Layers used to compute the Decode Unit
+		row, col : int, int
+			Position of the current stage, it is used to take in account which layer must be created
+		filter : int
+			Filter used during the current stage
+		mid_layers : list
+			List of middle keras Layers
 
-		### Returns:
-		- Decode Unit
+		Returns
+		-------
+		x : Decode Unit
+
 		"""
+		
 		in_1 = inputs[0]
 		in_2 = [inputs[1]] if col==0 else ([mid_layers] if len(mid_layers) == 1 else mid_layers)
 		x = self.__DecodeUnit(input1=in_1, input2=in_2, stage=f'{row}{col+1}', filter=filter)
@@ -206,6 +237,12 @@ class UNETPlusPlus():
 
 	@debug(log=_old_unet_log)
 	def __DeepSupervisionLayers(self):
+		"""
+		Performs Deep Supervision in UNET++.
+		If `deep_supervision` flag is set, then returns as output a list of layers (Stages: 01, 02, 03, 04).
+		Otherwise, it returns only the last layer which corresponds to the stage 04.
+
+		"""
 		fn_name = inspect.currentframe().f_code.co_name
 		self.logger.info(f"{fn_name} | Creating Deep Supervision Layers")
 		
@@ -273,6 +310,11 @@ class UNETPlusPlusNew():
 
 	@debug(log=_new_unet_log)
 	def __EncoderBranch(self):
+		"""
+		UNET++ model Encoder branch
+
+		"""
+		
 		fn_name = inspect.currentframe().f_code.co_name
 		self.logger.info(f'{fn_name} | Encoder branch')
 
@@ -294,23 +336,25 @@ class UNETPlusPlusNew():
 	@debug(log=_new_unet_log)
 	def __EncodeUnit(self, input, stage, filter):
 		"""
-		Encode Unit
-		-----------
 		The `Encode Unit` is used to build the UNET++ Encoder branch
 
-		### Args:
-		- `input` (keras Layer):\\
-			input layer used to build encoder branch
-		- `stage` (str):\\
-			string that describes in which stage is the creation of UNET++ encoder branch
-		- `filter` (int):\\
-			filter used in the current stage
+		Parameters
+		----------
+		input : Keras Input Layer
+			Input layer used to build encoder branch
+		stage : str
+			String that describes in which stage is the creation of UNET++ encoder branch
+		filter : int
+			Filter used in the current stage
 
-		### Returns:
-		- `conv_unit`, `max_pool` (tuple):\\
-			the first one is the skip connection used to build middle layers during UNET++ creation\\
+		Returns
+		-------
+		conv_unit, max_pool : tuple
+			The first one is the skip connection used to build middle layers during UNET++ creation,
 			the second one is used as input to the next Encode Unit in order to build Encoder branch
+		
 		"""
+
 		level = int(stage[0])
 		self.logger.info(f"Level (Stage): {level}")
 		if level == 0:
@@ -327,6 +371,11 @@ class UNETPlusPlusNew():
 
 	@debug(log=_new_unet_log)
 	def __MiddleLayers(self):
+		"""
+		UNET++ Middle Layers that connect Encoder and Decoder layers.
+
+		"""
+
 		fn_name = inspect.currentframe().f_code.co_name
 		self.logger.info(f'{fn_name} | Middle layers and Decoder branch computation')
 
@@ -360,18 +409,30 @@ class UNETPlusPlusNew():
 	@debug(log=_new_unet_log)
 	def __CreationUnit(self, inputs, row, col, filter, mid_layers):
 		"""
-		CREATION UNIT
-		-------------
-		The `CreationUnit` is used to compute the input layers for the `DecodeUnit`.\\	
+		The `CreationUnit` is used to compute the input layers for the `DecodeUnit`.\\
 		The `in_1` variable is the reversed input layer and is the first input for Decode Unit.\\	
 		The `in_2` variable is the list of layers to concatenate in the `DecodeUnit`.\\
 		In the beginning, the `in_2` must contain only the second reversed input layer;\\
 		later, it must contain the second reversed input layer + list of previous middle layers.\\
 		These layers must be concatenated to the upsampled layer in the `DecodeUnit`.
+		
+		Parameters
+		----------
+		inputs : list
+			List of two keras Layers used to compute the Decode Unit
+		row, col : int, int
+			Position of the current stage, it is used to take in account which layer must be created
+		filter : int
+			Filter used during the current stage
+		mid_layers : list
+			List of middle keras Layers
 
-		### Returns:
-		- Decode Unit
+		Returns
+		-------
+		x : Decode Unit
+
 		"""
+
 		in_1 = inputs[0]
 		in_2 = [inputs[1]] if col==0 else ([mid_layers] if len(mid_layers) == 1 else mid_layers)
 		x = self.__DecodeUnit(input1=in_1, input2=in_2, stage=f'{row}{col+1}', filter=filter)
@@ -381,24 +442,25 @@ class UNETPlusPlusNew():
 	@debug(log=_new_unet_log)
 	def __DecodeUnit(self, input1, input2, filter, stage):
 		"""
-		Decode Unit
-		-----------
 		The `Decode Unit` is used to build UNET++ middle layers and Decoder branch.
 
-		### Args:
-		- `input1` (keras Layer):\\
-			this is used as input layer in the upsampling stage
-		- `input2` (list, keras Layer):\\
-			this is a list of layers and are used as input in the concatenation stage
-		- `filter` (int):\\
-			filter used during the current stage
-		- `stage` (str):\\
-			string that describes in which stage is the creation of UNET++ decoder branch
+		Parameters
+		----------
+		input1 : keras Layer
+			This is used as input layer in the upsampling stage
+		input2 : keras Layer
+			This is a list of layers and are used as input in the concatenation stage
+		filter : int
+			Filter used during the current stage
+		stage : str
+			String that describes in which stage is the creation of UNET++ decoder branch
 
-		### Returns:
-		- `x` (Conv Unit Layer):\\
+		Returns
+		-------
+		x : Conv Unit Layer
 			Conv Unit layer that is at the end of Decode Unit block
 		"""
+
 		i = int(stage[0])
 		self.logger.info(f"Level (Stage): {i}")
 		if i == 0:
@@ -416,6 +478,13 @@ class UNETPlusPlusNew():
 
 	@debug(log=_new_unet_log)
 	def __DeepSupervisionLayers(self):
+		"""
+		Performs Deep Supervision in UNET++.
+		If `deep_supervision` flag is set, then returns as output a list of layers (Stages: 01, 02, 03, 04).
+		Otherwise, it returns only the last layer which corresponds to the stage 04.
+
+		"""
+		
 		fn_name = inspect.currentframe().f_code.co_name
 		self.logger.info(f"{fn_name} | Creating Deep Supervision Layers")
 		 

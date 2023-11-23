@@ -28,6 +28,11 @@ toml_model = eval(toml_general['toml_configuration_files']['toml_model'])
 
 @export
 class ConvUnit(tf.keras.layers.Layer):
+	"""
+	Convolutional Unit used to build UNET++ models.
+	It extends Tensorflow Keras Layer class.
+	
+	"""
 	
 	def __init__(self, stage, filter, trainable=True, name=None, dtype=None, dynamic=False, **kwargs):
 		super(ConvUnit, self).__init__(trainable, name, dtype, dynamic, **kwargs)

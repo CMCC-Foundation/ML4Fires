@@ -34,14 +34,14 @@ class Logger():
 		
 		Parameters
 		----------
-		* log_dir : str \\
+		log_dir : str
 			path to log folder, it's recommended to use `os.path.join(os.getcwd(), 'logs')`
-		* filename : str \\
+		filename : str
 			name of the log file, it must end with `.log` or `.txt` extension
 
 		Raises
 		------
-		* NameError \\
+		NameError
 			if the filename doesn't end with `.log` or `.txt`, it raises a `NameError()` exception
 		"""
 		
@@ -70,15 +70,15 @@ class Logger():
 
 		Parameters
 		----------
-		* log_name : str \\
+		log_name : str
 			defines the name of the logger and it's used to create the specific logger folder
 			where to store the log file
-		* level : logging level, optional \\
+		level : logging level, optional
 			defines the base logging level, by default logging.INFO
 
 		Returns
 		-------
-		* logger
+		logger
 			Return a logger with the specified name.
 		"""
 		spec_log_dir = os.path.join(self.log_dir, log_name)

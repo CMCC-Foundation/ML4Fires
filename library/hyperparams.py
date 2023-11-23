@@ -26,7 +26,7 @@ toml_model = eval(toml_general['toml_configuration_files']['toml_model'])
 
 _layers_dict = toml_model['layers']
 
-# Layers params
+# layers params
 conv_params = lambda filter, name : dict(
     filters=filter, 
 	kernel_size=eval(_layers_dict['kernel']), 
@@ -36,6 +36,7 @@ conv_params = lambda filter, name : dict(
 	padding=_layers_dict['padding'], 
 	kernel_regularizer=eval(_layers_dict['regularizer']))
 
+# max pooling parameters
 max_pool_params = lambda stage: dict(
     pool_size=eval(_layers_dict['maxpool_size']), 
     strides=eval(_layers_dict['maxpool_strides']),
@@ -43,6 +44,7 @@ max_pool_params = lambda stage: dict(
     name=f'{stage}_MaxPooling'
 )
 
+# max pooling parameters
 max_pool_params_05_10 = lambda stage: dict(
     pool_size = (5, 10),
 	strides = (5, 10),
@@ -50,6 +52,7 @@ max_pool_params_05_10 = lambda stage: dict(
     name=f'{stage}_MaxPooling_5X10'
 )
 
+# max pooling parameters
 max_pool_params_03_03 = lambda stage: dict(
     pool_size = (3, 3),
 	strides = (3, 3),

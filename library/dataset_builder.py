@@ -21,7 +21,6 @@
 
 import tensorflow as tf
 from .scaling import StandardScaler
-from .tfr_io import TensorCoder
 from .decorators import export
 
 @export
@@ -125,19 +124,3 @@ class DatasetBuilder():
 		Counts the number of elements present in the passed dataset files.
 		"""
 		return sum([int(fname.split('/')[-1].split('.tfrecord')[0].split('_')[-1]) for fname in filenames])
-
-
-# @export
-# def ReadTFRecordDataset(files : list, tensor_coder : TensorCoder):
-# 	"""
-# 	Reads the entire TFRecord dataset at once.
-
-# 	"""
-# 	# get the number of elements of the dataset
-# 	n = sum(1 for _ in tf.data.TFRecordDataset(files))
-# 	# load the tfrecord dataset
-# 	record_dataset = tf.data.TFRecordDataset(files, num_parallel_reads=tf.data.AUTOTUNE).map(tensor_coder.decoding_fn, num_parallel_calls=tf.data.AUTOTUNE)
-# 	# get the data tuple
-# 	data = record_dataset.batch(batch_size=n).as_numpy_iterator().next()
-# 	# return the data tuple
-# 	return data

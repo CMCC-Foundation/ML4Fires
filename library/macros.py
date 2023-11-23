@@ -20,8 +20,6 @@
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 import os
-from os import path
-import tensorflow as tf
 from datetime import datetime as dt
 
 MODEL_NAME = "UNET++"
@@ -82,8 +80,5 @@ LONG_NAME = 'Burned Areas from GWIS and FCCI'
 PROVIDER = 'GWIS | ESA CCI'
 
 
-
-
-
 # import shutil
-# shutil.copy(src='macros_itwn.py', dst='hyperparameters.txt')
+# shutil.copy(src='macros.py', dst='hyperparameters.txt')

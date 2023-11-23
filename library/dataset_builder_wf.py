@@ -17,7 +17,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.	#
 # See the License for the specific language governing permissions and		#
 # limitations under the License.											#
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 import os
 import inspect
@@ -60,37 +60,38 @@ class WildFiresDatasetBuilder(DatasetBuilder):
 		self.datasets_list = [self.main_dataset]
 
 
-	# def source(self, filenames):
-	# 	"""
-	# 	Adds a new source of filenames for the dataset. The source must contain 
-	# 	elements of identical type.
+	def source(self, filenames):
+		"""
+		Adds a new source of filenames for the dataset. The source must contain 
+		elements of identical type.
 
-	# 	Parameters
-	# 	----------
-	# 	filenames : list(str)
-	# 	    List of filenames used as source for the dataset
+		Parameters
+		----------
+		filenames : list(str)
+		    List of filenames used as source for the dataset
 
-	# 	"""
-	# 	# get function name
-	# 	fn_name = inspect.currentframe().f_code.co_name
+		"""
+		# get function name
+		fn_name = inspect.currentframe().f_code.co_name
 		
-	# 	# count the number of elements of the dataset and increment count variable
-	# 	self.count += self._count_filenames_elems(filenames=filenames)
-	# 	self.logger.info(f"{fn_name} | Number of elements of the dataset: {self.count}")
+		# count the number of elements of the dataset and increment count variable
+		self.count += self._count_filenames_elems(filenames=filenames)
+		self.logger.info(f"{fn_name} | Number of elements of the dataset: {self.count}")
 		
-	# 	# save the filenames
-	# 	self.filenames += filenames
-	# 	self.logger.info(f"{fn_name} | Save filenames: \n {self.filenames}")
+		# save the filenames
+		self.filenames += filenames
+		self.logger.info(f"{fn_name} | Save filenames: \n {self.filenames}")
 		
-	# 	# create the dataset
-	# 	self.datasets_list += [tf.data.TFRecordDataset(filenames, num_parallel_reads=self.AUTOTUNE).map(self.tensor_coder.decoding_fn, num_parallel_calls=self.AUTOTUNE)]
+		# create the dataset
+		self.datasets_list += [tf.data.TFRecordDataset(filenames, num_parallel_reads=self.AUTOTUNE).map(self.tensor_coder.decoding_fn, num_parallel_calls=self.AUTOTUNE)]
 		
-	# 	return self
+		return self
 
 
 	def augment(self, aug_fns):
 		"""
 		Create and adds to the dataset the augmented versions of the data
+		
 		"""
 
 		# add augmented datasets to the main
@@ -101,7 +102,8 @@ class WildFiresDatasetBuilder(DatasetBuilder):
 
 	def assemble_dataset(self):
 		"""
-		Assemble a tf.data.Dataset that has been built from sources and augmentations.
+		Assemble a tf.data.Dataset that has been built from sources and augmentations
+
 		"""
 
 		# get function name
@@ -132,6 +134,10 @@ class WildFiresDatasetWriter(DatasetWriter):
 
 
 	def source(self, **kwargs):
+		"""
+		Add years and data as sources
+
+		"""
 
 		if 'years' in kwargs.keys():
 			self.years = kwargs['years']
@@ -141,6 +147,22 @@ class WildFiresDatasetWriter(DatasetWriter):
 
 	
 	def process(self, dst):
+		"""
+		Process data 
+		
+
+		Parameters
+		----------
+		dst : str
+			Path to directory with `.tfrecord` files
+
+		Raises
+		------
+		Exception
+			When years are not added as source
+		Exception
+			When data is not added as source
+		"""
 
 		if not hasattr(self, 'years'):
 			raise Exception(f'No data years have been found. Try adding them with source(years=[list, of, years])')
@@ -160,14 +182,14 @@ class WildFiresDatasetWriter(DatasetWriter):
 			ds = loaded_ds.sel(time=str(year)) 
 
 			# convert dataset data to numpy array
-			data = self.__data_to_numpy(ds)
+			data = self._data_to_numpy(ds)
 			self.logger.info(f"Shape: {data[0].shape}")
 
 			# save data to disk
 			self.write(dst=dst, data=data, year=year)
 
 
-	def __data_to_numpy(self, ds):
+	def _data_to_numpy(self, ds):
 		"""
 		Builds a numpy array from the provided patch dataset and ids to be got. 
 		Domain patches are stacked together and then stacked along time.

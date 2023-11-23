@@ -22,7 +22,6 @@
 import os
 import numpy as np
 import tensorflow as tf
-from .cache import read_cache
 from .decorators import debug, export
 from .macros import LOG_DIR, SCALER_DIR
 from .logger import Logger as logger

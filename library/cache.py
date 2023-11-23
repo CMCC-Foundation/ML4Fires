@@ -29,14 +29,37 @@ _cache_log = logger(log_dir=LOG_DIR).get_logger(log_name="cache")
 @export
 @debug(log=_cache_log)
 def read_cache(cache_path: str):
-    cached = None
-    if os.path.exists(cache_path):
-        with open(cache_path, "rb") as f:
-            cached = pickle.load(f)
-    return cached
+	"""
+	Read cached files using pickle
+
+	Parameters
+	----------
+	cache_path : str
+		Path to cached files
+
+	Returns
+	-------
+	Any
+		Loaded file
+	"""
+	cached = None
+	if os.path.exists(cache_path):
+		with open(cache_path, "rb") as f:
+			cached = pickle.load(f)
+	return cached
 
 @export
 @debug(log=_cache_log)
 def write_cache(ds, cache_path: str):
-    with open(cache_path, "wb") as f:
-        pickle.dump(ds, f)
+	"""
+	Write data into cache files using pickle
+
+	Parameters
+	----------
+	ds : Any
+		Data that must be stored
+	cache_path : str
+		Path to cached file
+	"""
+	with open(cache_path, "wb") as f:
+		pickle.dump(ds, f)

@@ -38,30 +38,42 @@ toml_model = eval(toml_general['toml_configuration_files']['toml_model'])
 @export
 @debug(log=_log)
 class DatasetCreator():
+	"""
+	Creates the dataset and `.tfrecord` files used to perform the experiments
+	"""
 
 	def __init__(self, years:list=[], target_source:str=None, shift_list:list=[]) -> None:
 		
 		self.logger = _log
 		
+		# check if the target source has been set
 		if target_source is None:
 			raise ValueError('The target source must not be None')
 		
+		# check if the target source is FCCI, GWIS or MERGE
 		if target_source.upper() not in ['FCCI', 'GWIS', 'MERGE']:
 			raise ValueError(f'Specify a valid target source between FCCI, GWIS or MERGE. Current value is {target_source}')
-
+		
+		# check if the shift list ise empty or not
 		if not shift_list:
 			raise ValueError(f'List of shifts must not be empty')
 		
+		# set the target source
 		self.logger.info(f'Target source: {target_source.upper()}')
 		self.target_source=target_source.upper()
 		
+		# set the shift list
 		self.logger.info(f'Shift list: {shift_list}')
 		self.shift_list = shift_list
 
+		# get list of years to build the dataset
 		self._get_years(years)
+
+		# build and get the dataset
 		self._get_dataset()
 	
 	def build(self):
+
 		# merge GWIS and FCCI burned areas data
 		fn_name = inspect.currentframe().f_code.co_name
 
@@ -72,7 +84,7 @@ class DatasetCreator():
 		# select feature data
 		ds = self.dataset[self.features]
 
-		# shifting dataset
+		# shift the dataset
 		self.logger.info(f"{fn_name} | Shifting Dataset")
 		self._shift_dataset(data=ds)
 
@@ -82,13 +94,36 @@ class DatasetCreator():
 
 
 	def _get_years(self, years:list):
-		# check if years list is empty or not
+		"""
+		Retrieve the list of years used to build the dataset.
+		The list of years can be specified in the __init__() function as argument.
+		If not specified, then the list will 
+
+		Parameters
+		----------
+		years : list
+			list of years
+		"""
 		fn_name = inspect.currentframe().f_code.co_name
 		self.logger.info(f"{fn_name} | List of selected years is {'empty' if not years else years}")
+		# check if years list is empty or not
 		self.years = list(range(2001, 2022, 1)) if not years else years
 
 	
 	def _bin_mask(self, data):
+		"""
+		Create a binary mask for a specific climate variable
+
+		Parameters
+		----------
+		data : xarray DataArray
+			a DataArray of a specific climate varaible
+
+		Returns
+		-------
+		xarray DataArray
+			the binary mask (DataArray) with 0 and 1
+		"""
 		fn_name = inspect.currentframe().f_code.co_name
 		self.logger.info(f"{fn_name} | Creating binary mask")
 		temp = data.where(data>0, 0)
@@ -96,6 +131,23 @@ class DatasetCreator():
 	
 
 	def _longitude_fillnan(self, var_name, data):
+		"""
+		If a climate variable lacks of data (NaN values) on the Greenwich meridian,
+		this function fills the missing data with the mean computed with data from 
+		the previous and the following meridians.
+
+		Parameters
+		----------
+		var_name : string
+			Climate variable name
+		data : xarray Dataset
+			Dataset from which get climate variable data
+
+		Returns
+		-------
+		xarray DataArray
+			Complete data for the specified climate variable
+		"""
 		# fill NaN values for Greenwich longitude (it must be a problem due to the dataset creation methodology)
 		fn_name = inspect.currentframe().f_code.co_name
 		self.logger.info(f"{fn_name} | Filling longitude values for variable {var_name}")
@@ -105,6 +157,10 @@ class DatasetCreator():
 
 
 	def _setup_dataset(self):
+		"""
+		Create the dataset with the selected driver and target variables
+		"""
+
 		fn_name = inspect.currentframe().f_code.co_name
 		self.logger.info(f"{fn_name} | Setting up dataset")
 		
@@ -118,10 +174,12 @@ class DatasetCreator():
 		self.logger.info(f"{fn_name} | Creating drivers and targets features")
 		self.driver_features = sorted(self.drivers) + self.land_sea_mask
 		
+		# define target variables lists
 		fcci_targets = [self.targets[0], self.target_masks[0]]
 		gwis_targets = [self.targets[1], self.target_masks[1]]
 		merged_targets = self.merged_ba+self.merged_ba_mask
 
+		# select the proper list of target variables depending on target source
 		if self.target_source=='FCCI': self.target_features=fcci_targets
 		elif self.target_source=='GWIS': self.target_features=gwis_targets
 		elif self.target_source=='MERGE': self.target_features=merged_targets
@@ -131,10 +189,16 @@ class DatasetCreator():
 
 
 	def _get_dataset(self):
+		"""
+		Define dataset's path to file, drivers and targets, and build it
+		"""
+
 		fn_name = inspect.currentframe().f_code.co_name
 
+		# get features data from toml configuration file
 		_features_dict = toml_general['data']['features']
-		# define path to data
+
+		# define path to the SeasFire Cube v3 .zarr file
 		self.path = eval(toml_general['data']['seasfirecube_path'])
 		self.logger.info(f"{fn_name} | Path to data: {self.path}")
 
@@ -164,6 +228,32 @@ class DatasetCreator():
 
 
 	def _shift_dataset(self, data):
+		"""
+		It creates `.tfrecord` files from the data set provided as input and saves them in specific folders in the `./data` folder. 
+		A folder is created for each shift in `shift_list`. \\		
+		In each folder `.tfrecord` files will be created with the drivers and targets shifted over time with the specified amount of days.
+
+		Example:
+		```bash
+			|-------------------------------------------------------------|
+			| Target source | Days of shift | Shift List | Shift Day List |
+			|     'FCCI'    |       8       |  [0, 1, 2] |    [0, 8, 16]  |
+			|-------------------------------------------------------------|
+
+			Directories:
+				|- data
+					|- FCCI
+						|- 00_days_dataset
+						|- 08_days_dataset
+						|- 16_days_dataset
+		```
+
+		Parameters
+		----------
+		data : xarray Dataset
+			Dataset composed by the selected features (drivers and targets)
+		"""
+
 		fn_name = inspect.currentframe().f_code.co_name
 		self.logger.info(f"{fn_name} | Starting creation of shifted dataset...")
 
@@ -173,13 +263,11 @@ class DatasetCreator():
 		years = self.years
 		self.logger.info(f"{fn_name} | \n Drivers: {drivers} \n Targets: {targets} \n Years: {years}")
 
-		# define target source dir and create if not exists
-		# $PWD/Data/Target source 
+		# define target source dir and create if not exists: $PWD/data/<Target source>
 		target_src_dir = os.path.join(DATA_DIR, self.target_source)
 		os.makedirs(target_src_dir, exist_ok=True)
 
-		# define lambda function to get folder name to store in DATA_DIR and an empty folder list
-		# $PWD/Data/Target source/NN_days_dataset
+		# get folder name to store in DATA_DIR and an empty folder list: $PWD/data/<Target source>/ <NN_days_dataset>
 		get_dir_name = lambda days : os.path.join(target_src_dir, f'{days}_days_dataset')
 		self.folders = []
 
@@ -232,6 +320,19 @@ class DatasetCreator():
 		self.logger.info("-------------------------------------------------------")
 	
 	def _update_data_info(self, feature):
+		"""
+		Updates infos for MERGE data present in the xarray Dataset
+
+		Parameters
+		----------
+		feature : string
+			Target variable that must be updated
+
+		Returns
+		-------
+		xarray DataArray
+			DataArray with updated infos
+		"""
 		fn_name = inspect.currentframe().f_code.co_name
 		self.logger.info(f"{fn_name} | Dataset infos: {feature.upper()} feature > Updating ")
 		data_feature = self.dataset[feature]
@@ -245,10 +346,14 @@ class DatasetCreator():
 		return data_feature
 	
 	def _combine_ba_sources(self):
-		fn_name = inspect.currentframe().f_code.co_name
+		"""
+		Combines FCCI and GWIS burned areas data in order to produce MERGE burned areas and valid mask(binary mask) data 
+		"""
 
+		fn_name = inspect.currentframe().f_code.co_name
 		self.logger.info(f"{fn_name} | Combining datasets Burned Area data sources")
 
+		# get GWIS and FCCI burned areas maps
 		map1 = self.dataset.gwis_ba
 		map2 = self.dataset.fcci_ba
 

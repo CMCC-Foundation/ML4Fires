@@ -28,23 +28,62 @@ _logger = logger(log_dir=LOG_DIR).get_logger("Augmentation")
 @export
 @debug(log=_logger)
 def rot180(data):
-    X,Y = data
-    X = tf.image.rot90(X, k=2)
-    Y = tf.image.rot90(Y, k=2)
-    return (X,Y)
+	"""
+	Performs a rotation of 180 degrees
+
+	Parameters
+	----------
+	data : 
+		Image data that must be rotated
+
+	Returns
+	-------
+	tuple
+		Rotated images for drivers and targets
+	"""
+	X,Y = data
+	X = tf.image.rot90(X, k=2)
+	Y = tf.image.rot90(Y, k=2)
+	return (X,Y)
 
 @export
 @debug(log=_logger)
 def left_right(data):
-    X,Y = data
-    X = tf.image.flip_left_right(X)
-    Y = tf.image.flip_left_right(Y)
-    return (X,Y)
+	"""
+	Performs a left-right flip
+
+	Parameters
+	----------
+	data :
+		Image data that must be flipped
+
+	Returns
+	-------
+	tuple
+		Flipped images for drivers and targets
+	"""
+	X,Y = data
+	X = tf.image.flip_left_right(X)
+	Y = tf.image.flip_left_right(Y)
+	return (X,Y)
 
 @export
 @debug(log=_logger)
 def up_down(data):
-    X,Y = data
-    X = tf.image.flip_up_down(X)
-    Y = tf.image.flip_up_down(Y)
-    return (X,Y)
+	"""
+	Performs a up-down flip
+
+	Parameters
+	----------
+	data :
+		Image data that must be flipped
+
+	Returns
+	-------
+	tuple
+		Flipped images for drivers and targets
+	"""
+	X,Y = data
+	X = tf.image.flip_up_down(X)
+	Y = tf.image.flip_up_down(Y)
+	return (X,Y)

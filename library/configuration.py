@@ -22,16 +22,40 @@
 import toml
 import munch
 import os
-import sys
 from .decorators import export
 _config_dir = os.path.join(os.getcwd(), 'config')
 
 @export
 def load_global_config(dir_name : str = _config_dir , config_fname : str = "configuration.toml"):
+	"""
+	Load the TOML configuration file
+
+	Parameters
+	----------
+	dir_name : str, optional
+		Path to directory with TOML configuration files, by default _config_dir
+	config_fname : str, optional
+		Configuration file name, by default "configuration.toml"
+
+	Returns
+	-------
+	dict[str, Any]
+		Dictionary with configuration key-values pairs
+	"""
 	filepath = os.path.join(dir_name, config_fname)
 	return toml.load(filepath) # munch.munchify(toml.load(filepath))
 
 @export
-def save_global_config(new_config , filepath : str = "configuration.toml"):
+def save_global_config(new_config , filepath : str = os.path.join(_config_dir, "configuration.toml")):
+	"""
+	Save new TOML configuration file
+
+	Parameters
+	----------
+	new_config : dict
+		Dictionary with key-value pairs defining the new TOML configuration file
+	filepath : str, optional
+		Path to directory with TOML configuration files, by default "$PWD/config/configuration.toml"
+	"""
 	with open(filepath , "w") as file:
 		toml.dump(new_config , file)

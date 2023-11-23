@@ -23,7 +23,14 @@ import functools
 import sys
 __all__ = ['debug', 'export']
 
+
 def export(fn):
+	"""
+	Decorator used to export methods present in a python file or module.
+	Adds to `__all__` list all the methods and classes that must be exported
+	when `import <module_name>` is called.
+
+	"""
 	mod = sys.modules[fn.__module__]
 	if hasattr(mod, '__all__'):
 		if fn.__name__ not in mod.__all__:
@@ -32,7 +39,13 @@ def export(fn):
 		mod.__all__ = [fn.__name__]
 	return fn
 
+
 def debug(log=None):
+	"""
+	Decorator used to debug methods or classes present in a python file or module.
+	Writes in a log file what happens in all the methods and classes decorated with it.
+
+	"""
 	@functools.wraps(log)
 	def decorator(func):
 		"""Print the function signature and return value"""
@@ -58,15 +71,4 @@ def debug(log=None):
 		
 			return value
 		return wrapper_debug
-	return decorator
-
-# TODO implement decorator to split data in train, validation and test set given the dataset
-def __minmax_maps(dataset):
-	@functools.wraps(dataset)
-	def decorator(func):
-		@functools.wraps(func)
-		def wrapper(*args, **kwargs):
-			train, valid, test = '', '', ''
-			return train, valid, test
-		return wrapper
 	return decorator

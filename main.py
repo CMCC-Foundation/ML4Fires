@@ -55,23 +55,23 @@ model_config = data_dict['selected_configuration']
 main_log.info(f"Defining parameters: \n {toml_model[model_config]}")
 
 # define target source (FCCI, GWIS or MERGE) and training  model parameters
-target_source = toml_model[model_config]['target_source']				# target		: "FCCI"
-batch_size = toml_model[model_config]['bsize']							# batch size	: 4
-base_shape = eval(toml_model[model_config]['base_shape'])				# base shape	: (720, 1440)
-in_shape = (*base_shape, 8)												# input shape	: (720, 1440, 8)
-shard_size = toml_model[model_config]['shard_size']						# shard size	: 2
-epochs = toml_model[model_config]['epochs']								# epochs		: 10
-shift_list = toml_model[model_config]['shift_list']						# shift list	: [0] days
-standard_scaler_type = toml_model[model_config]['scaler_type_zscore']	# scaler type	: 'standard' scaler
-minmax_scaler_type = toml_model[model_config]['scaler_type_minmax']		# scaler type	: 'minmax' scaler
-base_scaler_name = toml_model[model_config]['scaler_name']				# scaler name	: 'scaler.dump'
-shuffle = eval(toml_model[model_config]['shuffle'])						# shuffle data	: True
+target_source = toml_model[model_config]['target_source']
+batch_size = toml_model[model_config]['bsize']
+base_shape = eval(toml_model[model_config]['base_shape'])
+in_shape = (*base_shape, 8)
+shard_size = toml_model[model_config]['shard_size']
+epochs = toml_model[model_config]['epochs']
+shift_list = toml_model[model_config]['shift_list']
+standard_scaler_type = toml_model[model_config]['scaler_type_zscore']
+minmax_scaler_type = toml_model[model_config]['scaler_type_minmax']
+base_scaler_name = toml_model[model_config]['scaler_name']
+shuffle = eval(toml_model[model_config]['shuffle'])
 
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-#
-#	FILENAMES: DIVIDE TFRECORD FILES IN TRAINING AND VALIDATION, SHUFFLE FILENAMES
-#
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+#																						#
+#	FILENAMES: DIVIDE TFRECORD FILES IN TRAINING AND VALIDATION, SHUFFLE FILENAMES		#
+#																						#
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 # create path to tfrecord files
 tfrecords_dir = data_dict['tfrecords_dir']
@@ -96,11 +96,11 @@ if shuffle:
 main_log.info("Filenames have been shuffled")
 
 
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-#
-#	TRAINING - DATASET CREATION: SELECT TARGET SOURCE, GET DRIVERS INFO, CREATE TENSOR CODER, CREATE DATASET BUILDER
-#
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+#																														#
+#	TRAINING - DATASET CREATION: SELECT TARGET SOURCE, GET DRIVERS INFO, CREATE TENSOR CODER, CREATE DATASET BUILDER	#
+#																														#
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 # create dictionary with FwiDatasetBuilder args
 dataset_creator = DatasetCreator(target_source=target_source, shift_list=shift_list)
@@ -131,11 +131,11 @@ def get_WF_DS_Builder(filenames:list):
 trn_ds_builder = get_WF_DS_Builder(filenames=trn_filenames)
 
 
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-#
-#	TRAINING - DATASET CREATION: CREATE SCALER, SCALE DATASET, OPTIMIZE DATASET, ADD REPEATS
-#
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+#																								#
+#	TRAINING - DATASET CREATION: CREATE SCALER, SCALE DATASET, OPTIMIZE DATASET, ADD REPEATS	#
+#																								#
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 # Training Dataset: create, fit and save scaler
 main_log.info(f"Creating and fitting {standard_scaler_type.upper()} scaler")
@@ -166,11 +166,11 @@ trn_dataset = trn_ds_builder.dataset.repeat(count=trn_steps_per_epoch*epochs)
 main_log.info(f"Training dataset has been scaled. Training steps per epoch: {trn_steps_per_epoch}")
 
 
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-#
-#	VALIDATION - DATASET CREATION: GET DATASET BUILDER, SCALE DATA, OPTIMIZE DATASET, ADD REPETITIONS
-#
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+#																										#
+#	VALIDATION - DATASET CREATION: GET DATASET BUILDER, SCALE DATA, OPTIMIZE DATASET, ADD REPETITIONS	#
+#																										#
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 # Validation Dataset: create a WildFiresDatasetBuilder instance for validation files
 val_ds_builder = get_WF_DS_Builder(filenames=val_filenames)
@@ -190,11 +190,11 @@ val_dataset = val_ds_builder.dataset.repeat(count=val_steps_per_epoch*epochs)
 main_log.info(f"Validation dataset has been scaled. Validation steps per epoch: {val_steps_per_epoch}")
 
 
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-#
-#	DATASET DISTRIBUTION: DEFINE LOSS, DEFINE MIRRORED STRATEGY, DISTRIBUTE DATASET, DEFINE MODEL, METRICS AND OPTIMIZER IN MIRRORED STRATEGY SCOPE
-#
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+#																																						#
+#	DATASET DISTRIBUTION: DEFINE LOSS, DEFINE MIRRORED STRATEGY, DISTRIBUTE DATASET, DEFINE MODEL, METRICS AND OPTIMIZER IN MIRRORED STRATEGY SCOPE		#
+#																																						#
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 # define losses, metrics and callbacks
 loss = eval(toml_model['model']['loss'])
@@ -217,11 +217,11 @@ with strategy.scope():
 	model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
 
 
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-#
-#	DEFINE CALLBACKS
-#
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+#																																#
+#														DEFINE CALLBACKS														#
+#																																#
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 
 # define dict with callbacks args
@@ -239,7 +239,7 @@ main_log.info(f"Callbacks: \n {callbacks}")
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 #
-#	MODEL TRAINING: TRAIN MODEL AND SAVE HISTORY IN A FILE
+#										MODEL TRAINING: TRAIN MODEL AND SAVE HISTORY IN A FILE										#
 #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
