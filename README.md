@@ -181,6 +181,15 @@ The library is structured as follows:
 ├── launch.sh
 ```
 
+[![Static Badge](https://img.shields.io/badge/Folder-config-lightgrey?style=flat&logo=?)](./config/) 
+[![Static Badge](https://img.shields.io/badge/Folder-data-lightgrey?style=flat)](./data/)
+[![Static Badge](https://img.shields.io/badge/Folder-experiments-lightgrey?style=flat)](./experiments/)
+[![Static Badge](https://img.shields.io/badge/main-lightgrey?style=flat&logo=python)](./main.py)
+[![Static Badge](https://img.shields.io/badge/launch-lightgrey?style=flat&logo=linux)](./launch.sh)
+[![Static Badge](https://img.shields.io/badge/README-lightgrey?style=flat&logo=markdown)](./README.md)
+
+
+
 ### How to run the code on a LSF cluster (with GPUs)
 
 In order to execute the code, the working directory **must be set** to `src` and a `*.sh` file must be prepared with the following template:
