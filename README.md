@@ -181,12 +181,25 @@ The library is structured as follows:
 ├── launch.sh
 ```
 
-[![Static Badge](https://img.shields.io/badge/Folder-config-lightgrey?style=flat&logo=?)](./config/) 
-[![Static Badge](https://img.shields.io/badge/Folder-data-lightgrey?style=flat)](./data/)
-[![Static Badge](https://img.shields.io/badge/Folder-experiments-lightgrey?style=flat)](./experiments/)
-[![Static Badge](https://img.shields.io/badge/main-lightgrey?style=flat&logo=python)](./main.py)
-[![Static Badge](https://img.shields.io/badge/launch-lightgrey?style=flat&logo=linux)](./launch.sh)
-[![Static Badge](https://img.shields.io/badge/README-lightgrey?style=flat&logo=markdown)](./README.md)
+
+[**`config`**](./config/) is a directory used to store [TOML](https://toml.io/en/) configuration files.
+
+[**`data`**](./data/) is a directory that is used to store important files (e.g., scalers, symbolic links to the dataset, etc).
+
+[**`experiments`**](./experiments/) directory is created at runtime and is used to store, in a hierarchical way, the outputs of the training executions.
+
+[**`library`**](./library/) directory is used to store, in an organized way, all the code that provides support to the `main.py` script during its execution. Model implementations and training utility functions can be found here.
+
+[**`main.py`**](./main.py) file has all the workflow code.
+
+[**`launch.sh`**](./launch.sh) is the file that must be executed to run the experiments.
+
+>[!WARNING]
+Both `data` and `experiments` directories are **empty** and are **not** included in the repository as they contain too heavy files that cannot be stored.
+
+>[!TIP]
+Before running the code, remeber to download the [SeasFire Cube v3](https://zenodo.org/records/8055879) and put into `data` folder.
+
 
 
 
