@@ -4,10 +4,6 @@ ML4Fires
 This repository includes the code to develop and test data-driven models for Wildfire Burned Areas Prediction and Projection case studies<!--in InterTwin Project on Wildfires-->.
 The main aim is to provide ML pipelines and models to investigate the Wildfires spread and propagation around the world focusing on Burned Areas.
 
->[!NOTE]
-This software product is currently used to carry on the use case on Wildfires in the InterTwin Project:
-[![InterTwin](images/intertwin.png)](https://www.intertwin.eu/intertwin-use-case-a-digital-twin-for-projecting-wildfire-danger-due-to-climate-change)
-
 <!-- The main aim is to provide ML pipelines and models to investigate the Wildfires spread and propagation around the world focusing on Burned Areas.-->
 
 ## Overview
@@ -26,19 +22,19 @@ Data-driven models can be used to understand how climate change is affecting the
 
 Different DNN architectures must be evaluated to address the various use cases, including Convolutional and Graph networks. The trained models will be used as a base for understanding how different climate scenarios can affect extreme events frequency, locations, probability, etc. Future projection data from large experiments, like the Climate Model Intercomparison Project 6th phase (CMIP6), will be used as input for the trained models.
 
-Inspired by the paper [_"Deep Learning for Global Wildfire Forecasting (Prapas et al.)"_](https://arxiv.org/abs/2211.00534), the [UNet++](https://arxiv.org/abs/1807.10165) was chosen as the backbone architecture of the **first version** of our data-driven model to predict fire danger (burned area maps) based on future climate change projections.
+The [UNet++](https://arxiv.org/abs/1807.10165) was chosen as the backbone architecture of the **first version** of our data-driven model to predict fire danger (burned area maps) based on future climate change projections.
 
 Contributors
 ============
 
-Advanced Scientific Computing (ASC) Division
+[CMCC - Institute for Earth System Predictions (IESP) - Advanced Scientific Computing (ASC) Division](https://www.cmcc.it)
 
 | Contributor | Contact | Role |
 | :-- | :-- | :-- |
-| Emanuele Donno | <emanuele.donno@cmcc.it> | Maintainer of the repo \| Project Contributor
+| Donatello Elia | <donatello.elia@cmcc.it> | Project Manager
+| Emanuele Donno | <emanuele.donno@cmcc.it> | Main Contributor
 | Davide Donno | <davide.donno@cmcc.it> | Project Contributor
 | Gabriele Accarino | <gabriele.accarino@cmcc.it> | Project Contributor
-| Donatello Elia | <donatello.elia@cmcc.it> | Project Manager
 | Giovanni Aloisio | <giovanni.aloisio@cmcc.it> | Group Coordinator
 
 ## Data
@@ -64,8 +60,7 @@ The second data source is [CMIP6](https://esgf-node.llnl.gov/projects/cmip6/) da
 | Spatial Resolution | $\small{0.25° \times 0.25°}$ |
 | Temporal Coverage  | 2020 &rarr; 2100 |
 | Temporal Resolution  | Daily |
-| Size per variable/model | _T.B.C._ |
-| Scenarios to be considered | _Under evaluation_ |
+| Scenarios to be considered | SSP2-4.5, SSP3-7.0, SSP5-8.5 |
 
 ### Overview
 
@@ -201,6 +196,7 @@ Both `data` and `experiments` directories are **empty** and are **not** included
 
 >[!TIP]
 Before running the code, remeber to download the [SeasFire Cube v3](https://zenodo.org/records/8055879) and put into `data` folder.
+The best model will be saved in the `experiments` folder.
 
 
 
@@ -232,6 +228,9 @@ cd src
 bsub < launch.sh
 ```
 
-<!-- ## Output -->
+## Acknowledgment
+
+This software product is developed in the context of Wildfires use case in the InterTwin Project:
+[![InterTwin](images/intertwin.png)](https://www.intertwin.eu/intertwin-use-case-a-digital-twin-for-projecting-wildfire-danger-due-to-climate-change)
 
 <!-- ## Future Investigations -->
