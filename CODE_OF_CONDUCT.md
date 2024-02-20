@@ -1,4 +1,4 @@
-# Contributor Covenant Code of Conduct
+# CMCC Code of Conduct
 
 ## Our Pledge
 
