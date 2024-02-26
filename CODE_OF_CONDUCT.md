@@ -1,4 +1,4 @@
-# CMCC Code of Conduct
+# ML4Fires Code of Conduct
 
 ## Our Pledge
 
