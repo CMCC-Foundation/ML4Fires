@@ -1,267 +1,418 @@
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-# 					Copyright 2023 - CMCC Foundation						#
-#																			#
-# Site: 			https://www.cmcc.it										#
-# CMCC Division:	ASC (Advanced Scientific Computing)						#
-# Author:			Emanuele Donno											#
-# Email:			emanuele.donno@cmcc.it									#
-# 																			#
-# Licensed under the Apache License, Version 2.0 (the "License");			#
-# you may not use this file except in compliance with the License.			#
-# You may obtain a copy of the License at									#
-#																			#
-#				https://www.apache.org/licenses/LICENSE-2.0					#
-#																			#
-# Unless required by applicable law or agreed to in writing, software		#
-# distributed under the License is distributed on an "AS IS" BASIS,			#
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.	#
-# See the License for the specific language governing permissions and		#
-# limitations under the License.											#
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# 					Copyright 2024 - CMCC Foundation						
+#																			
+# Site: 			https://www.cmcc.it										
+# CMCC Institute:	IESP (Institute for Earth System Predictions)
+# CMCC Division:	ASC (Advanced Scientific Computing)						
+# Author:			Emanuele Donno											
+# Email:			emanuele.donno@cmcc.it									
+# 																			
+# Licensed under the Apache License, Version 2.0 (the "License");			
+# you may not use this file except in compliance with the License.			
+# You may obtain a copy of the License at									
+#																			
+#				https://www.apache.org/licenses/LICENSE-2.0					
+#																			
+# Unless required by applicable law or agreed to in writing, software		
+# distributed under the License is distributed on an "AS IS" BASIS,			
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.	
+# See the License for the specific language governing permissions and		
+# limitations under the License.											
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 import os
-import joblib
-import pickle
-import random
-import tensorflow as tf
-from glob import glob
+import toml
+import torch
+import xarray as xr
+from datetime import datetime as dt
 
-import sys
-_lib_dir = os.path.join(os.getcwd(), 'library')
-if _lib_dir not in sys.path:
-	sys.path.append(_lib_dir)
+import torch
+from torch.utils.data import DataLoader
+from torch.distributed.fsdp import ShardingStrategy
+from torch.utils.data.distributed import DistributedSampler
 
-from library.decorators import debug, export
-from library.macros import (LOG_DIR, DATA_DIR, SCALER_DIR, LOSS_METRICS_HISTORY_CSV, CHECKPOINT_FNAME, RUN_DIR)
-from library.logger import Logger as logger
-main_log = logger(log_dir=LOG_DIR).get_logger('Main')
+from lightning.pytorch.callbacks import EarlyStopping
+from lightning.fabric.loggers import CSVLogger
+from lightning.fabric.strategies.fsdp import FSDPStrategy
+from lightning.fabric.plugins.environments import MPIEnvironment
 
-from library.configuration import load_global_config
-toml_general = load_global_config()
-toml_model = eval(toml_general['toml_configuration_files']['toml_model'])
+from torchmetrics.regression import MeanSquaredError
 
-from library.dataset_builder_wf import WildFiresDatasetBuilder
-from library.scaling import StandardScaler
-from library.dataset_creator import DatasetCreator
-from library.tfr_io import TensorCoder, DriverInfo
-from library.models import UNETPlusPlusNew as UPPN
-from library.augmentation import rot180, left_right, up_down
+import Fires
+from Fires._datasets.dataset_zarr import DatasetZarr, load_zarr
+from Fires._datasets.torch_dataset import FireDataset
+from Fires._macros.macros import (
+	CONFIG,
+	TORCH_CFG,
+	DISCORD_CFG,
+	CHECKPOINTS_DIR,
+	DATA_DIR,
+	LOG_DIR,
+	NEW_DS_PATH,
+	RUN_DIR,
+	SCALER_DIR,
+)
 
-
-
-# define model configuration
-data_dict = toml_general['data']
-model_config = data_dict['selected_configuration']
-main_log.info(f"Defining parameters: \n {toml_model[model_config]}")
-
-# define target source (FCCI, GWIS or MERGE) and training  model parameters
-target_source = toml_model[model_config]['target_source']
-batch_size = toml_model[model_config]['bsize']
-base_shape = eval(toml_model[model_config]['base_shape'])
-in_shape = (*base_shape, 8)
-shard_size = toml_model[model_config]['shard_size']
-epochs = toml_model[model_config]['epochs']
-shift_list = toml_model[model_config]['shift_list']
-standard_scaler_type = toml_model[model_config]['scaler_type_zscore']
-minmax_scaler_type = toml_model[model_config]['scaler_type_minmax']
-base_scaler_name = toml_model[model_config]['scaler_name']
-shuffle = eval(toml_model[model_config]['shuffle'])
-
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-#																						#
-#	FILENAMES: DIVIDE TFRECORD FILES IN TRAINING AND VALIDATION, SHUFFLE FILENAMES		#
-#																						#
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-
-# create path to tfrecord files
-tfrecords_dir = data_dict['tfrecords_dir']
-folder = os.path.join(DATA_DIR, target_source, tfrecords_dir)
-main_log.info(f"Folder: {folder}")
-
-# get tfrecord files and split in training and validation files
-trn_filenames = sum(sorted(glob(f'{folder}/{year}*.tfrecord') for year in range(2001,2017)), [])
-val_filenames = sum(sorted(glob(f'{folder}/{year}*.tfrecord') for year in range(2017,2019)), [])
-main_log.info(f"\nTraining files \n {trn_filenames} \nValidation files \n{val_filenames}")
-
-# set seed for random shuffling
-if shuffle:
-	seed = data_dict['seed']
-	main_log.info(f"Set random seed: {seed}")
-
-	# shuffle files
-	random.seed(seed)
-	random.shuffle(trn_filenames)
-	random.shuffle(val_filenames)
-
-main_log.info("Filenames have been shuffled")
+from Fires._scalers.scaling_maps import StandardMapsPointWise, MinMaxMapsPointWise
+from Fires._scalers.standard import StandardScaler
+from Fires._scalers.minmax import MinMaxScaler
+from Fires._utilities.callbacks import DiscordBenchmark, FabricBenchmark, FabricCheckpoint
+from Fires._utilities.cli_args_checker import checker
+from Fires._utilities.configuration import load_global_config
+from Fires._utilities.logger import Logger as logger
 
 
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-#																														#
-#	TRAINING - DATASET CREATION: SELECT TARGET SOURCE, GET DRIVERS INFO, CREATE TENSOR CODER, CREATE DATASET BUILDER	#
-#																														#
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+from Fires.trainer import FabricTrainer
 
-# create dictionary with FwiDatasetBuilder args
-dataset_creator = DatasetCreator(target_source=target_source, shift_list=shift_list)
-_, drivers_info = dataset_creator.build()
+# define logger
+_log = logger(log_dir=LOG_DIR).get_logger("Workflow")
 
-# pop target variable depending on study case
-study_case = eval(toml_model['model']['ba_hectares'])
-pop_item = 1 if study_case else 0
-drivers_info[1].vars.pop(pop_item)
+# current experiment configuration dict
+current_experiment = dict(
+	features = dict(),
+	dataset = dict(),
+	model = dict(),
+	trainer = dict(),
+	scalers = dict(),
+)
+_log.info(f"Define a dictionary to store current experiment configuration: \n {current_experiment}")
 
-main_log.info(f"Driver info: \n vars \t {drivers_info[0].vars}\n shape: \t {drivers_info[0].shape}")
-main_log.info(f"Target info: \n vars \t {drivers_info[1].vars}\n shape: \t {drivers_info[1].shape}")
+# define features
+features = CONFIG.data.configs.config_fcci
+drivers = features[:-1]
+targets = [features[-1]]
+current_experiment['features']['drivers'] = drivers
+current_experiment['features']['targets'] = targets
 
-# create tensor coder
-tensor_coder = TensorCoder(drivers_info=drivers_info)
-main_log.info("Creating Tensor Coder")
+_log.info(f"List of drivers: ")
+for d in drivers: _log.info(f" - {d}")
 
-# create augmentation dictionary
-aug_dict = dict(rot180=rot180, left_right=left_right, up_down=up_down)
+_log.info(f"List of targets: ")
+for t in targets: _log.info(f" - {t}")
 
-def get_WF_DS_Builder(filenames:list):
-	return (WildFiresDatasetBuilder(epochs=epochs, tensor_coder=tensor_coder, filenames=filenames)
-		.augment(aug_fns = aug_dict)
-		.assemble_dataset()
-		.batch(batch_size=batch_size))
+# define list of years
+trn_years = list(eval(CONFIG.data.features.training_years_range))
+val_years = list(eval(CONFIG.data.features.validation_years_range))
+current_experiment['dataset']['trn_years'] = trn_years
+current_experiment['dataset']['val_years'] = val_years
 
-# Training Dataset: create a WildFiresDatasetBuilder instance for training files
-trn_ds_builder = get_WF_DS_Builder(filenames=trn_filenames)
+_log.info(f"Training: {trn_years[0]}, ..., {trn_years[-1]}")
+_log.info(f"Validation: {val_years[0]}, ..., {val_years[-1]}")
 
+_log.info(f"Creating dataset zarr...")
 
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-#																								#
-#	TRAINING - DATASET CREATION: CREATE SCALER, SCALE DATASET, OPTIMIZE DATASET, ADD REPEATS	#
-#																								#
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# create Dataset
+DatasetZarr()
 
-# Training Dataset: create, fit and save scaler
-main_log.info(f"Creating and fitting {standard_scaler_type.upper()} scaler")
+_log.info(f"Dataset zarr has been created")
 
-scaler = StandardScaler(drivers_info=drivers_info)
-scaler.fit()
+# define path to new dataset in zarr format
+name = targets[0].split('_')[0].lower()
+new_path = NEW_DS_PATH(name=name)
+current_experiment['dataset']['path_to_zarr'] = new_path
+print(f"\n Path to dataset: {new_path} \n")
 
-try:
-	scaler_fname = f"{target_source}_00_{standard_scaler_type}_{base_scaler_name}"
-	scaler_path = os.path.join(SCALER_DIR, scaler_fname)
-	joblib.dump(scaler, scaler_path)
-	main_log.info(f"Scaler saved in {scaler_path}")
-except:
-	main_log.error(f"Error saving scalers in {scaler_path}")
+_log.info(f"Path to new dataset: {new_path}")
 
-# Training Dataset: scale the dataset
-trn_ds_builder = trn_ds_builder.scale(scaler=scaler)
+# create mean and standard deviation maps
+standard_point_maps = StandardMapsPointWise(features=features, years=trn_years, data_filepath=new_path, store_dir=SCALER_DIR)
+mean_ds, stdv_ds = standard_point_maps.get_maps()
+print(f" Mean data \n {mean_ds} \n Stdv data \n {stdv_ds} \n")
 
-# Training Dataset: optimize the dataset
-trn_ds_builder = trn_ds_builder.optimize()
+_log.info(f"\n Mean data \n {mean_ds} \n Stdv data \n {stdv_ds} \n")
 
-# Training Dataset: get steps per epoch
-trn_steps_per_epoch = round(trn_ds_builder.count/batch_size)
+# create dictionary with all NetCDF4 filepaths
+current_experiment['scalers']['paths'] = dict()
+print("Maps dict entries:\n")
+_log.info(f"Maps dict entries: ")
+for file in os.listdir(SCALER_DIR):
+	if str(file).endswith('_map.nc'):
+		filepath = os.path.join(SCALER_DIR, str(file))
+		key = str(file).split('.')[0]
+		print(f"- {key}: {filepath}\n")
+		_log.info(f" - {key}: {filepath}")
 
-# Training Dataset: get the dataset
-trn_dataset = trn_ds_builder.dataset.repeat(count=trn_steps_per_epoch*epochs)
-
-main_log.info(f"Training dataset has been scaled. Training steps per epoch: {trn_steps_per_epoch}")
-
-
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-#																										#
-#	VALIDATION - DATASET CREATION: GET DATASET BUILDER, SCALE DATA, OPTIMIZE DATASET, ADD REPETITIONS	#
-#																										#
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-
-# Validation Dataset: create a WildFiresDatasetBuilder instance for validation files
-val_ds_builder = get_WF_DS_Builder(filenames=val_filenames)
-
-# Validation Dataset: scale the dataset
-val_ds_builder = val_ds_builder.scale(scaler=scaler)
-
-# Validation Dataset: optimize the dataset
-val_ds_builder = val_ds_builder.optimize()
-
-# Validation Dataset: get steps per epoch
-val_steps_per_epoch = round(val_ds_builder.count/batch_size)
-
-# Validation Dataset: get the dataset
-val_dataset = val_ds_builder.dataset.repeat(count=val_steps_per_epoch*epochs)
-
-main_log.info(f"Validation dataset has been scaled. Validation steps per epoch: {val_steps_per_epoch}")
+		current_experiment['scalers']['paths'][key] = filepath
 
 
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-#																																						#
-#	DATASET DISTRIBUTION: DEFINE LOSS, DEFINE MIRRORED STRATEGY, DISTRIBUTE DATASET, DEFINE MODEL, METRICS AND OPTIMIZER IN MIRRORED STRATEGY SCOPE		#
-#																																						#
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+_log.info(f"Start checking arguments...")
 
-# define losses, metrics and callbacks
-loss = eval(toml_model['model']['loss'])
-strategy = eval(toml_model['model']['strategy'])
-main_log.info(f"Defined loss ({loss.name}) and mirrored strategy")
+# check CLI args
+checked_args = checker()
 
-# Distribute Datasets: distribute training and validation datasets
-distr_trn_dataset = strategy.experimental_distribute_dataset(trn_dataset)
-distr_val_dataset = strategy.experimental_distribute_dataset(val_dataset)
-main_log.info("Datasets have been distributed")
+_log.info(f"Arguments checked")
 
-# define metrics and optimizer in MirroredStrategy scope
-with strategy.scope():
-	metrics = eval(toml_model['model']['metrics'])
-	lr = toml_model['model']['learning_rate']
-	optimizer = eval(toml_model['model']['optimizer'])
+_log.info(f"Experiment dir: {RUN_DIR}")
 
-	# define and compile the model
-	model = UPPN(input_shape=in_shape, num_classes=1).build()
-	model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
+if checked_args:
+	exp_name, exp_cfg = checked_args
+	print(f"Experiment {exp_name}")
+
+	_log.info(f"Experiment {exp_name}")
+	
+
+# define scaler for drivers
+x_scaler = StandardScaler(mean_ds=mean_ds, stdv_ds=stdv_ds, features=drivers)
+current_experiment['scalers']['cls'] = str(StandardScaler)
+
+current_experiment['dataset']['torch'] = dict()
+current_experiment['dataset']['torch']['args'] = dict()
+
+# fire dataset arguments
+fire_ds_args = dict(src=new_path, drivers=drivers, targets=targets)
+current_experiment['dataset']['torch']['args'] = fire_ds_args
+
+# define pytorch datasets for training and validation
+trn_torch_ds = FireDataset(**fire_ds_args, years=trn_years, scalers=[x_scaler, None])
+val_torch_ds = FireDataset(**fire_ds_args, years=val_years, scalers=[x_scaler, None])
+current_experiment['dataset']['torch']['cls'] = str(FireDataset)
+
+# --------------------------------------------------
+
+current_experiment['trainer']['args'] = dict()
+
+# check GPUs availability
+cuda_availability:bool = eval(TORCH_CFG.base.cuda_availability)
+current_experiment['trainer']['cuda_availability'] = cuda_availability
+
+# set device type
+device:str = 'cuda' if cuda_availability else 'cpu'
+current_experiment['trainer']['device'] = device
+
+# set matricial multiplication precision
+if cuda_availability: torch.set_float32_matmul_precision(TORCH_CFG.base.matmul_precision)
+current_experiment['trainer']['matmul_precision'] = TORCH_CFG.base.matmul_precision
+print(f" CUDA available: {cuda_availability}\n Device: {device.upper()}")
+
+_log.info(f" CUDA available: {cuda_availability}\t Device: {device.upper()}")
+
+# set accelerator
+accelerator:str = 'cuda' if cuda_availability else 'cpu'
+current_experiment['trainer']['args']['accelerator'] = accelerator
+print(f" Accelerator: {accelerator.upper()}")
+
+_log.info(f" Accelerator: {accelerator.upper()}")
+
+_log.info(f"Discord configuration file:")
+
+# define discord configuration file
+for key in DISCORD_CFG.keys():
+	print(f"{key} : {DISCORD_CFG[key]}")
+
+	_log.info(f"{key} : {DISCORD_CFG[key]}")
 
 
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-#																																#
-#														DEFINE CALLBACKS														#
-#																																#
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# define trainer accumulation steps
+accumulation_steps = TORCH_CFG.trainer.accumulation_steps
+current_experiment['trainer']['args']['grad_accum_steps'] = accumulation_steps
 
-
-# define dict with callbacks args
-cllbk_dict = dict(monitor='val_loss', verbose=1, mode='min')
 # define callbacks
-csvlogger_fname = LOSS_METRICS_HISTORY_CSV(trgt_src=target_source)
-csvlogger_cllbk = tf.keras.callbacks.CSVLogger(csvlogger_fname)
-earlystop_cllbk = tf.keras.callbacks.EarlyStopping(**cllbk_dict, patience=100, min_delta=1e-4, restore_best_weights=True)
-mdlchckpt_fname = CHECKPOINT_FNAME(trgt_src=target_source)
-mdlchckpt_cllbk = tf.keras.callbacks.ModelCheckpoint(**cllbk_dict, filepath=mdlchckpt_fname, save_best_only=True, save_weights_only=False)
-callbacks = [csvlogger_cllbk, earlystop_cllbk, mdlchckpt_cllbk]
-main_log.info(f"Callbacks: \n {callbacks}")
+callbacks = [
+	DiscordBenchmark(webhook_url=DISCORD_CFG.hooks.webhook_gen, benchmark_csv=os.path.join(RUN_DIR, "fabric_benchmark.csv")),
+	FabricBenchmark(filename=os.path.join(RUN_DIR, "fabric_benchmark.csv")),
+	FabricCheckpoint(dst=CHECKPOINTS_DIR),
+	EarlyStopping('val_loss')
+]	
+
+# define number of devices (GPUs) that must be used
+devices = TORCH_CFG.trainer.devices
+current_experiment['trainer']['args']['devices'] = devices
+
+# define number of epochs
+epochs = TORCH_CFG.trainer.epochs
+current_experiment['trainer']['args']['max_epochs'] = epochs
+
+# define today's date
+today = eval(CONFIG.utils.datetime.today)
+
+# define csv log name
+csv_fname = f'{today}_csv_logs'
+
+# define csv logger
+loggers = CSVLogger(root_dir=LOG_DIR, name=csv_fname)
+current_experiment['trainer']['args']['loggers_cls'] = str(CSVLogger)
+current_experiment['trainer']['args']['loggers_root_dir'] = LOG_DIR
+current_experiment['trainer']['args']['loggers_name'] = csv_fname
+
+# define number of nodes used on the cluster
+num_nodes = TORCH_CFG.trainer.num_nodes
+current_experiment['trainer']['args']['num_nodes'] = num_nodes
+
+# define trainer precision
+precision = TORCH_CFG.trainer.precision
+current_experiment['trainer']['args']['precision'] = precision
+
+# define MPI plugin
+plugins = eval(TORCH_CFG.trainer.plugins)
+current_experiment['trainer']['args']['plugins'] = TORCH_CFG.trainer.plugins
+
+# init distribution strategy
+strategy = eval(TORCH_CFG.model.strategy) if accelerator == 'cuda' else 'auto'
+print(f" Strategy: {strategy}")
+
+# set distributed sampler
+use_distributed_sampler = eval(TORCH_CFG.trainer.use_distributed_sampler)
+
+# initialize trainer and its arguments
+trainer = FabricTrainer(
+	accelerator=accelerator,
+	callbacks=callbacks,
+	devices=devices,
+	loggers=loggers,
+	max_epochs=epochs,
+	num_nodes=num_nodes,
+	grad_accum_steps=accumulation_steps,
+	precision=precision,
+	plugins=plugins,
+	strategy=strategy,
+	use_distributed_sampler=use_distributed_sampler
+)
+current_experiment['trainer']['cls'] = str(FabricTrainer)
 
 
+# store parallel execution variables
+p_variables = dict(
+	world_size = trainer.world_size,
+	node_rank = trainer.node_rank,
+	global_rank = trainer.global_rank,
+	local_rank = trainer.local_rank
+)
 
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-#
-#										MODEL TRAINING: TRAIN MODEL AND SAVE HISTORY IN A FILE										#
-#
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# log
+_log.info(f"Logger initialized. Starting the execution")
+for key in p_variables:
+	_log.info(f"   {key.capitalize().replace('_', ' ')}  :  {p_variables[key]}")
 
-# define filenames where history and best model must be saved
-name = f"{target_source}_00"
-HIST_PATH = os.path.join(RUN_DIR, f'{name}_training_history')
-FILE_MODEL = os.path.join(RUN_DIR, f'{name}_last_model')
 
-# fit the model on train and valid data
-history = model.fit(
-	distr_trn_dataset, 
-	validation_data=distr_val_dataset, 
-	steps_per_epoch=trn_steps_per_epoch, 
-	validation_steps=val_steps_per_epoch, 
-	epochs=epochs, 
-	callbacks=callbacks)
+# define PyTorch model
+# TODO implement the model selection from argument parser
+chosen_model = 'unetpp'
+# get model configuration
+model_cfg = TORCH_CFG.model
+# get chosen model configuration
+chosen_model_cfg = model_cfg[chosen_model]
+# get model class
+mdl_cls = eval(chosen_model_cfg.cls)
 
-# save history in order to plot losses
-with open(HIST_PATH, 'wb') as file_pi:
-	pickle.dump(history.history, file_pi)
-main_log.info(f"Saved training history in {HIST_PATH} file")
+# get model args
+mdl_args = chosen_model_cfg.args
+print("Model args: \n", mdl_args, "\n")
 
-# save the best model
-model.save(filepath=FILE_MODEL, save_format='tf', include_optimizer=True)
-main_log.info(f"Saved model in {FILE_MODEL}")
+current_experiment['model']['cls'] = chosen_model_cfg.cls
+current_experiment['model']['args'] = dict()
+for key in chosen_model_cfg.args.keys():
+	current_experiment['model']['args'][key] = chosen_model_cfg.args[key]
+
+if checked_args:
+	base_filter_dim = exp_cfg.base_filter_dim
+	# update model base_filter_dim argument with the new value
+	mdl_args['base_filter_dim'] = base_filter_dim
+	# update current experiment dictionary
+	current_experiment['model']['args']['base_filter_dim'] = base_filter_dim
+
+	# get activation function
+	actv_str = exp_cfg.activation_cls.split("'")[-2]
+	activation = eval(actv_str)()
+
+	# update current experiment dictionary
+	current_experiment['model']['args']['activation'] = actv_str+'()'
+	print("CHECKED \n Model args: \n", mdl_args, "\n")
+	# define model
+	model = mdl_cls(**mdl_args, activation=activation)
+
+else:
+	print("NOT CHECKED \n Model args: \n", mdl_args, "\n")
+	# define model
+	model = mdl_cls(**mdl_args)
+	
+
+# define model
+# model = mdl_cls(**mdl_args)
+
+# define model loss
+loss_str = TORCH_CFG.model.loss
+if checked_args:
+	loss_str = exp_cfg.loss_cls.split("'")[-2]+'()'
+loss = eval(loss_str)
+
+# add loss to model
+model.loss = loss
+# update current experiment dictionary
+current_experiment['model']['loss'] = loss_str
+
+# define model metrics
+model.metrics = eval(TORCH_CFG.model.metrics)
+print(model)
+# update current experiment dictionary
+current_experiment['model']['metrics'] = TORCH_CFG.model.metrics
+
+# load dataloader
+batch_size = TORCH_CFG.trainer.batch_size
+drop_reminder=TORCH_CFG.trainer.drop_reminder
+train_loader = DataLoader(trn_torch_ds,	batch_size=batch_size, shuffle=True, drop_last=drop_reminder)
+valid_loader = DataLoader(val_torch_ds, batch_size=batch_size, shuffle=True, drop_last=drop_reminder)
+
+# update current experiment dictionary
+current_experiment['trainer']['batch_size'] = batch_size
+current_experiment['trainer']['drop_reminder'] = drop_reminder
+current_experiment['trainer']['data_loader_cls'] = str(DataLoader)
+
+current_experiment['trainer']['optim'] = dict()
+current_experiment['trainer']['optim']['cls'] = TORCH_CFG.trainer.optim.cls
+current_experiment['trainer']['optim']['args'] = eval(TORCH_CFG.trainer.optim.args)
+
+current_experiment['trainer']['scheduler'] = dict()
+current_experiment['trainer']['scheduler']['cls'] = TORCH_CFG.trainer.scheduler.cls
+current_experiment['trainer']['scheduler']['args'] = eval(TORCH_CFG.trainer.scheduler.args)
+
+current_experiment['trainer']['checkpoint'] = dict()
+current_experiment['trainer']['checkpoint']['ckpt'] = TORCH_CFG.trainer.checkpoint.ckpt
+
+
+# setup the model and the optimizer
+trainer.setup(
+	model=model,
+	optimizer_cls=eval(TORCH_CFG.trainer.optim.cls),
+	optimizer_args=eval(TORCH_CFG.trainer.optim.args),
+	scheduler_cls=eval(TORCH_CFG.trainer.scheduler.cls),
+	scheduler_args=eval(TORCH_CFG.trainer.scheduler.args),
+	checkpoint=eval(TORCH_CFG.trainer.checkpoint.ckpt)
+)
+
+# fit the model
+trainer.fit(train_loader=train_loader, val_loader=valid_loader)
+
+# log
+_log.info(f'Model trained')
+
+# save the model to disk
+last_model = os.path.join(RUN_DIR,'last_model.pt')
+trainer.fabric.save(
+	path=last_model,
+	state={
+		'model':trainer.model,
+		'optimizer':trainer.optimizer,
+		'scheduler': trainer.scheduler_cfg
+	}
+)
+
+current_experiment['exp_dir'] = RUN_DIR
+current_experiment['model']['last_model'] = last_model
+
+filename = exp_name if checked_args else 'experiment'
+current_experiment['exp_name'] = filename
+
+print(current_experiment)
+_log.info(f"Current experiment dictionary: \n {current_experiment}")
+
+path = os.path.join(RUN_DIR, f'{filename}.toml')
+with open(path , "w") as file:
+	if type(current_experiment) == dict:
+		toml.dump(current_experiment, file)
+
+# log
+print(f'Program completed')
+_log.info(f'Program completed')
+
+# close program
+# exit(1)
