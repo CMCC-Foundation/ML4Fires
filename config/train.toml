@@ -1,0 +1,8 @@
+[run]
+curr_run_dir = "lambda run_dir, time: os.path.join(run_dir, time)"
+
+	[run.dir]
+	transformer = "os.path.join(EXPERIMENTS_DIR, 'ViT')"
+	unetpp = "os.path.join(EXPERIMENTS_DIR, 'UNET++')"
+	unet = "os.path.join(EXPERIMENTS_DIR, 'UNET')"
+	

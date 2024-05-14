@@ -1,0 +1,45 @@
+[exp_1]
+base_filter_dim = 16
+activation_cls = "<class 'torch.nn.modules.activation.Sigmoid'>"
+loss_cls = "<class 'torch.nn.modules.loss.L1Loss'>"
+
+[exp_2]
+base_filter_dim = 16
+activation_cls = "<class 'torch.nn.modules.activation.Sigmoid'>"
+loss_cls = "<class 'torch.nn.modules.loss.BCELoss'>"
+
+[exp_3]
+base_filter_dim = 16
+activation_cls = "<class 'torch.nn.modules.activation.ReLU'>"
+loss_cls = "<class 'torch.nn.modules.loss.L1Loss'>"
+
+[exp_4]
+base_filter_dim = 32
+activation_cls = "<class 'torch.nn.modules.activation.Sigmoid'>"
+loss_cls = "<class 'torch.nn.modules.loss.L1Loss'>"
+
+[exp_5]
+base_filter_dim = 32
+activation_cls = "<class 'torch.nn.modules.activation.Sigmoid'>"
+loss_cls = "<class 'torch.nn.modules.loss.BCELoss'>"
+
+[exp_6]
+base_filter_dim = 32
+activation_cls = "<class 'torch.nn.modules.activation.ReLU'>"
+loss_cls = "<class 'torch.nn.modules.loss.L1Loss'>"
+
+[exp_7]
+base_filter_dim = 64
+activation_cls = "<class 'torch.nn.modules.activation.Sigmoid'>"
+loss_cls = "<class 'torch.nn.modules.loss.L1Loss'>"
+
+[exp_8]
+base_filter_dim = 64
+activation_cls = "<class 'torch.nn.modules.activation.Sigmoid'>"
+loss_cls = "<class 'torch.nn.modules.loss.BCELoss'>"
+
+[exp_9]
+base_filter_dim = 64
+activation_cls = "<class 'torch.nn.modules.activation.ReLU'>"
+loss_cls = "<class 'torch.nn.modules.loss.L1Loss'>"
+
