@@ -50,14 +50,14 @@ def rot180(data):
 def left_right(data):
 	"""Flips an image (assumed to be the first element in the data tuple) horizontally.
 
-    Args:
-        data: A tuple containing the image and potentially other data. The first
-             element is assumed to be the image to be flipped.
+	Args:
+		data: A tuple containing the image and potentially other data. The first
+			 element is assumed to be the image to be flipped.
 
-    Returns:
-        A tuple containing the horizontally flipped image (at index 0) and the
-        other elements from the input data.
-    """
+	Returns:
+		A tuple containing the horizontally flipped image (at index 0) and the
+		other elements from the input data.
+	"""
 	X, Y = data
 	X = hflip(img=X)
 	Y = hflip(img=Y)
@@ -68,14 +68,14 @@ def left_right(data):
 def up_down(data):
 	"""Flips an image (assumed to be the first element in the data tuple) vertically.
 
-    Args:
-        data: A tuple containing the image and potentially other data. The first
-             element is assumed to be the image to be flipped.
+	Args:
+		data: A tuple containing the image and potentially other data. The first
+			 element is assumed to be the image to be flipped.
 
-    Returns:
-        A tuple containing the vertically flipped image (at index 0) and the
-        other elements from the input data.
-    """
+	Returns:
+		A tuple containing the vertically flipped image (at index 0) and the
+		other elements from the input data.
+	"""
 	X, Y = data
 	X = vflip(img=X)
 	Y = vflip(img=Y)

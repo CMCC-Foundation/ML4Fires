@@ -20,16 +20,4 @@
 # limitations under the License.											
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-from Fires._layers.swin_transformer import (
-	DownSample,
-	EarthSpecificBlock,
-	EarthSpecificLayer,
-	MLP,
-	PatchEmbedding,
-	PatchRecovery,
-	UpSample,
-	WindowAttention,
-	window_partition,
-)
-
 from Fires._layers.unetpp import VGGBlock
