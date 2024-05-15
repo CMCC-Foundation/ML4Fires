@@ -30,7 +30,27 @@ from Fires._utilities.decorators import export
 
 @export
 class StandardScaler(Scaler):
+	"""
+	Scales data using mean and standard deviation.
 
+	Attributes:
+		mean_ds (xr.Dataset):
+			xarray Dataset containing mean values for features.
+		stdv_ds (xr.Dataset):
+			xarray Dataset containing standard deviation values for features.
+		coeff_ (torch.Tensor):
+			Scaling coefficients derived from mean and stdv values.
+		element_ (torch.Tensor):
+			Scaling offset derived from mean and stdv values.
+
+	Methods:
+		__init__(mean_ds, stdv_ds, features, dtype):
+			Initializes the scaler.
+		transform(tensor):
+			Standardizes the input tensor.
+		inverse_transform(tensor):
+			Reverses the standardization.
+	"""
 	def __init__(self, mean_ds, stdv_ds, features:List[str], dtype=torch.float32) -> None:
 		super().__init__(features, dtype)
 

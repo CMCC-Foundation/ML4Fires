@@ -33,6 +33,42 @@ from Fires._utilities.decorators import export
 
 @export
 class UnetPlusPlus(BaseLightningModule):
+	"""
+	U-Net++ model for image segmentation, based on the PyTorch Lightning framework.
+
+	This implementation provides a flexible architecture for U-Net++ with deep supervision.
+
+	Attributes:
+		input_shape (tuple):
+			Shape of the input image (height, width, channels). Default: (720, 1440, 8).
+		num_classes (int):
+			Number of segmentation classes (including background). Default: 1.
+		depth (int):
+			Depth of the U-Net++ architecture (number of downsampling levels). Default: 4.
+		base_filter_dim (int):
+			Number of filters in the first convolutional layer. Default: 32.
+		deep_supervision (bool):
+			Whether to use deep supervision (multiple output layers). Default: False.
+		activation (torch.nn.Module):
+			Activation function to use after convolutional layers. Default: ReLU.
+		pool (nn.MaxPool2d):
+			Max-pooling layer for downsampling.
+		up (nn.Upsample):
+			Upsampling layer (bilinear with aligned corners).
+		conv*_* (VGGBlock):
+			Convolutional blocks in the U-Net++ architecture.
+		final* (nn.Conv2d):
+			Final convolutional layers for output (used with deep supervision).
+		final (nn.Conv2d):
+			Final convolutional layer for output (used without deep supervision).
+
+	Methods:
+		__init__(*args, **kwargs):
+			Initializes the U-Net++ model.
+		forward(input):
+			Performs a forward pass through the model, returning either a single output 
+			tensor or a list of output tensors if deep supervision is enabled. 
+	"""
 	def __init__(self,
 		input_shape: tuple = (720, 1440, 8),
 		num_classes: int = 1,

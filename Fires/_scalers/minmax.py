@@ -29,7 +29,27 @@ from Fires._scalers.base import Scaler
 
 @export
 class MinMaxScaler(Scaler):
+	"""
+	Scales data to a specified range using minimum and maximum values.
 
+	Attributes:
+		min_ds (xr.Dataset):
+			xarray Dataset containing minimum values for features.
+		max_ds (xr.Dataset):
+			xarray Dataset containing maximum values for features.
+		coeff_ (torch.Tensor):
+			Scaling coefficients derived from min and max values.
+		element_ (torch.Tensor):
+			Scaling offset derived from min and max values.
+
+	Methods:
+		__init__(min_ds, max_ds, features, dtype):
+			Initializes the scaler.
+		transform(tensor):
+			Scales input tensor to the range [0, 1].
+		inverse_transform(tensor):
+			Reverses the scaling operation.
+	"""
 	def __init__(self, min_ds, max_ds, features: List[str], dtype=torch.float32) -> None:
 		super().__init__(features, dtype)
 

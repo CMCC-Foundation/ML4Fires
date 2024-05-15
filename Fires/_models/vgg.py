@@ -28,125 +28,191 @@ from Fires._models.base import BaseVGG
 
 
 class VGG_V1(BaseVGG):
-    def __init__(self, 
-            channels: List[int], 
-            activation: nn.Module = nn.Identity, 
-            kernel_size: int = 3, 
-            *args: Any, **kwargs: Any) -> None:
-        super().__init__(channels, activation, kernel_size, *args, **kwargs)
-        self.model = nn.Sequential(
-            nn.Conv2d(in_channels=channels[0], out_channels=64, kernel_size=kernel_size, padding='same'), activation(), 
-            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=kernel_size, padding="same"), activation(), 
-            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=kernel_size, padding="same"), activation(), 
-            nn.MaxPool2d(kernel_size=2, stride=2), 
+	"""
+	VGG-like architecture V1, inheriting from BaseVGG.
 
-            nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, padding="same"), activation(), 
-            nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, padding="same"), activation(), 
-            nn.MaxPool2d(kernel_size=2, stride=2), 
+	This model implements a specific VGG variant with a defined structure of convolutional and 
+	linear layers.
 
-            nn.Conv2d(in_channels=128, out_channels=256, kernel_size=2, padding="same"), activation(), 
-            nn.Conv2d(in_channels=256, out_channels=256, kernel_size=2, padding="same"), activation(), 
-            nn.MaxPool2d(kernel_size=2, stride=2), 
+	Attributes:
+		channels (List[int]):
+			List of input and output channels.
+		activation (nn.Module):
+			Activation function used after each convolutional layer.
+		kernel_size (int):
+			Size of the convolutional kernels.
+		model (nn.Sequential):
+			The sequential model defining the VGG architecture.
 
-            nn.Conv2d(in_channels=256, out_channels=512, kernel_size=2, padding="valid"), activation(), 
-            nn.Conv2d(in_channels=512, out_channels=512, kernel_size=2, padding="valid"), activation(), 
-            nn.Conv2d(in_channels=512, out_channels=512, kernel_size=2, padding="valid"), activation(), 
-            nn.MaxPool2d(kernel_size=2, stride=2), 
+	Methods:
+		__init__(channels, activation, kernel_size, *args, **kwargs):
+			Initializes the VGG_V1 model.
+		forward(inputs):
+			Performs a forward pass through the VGG_V1 model.
+	"""
+	def __init__(self, 
+			channels: List[int], 
+			activation: nn.Module = nn.Identity, 
+			kernel_size: int = 3, 
+			*args: Any, **kwargs: Any) -> None:
+		super().__init__(channels, activation, kernel_size, *args, **kwargs)
+		self.model = nn.Sequential(
+			nn.Conv2d(in_channels=channels[0], out_channels=64, kernel_size=kernel_size, padding='same'), activation(), 
+			nn.Conv2d(in_channels=64, out_channels=64, kernel_size=kernel_size, padding="same"), activation(), 
+			nn.Conv2d(in_channels=64, out_channels=64, kernel_size=kernel_size, padding="same"), activation(), 
+			nn.MaxPool2d(kernel_size=2, stride=2), 
 
-            nn.Flatten(), 
+			nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, padding="same"), activation(), 
+			nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, padding="same"), activation(), 
+			nn.MaxPool2d(kernel_size=2, stride=2), 
 
-            nn.Linear(in_features=512, out_features=512), activation(), 
-            nn.Linear(in_features=512, out_features=256), activation(), 
-            nn.Linear(in_features=256, out_features=128), activation(), 
-            nn.Linear(in_features=128, out_features=64), activation(), 
-            nn.Linear(in_features=64, out_features=channels[1]), 
-        )
+			nn.Conv2d(in_channels=128, out_channels=256, kernel_size=2, padding="same"), activation(), 
+			nn.Conv2d(in_channels=256, out_channels=256, kernel_size=2, padding="same"), activation(), 
+			nn.MaxPool2d(kernel_size=2, stride=2), 
+
+			nn.Conv2d(in_channels=256, out_channels=512, kernel_size=2, padding="valid"), activation(), 
+			nn.Conv2d(in_channels=512, out_channels=512, kernel_size=2, padding="valid"), activation(), 
+			nn.Conv2d(in_channels=512, out_channels=512, kernel_size=2, padding="valid"), activation(), 
+			nn.MaxPool2d(kernel_size=2, stride=2), 
+
+			nn.Flatten(), 
+
+			nn.Linear(in_features=512, out_features=512), activation(), 
+			nn.Linear(in_features=512, out_features=256), activation(), 
+			nn.Linear(in_features=256, out_features=128), activation(), 
+			nn.Linear(in_features=128, out_features=64), activation(), 
+			nn.Linear(in_features=64, out_features=channels[1]), 
+		)
 
 
 
 class VGG_V2(BaseVGG):
-    def __init__(self, 
-            channels: List[int], 
-            activation: nn.Module = nn.Identity, 
-            kernel_size: int = 3, 
-            *args: Any, **kwargs: Any) -> None:
-        super().__init__(channels, activation, kernel_size, *args, **kwargs)
-        self.model = nn.Sequential(
-            nn.Conv2d(in_channels=channels[0], out_channels=32, kernel_size=kernel_size, padding='same'), activation(), 
-            nn.Conv2d(in_channels=32, out_channels=32, kernel_size=kernel_size, padding="same"), activation(), 
-            nn.Conv2d(in_channels=32, out_channels=32, kernel_size=kernel_size, padding="same"), activation(), 
-            nn.MaxPool2d(kernel_size=2, stride=2), 
+	"""
+	VGG-like architecture V2, inheriting from BaseVGG.
 
-            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, padding="same"), activation(), 
-            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, padding="same"), activation(), 
-            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, padding="same"), activation(), 
-            nn.MaxPool2d(kernel_size=2, stride=2), 
+	This variant differs from VGG_V1 in the number of layers and their configuration,
+	particularly in the deeper layers.
 
-            nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, padding="same"), activation(), 
-            nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, padding="same"), activation(), 
-            nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, padding="same"), activation(), 
-            nn.MaxPool2d(kernel_size=2, stride=2), 
+	Attributes:
+		channels (List[int]):
+			List of input and output channels.
+		activation (nn.Module):
+			Activation function used after each convolutional layer.
+		kernel_size (int):
+			Size of the convolutional kernels.
+		model (nn.Sequential):
+			The sequential model defining the VGG architecture.
 
-            nn.Conv2d(in_channels=128, out_channels=256, kernel_size=2, padding="same"), activation(), 
-            nn.Conv2d(in_channels=256, out_channels=256, kernel_size=2, padding="same"), activation(), 
-            nn.Conv2d(in_channels=256, out_channels=256, kernel_size=2, padding="same"), activation(), 
+	Methods:
+		__init__(channels, activation, kernel_size, *args, **kwargs):
+			Initializes the VGG_V2 model.
+		forward(inputs):
+			Performs a forward pass through the VGG_V2 model.
+	"""
+	def __init__(self, 
+			channels: List[int], 
+			activation: nn.Module = nn.Identity, 
+			kernel_size: int = 3, 
+			*args: Any, **kwargs: Any) -> None:
+		super().__init__(channels, activation, kernel_size, *args, **kwargs)
+		self.model = nn.Sequential(
+			nn.Conv2d(in_channels=channels[0], out_channels=32, kernel_size=kernel_size, padding='same'), activation(), 
+			nn.Conv2d(in_channels=32, out_channels=32, kernel_size=kernel_size, padding="same"), activation(), 
+			nn.Conv2d(in_channels=32, out_channels=32, kernel_size=kernel_size, padding="same"), activation(), 
+			nn.MaxPool2d(kernel_size=2, stride=2), 
 
-            nn.Conv2d(in_channels=256, out_channels=512, kernel_size=2, padding="valid"), activation(), 
-            nn.Conv2d(in_channels=512, out_channels=512, kernel_size=2, padding="valid"), activation(), 
-            nn.Conv2d(in_channels=512, out_channels=512, kernel_size=2, padding="valid"), activation(), 
-            nn.Conv2d(in_channels=512, out_channels=512, kernel_size=2, padding="valid"), activation(), 
+			nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, padding="same"), activation(), 
+			nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, padding="same"), activation(), 
+			nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, padding="same"), activation(), 
+			nn.MaxPool2d(kernel_size=2, stride=2), 
 
-            nn.Flatten(), 
+			nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, padding="same"), activation(), 
+			nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, padding="same"), activation(), 
+			nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, padding="same"), activation(), 
+			nn.MaxPool2d(kernel_size=2, stride=2), 
 
-            nn.Linear(in_features=512, out_features=1024), activation(), 
-            nn.Linear(in_features=1024, out_features=512), activation(), 
-            nn.Linear(in_features=512, out_features=256), activation(), 
-            nn.Linear(in_features=256, out_features=128), activation(), 
+			nn.Conv2d(in_channels=128, out_channels=256, kernel_size=2, padding="same"), activation(), 
+			nn.Conv2d(in_channels=256, out_channels=256, kernel_size=2, padding="same"), activation(), 
+			nn.Conv2d(in_channels=256, out_channels=256, kernel_size=2, padding="same"), activation(), 
 
-            nn.Linear(in_features=128, out_features=channels[1]), 
-        )
+			nn.Conv2d(in_channels=256, out_channels=512, kernel_size=2, padding="valid"), activation(), 
+			nn.Conv2d(in_channels=512, out_channels=512, kernel_size=2, padding="valid"), activation(), 
+			nn.Conv2d(in_channels=512, out_channels=512, kernel_size=2, padding="valid"), activation(), 
+			nn.Conv2d(in_channels=512, out_channels=512, kernel_size=2, padding="valid"), activation(), 
+
+			nn.Flatten(), 
+
+			nn.Linear(in_features=512, out_features=1024), activation(), 
+			nn.Linear(in_features=1024, out_features=512), activation(), 
+			nn.Linear(in_features=512, out_features=256), activation(), 
+			nn.Linear(in_features=256, out_features=128), activation(), 
+
+			nn.Linear(in_features=128, out_features=channels[1]), 
+		)
 
 
 
 class VGG_V3(BaseVGG):
-    def __init__(self, 
-            channels: List[int], 
-            activation: nn.Module = nn.Identity, 
-            kernel_size: int = 3, 
-            *args: Any, **kwargs: Any) -> None:
-        super().__init__(channels, activation, kernel_size, *args, **kwargs)
-        self.model = nn.Sequential(
-            nn.Conv2d(in_channels=channels[0], out_channels=32, kernel_size=kernel_size, padding='same'), activation(), 
-            nn.Conv2d(in_channels=32, out_channels=32, kernel_size=kernel_size, padding="same"), activation(), 
-            nn.Conv2d(in_channels=32, out_channels=32, kernel_size=kernel_size, padding="same"), activation(), 
-            nn.MaxPool2d(kernel_size=2, stride=2), 
+	"""
+	VGG-like architecture V3, inheriting from BaseVGG.
 
-            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, padding="same"), activation(), 
-            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, padding="same"), activation(), 
-            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, padding="same"), activation(), 
-            nn.MaxPool2d(kernel_size=2, stride=2), 
+	This variant modifies the arrangement of convolutional layers and linear layers compared 
+	to VGG_V1 and VGG_V2.
 
-            nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, padding="same"), activation(), 
-            nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, padding="same"), activation(), 
-            nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, padding="same"), activation(), 
-            nn.MaxPool2d(kernel_size=2, stride=2), 
+	Attributes:
+		channels (List[int]):
+			List of input and output channels.
+		activation (nn.Module):
+			Activation function used after each convolutional layer.
+		kernel_size (int):
+			Size of the convolutional kernels.
+		model (nn.Sequential):
+			The sequential model defining the VGG architecture.
 
-            nn.Conv2d(in_channels=128, out_channels=256, kernel_size=2, padding="same"), activation(), 
-            nn.Conv2d(in_channels=256, out_channels=256, kernel_size=2, padding="same"), activation(), 
-            nn.Conv2d(in_channels=256, out_channels=256, kernel_size=2, padding="same"), activation(), 
+	Methods:
+		__init__(channels, activation, kernel_size, *args, **kwargs):
+			Initializes the VGG_V3 model.
+		forward(inputs):
+			Performs a forward pass through the VGG_V3 model.
+	"""
+	def __init__(self, 
+			channels: List[int], 
+			activation: nn.Module = nn.Identity, 
+			kernel_size: int = 3, 
+			*args: Any, **kwargs: Any) -> None:
+		super().__init__(channels, activation, kernel_size, *args, **kwargs)
+		self.model = nn.Sequential(
+			nn.Conv2d(in_channels=channels[0], out_channels=32, kernel_size=kernel_size, padding='same'), activation(), 
+			nn.Conv2d(in_channels=32, out_channels=32, kernel_size=kernel_size, padding="same"), activation(), 
+			nn.Conv2d(in_channels=32, out_channels=32, kernel_size=kernel_size, padding="same"), activation(), 
+			nn.MaxPool2d(kernel_size=2, stride=2), 
 
-            nn.Conv2d(in_channels=256, out_channels=512, kernel_size=2, padding="valid"), activation(), 
-            nn.Conv2d(in_channels=512, out_channels=512, kernel_size=2, padding="valid"), activation(), 
+			nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, padding="same"), activation(), 
+			nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, padding="same"), activation(), 
+			nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, padding="same"), activation(), 
+			nn.MaxPool2d(kernel_size=2, stride=2), 
 
-            nn.Conv2d(in_channels=512, out_channels=1024, kernel_size=2, padding="valid"), activation(), 
-            nn.Conv2d(in_channels=1024, out_channels=1024, kernel_size=2, padding="valid"), activation(), 
+			nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, padding="same"), activation(), 
+			nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, padding="same"), activation(), 
+			nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, padding="same"), activation(), 
+			nn.MaxPool2d(kernel_size=2, stride=2), 
 
-            nn.Flatten(), 
+			nn.Conv2d(in_channels=128, out_channels=256, kernel_size=2, padding="same"), activation(), 
+			nn.Conv2d(in_channels=256, out_channels=256, kernel_size=2, padding="same"), activation(), 
+			nn.Conv2d(in_channels=256, out_channels=256, kernel_size=2, padding="same"), activation(), 
 
-            nn.Linear(in_features=1024, out_features=1024), activation(), 
-            nn.Linear(in_features=1024, out_features=512), activation(), 
-            nn.Linear(in_features=512, out_features=512), activation(), 
-            nn.Linear(in_features=512, out_features=256), activation(), 
+			nn.Conv2d(in_channels=256, out_channels=512, kernel_size=2, padding="valid"), activation(), 
+			nn.Conv2d(in_channels=512, out_channels=512, kernel_size=2, padding="valid"), activation(), 
 
-            nn.Linear(in_features=256, out_features=channels[1]),             
-        )
+			nn.Conv2d(in_channels=512, out_channels=1024, kernel_size=2, padding="valid"), activation(), 
+			nn.Conv2d(in_channels=1024, out_channels=1024, kernel_size=2, padding="valid"), activation(), 
+
+			nn.Flatten(), 
+
+			nn.Linear(in_features=1024, out_features=1024), activation(), 
+			nn.Linear(in_features=1024, out_features=512), activation(), 
+			nn.Linear(in_features=512, out_features=512), activation(), 
+			nn.Linear(in_features=512, out_features=256), activation(), 
+
+			nn.Linear(in_features=256, out_features=channels[1]),             
+		)

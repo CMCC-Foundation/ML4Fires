@@ -33,6 +33,31 @@ from Fires._utilities.decorators import export
 
 @export
 class BaseLightningModule(pl.LightningModule):
+	"""
+	A base class for PyTorch Lightning modules, providing essential training, validation, and testing steps.
+
+	Attributes:
+		callback_metrics (dict):
+			A dictionary to store metrics during training and validation.
+
+	Methods:
+		__init__(*args, **kwargs):
+			Initializes the base module, setting up callback metrics.
+		training_step(batch, batch_idx):
+			Performs a training step, calculating loss and logging metrics.
+		validation_step(batch, batch_idx):
+			Performs a validation step, calculating loss and logging metrics.
+		on_validation_model_eval():
+			Sets the model to evaluation mode before validation epoch.
+		on_validation_model_train():
+			Sets the model to training mode after validation epoch.
+		on_test_model_train():
+			Sets the model to training mode before test epoch.
+		on_test_model_eval():
+			Sets the model to evaluation mode before test epoch.
+		on_predict_model_eval():
+			Sets the model to evaluation mode before predict step.
+	"""
 	def __init__(self, *args: Any, **kwargs: Any) -> None:
 		super().__init__(*args, **kwargs)
 		self.callback_metrics = {}
@@ -85,7 +110,29 @@ class BaseLightningModule(pl.LightningModule):
 
 @export
 class BaseUnetPlusPlus(BaseLightningModule):
+	"""
+	A base class for U-Net++ models, inheriting from BaseLightningModule.
 
+	Attributes:
+		input_shape (tuple):
+			The shape of input images (height, width, channels).
+		num_classes (int):
+			The number of output classes for segmentation.
+		depth (int):
+			The depth of the U-Net++ architecture.
+		base_filter_dim (int):
+			The number of filters in the first layer.
+		deep_supervision (bool):
+			Whether to use deep supervision.
+		model (nn.Module):
+			The underlying U-Net++ model (initialized as nn.Identity).
+
+	Methods:
+		__init__(input_shape, num_classes, depth, base_filter_dim, deep_supervision, *args, **kwargs):
+			Initializes the base U-Net++ model with specified parameters.
+		forward(inputs):
+			Performs a forward pass through the U-Net++ model.
+	"""
 	def __init__(self,
 			input_shape:tuple=(720, 1440, 8),
 			num_classes:int=1,
@@ -108,6 +155,26 @@ class BaseUnetPlusPlus(BaseLightningModule):
 
 @export
 class BaseVGG(BaseLightningModule):
+	"""
+	A base class for VGG-like models, inheriting from BaseLightningModule.
+
+	Attributes:
+		channels (List[int]):
+			A list of channel numbers for each convolutional block.
+		activation (nn.Module):
+			The activation function to use after each convolutional block.
+		kernel_size (int):
+			The size of the convolutional kernels.
+		model (nn.Module):
+			The underlying VGG-like model (initialized as nn.Identity).
+
+	Methods:
+		__init__(channels, activation, kernel_size, *args, **kwargs):
+			Initializes the base VGG model with specified parameters.
+		forward(inputs):
+			Performs a forward pass through the VGG model.
+	"""
+
 	def __init__(self, 
 			channels: List[int], 
 			activation: nn.Module = nn.Identity, 

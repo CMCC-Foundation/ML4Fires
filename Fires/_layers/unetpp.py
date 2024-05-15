@@ -23,6 +23,29 @@
 import torch.nn as nn
 
 class VGGBlock(nn.Module):
+	"""
+	Implements a fundamental building block of the VGG network architecture.
+
+	This block consists of:
+
+		1. Two convolutional layers with 3x3 kernels and padding=1 to preserve spatial dimensions.
+		2. Batch Normalization after each convolutional layer to improve training stability and speed.
+		3. ReLU activation after each Batch Normalization to introduce non-linearity.
+		4. (Optional) Dropout layers after ReLU (currently commented out) to prevent overfitting during training.
+
+	Attributes:
+		conv1 (nn.Conv2d): The first convolutional layer.
+		bn1 (nn.BatchNorm2d): Batch Normalization for the first convolutional layer.
+		conv2 (nn.Conv2d): The second convolutional layer.
+		bn2 (nn.BatchNorm2d): Batch Normalization for the second convolutional layer.
+		relu (nn.ReLU): ReLU activation function.
+		drop (nn.Dropout2d): Dropout layer (commented out).
+
+	Args:
+		in_channels (int): Number of input channels.
+		middle_channels (int): Number of channels in the intermediate feature maps.
+		out_channels (int): Number of output channels.
+	"""
 	def __init__(self, in_channels, middle_channels, out_channels):
 		super().__init__()
 		# self.drop = nn.Dropout2d(p=0.5)
@@ -33,6 +56,15 @@ class VGGBlock(nn.Module):
 		self.bn2 = nn.BatchNorm2d(out_channels)
 
 	def forward(self, x):
+		"""
+		Defines the forward pass of the VGGBlock.
+
+		Args:
+			x (torch.Tensor): Input tensor.
+
+		Returns:
+			torch.Tensor: Output tensor after passing through the block's layers.
+		"""
 		out = self.conv1(x)
 		out = self.bn1(out)
 		# out = self.drop(out)

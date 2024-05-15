@@ -27,6 +27,21 @@ from Fires._utilities.decorators import export
 
 @export
 class Scaler():
+	"""
+	Base class for data scalers.
+
+	Attributes:
+		features (List[str]):
+			List of feature names to be scaled.
+		dtype (torch.dtype):
+			Data type for scaling operations (default: torch.float32).
+
+	Methods:
+		transform(tensor):
+			Abstract method for scaling input data.
+		inverse_transform(tensor):
+			Abstract method for reversing scaling.
+	"""
 	def __init__(self, features: List[str], dtype=torch.float32) -> None:
 		self.features = features
 		self.dtype = dtype

@@ -28,7 +28,25 @@ from Fires._utilities.decorators import export
 
 
 class Map():
+	"""
+	Base class for handling maps.
 
+	Attributes:
+		features (List[str]):
+			List of feature names.
+		years (List[int]):
+			List of years to select data from.
+		data_filepath (str):
+			Path to the Zarr data file.
+		store_dir (str):
+			Directory to store generated maps.
+
+	Methods:
+		get_maps():
+			Abstract method for retrieving maps.
+		save():
+			Abstract method for saving maps.
+	"""
 	def __init__(self, features: List[str], years: List[int], data_filepath: str, store_dir: str) -> None:
 		if not features:
 			raise ValueError("Provide a list of features. It must not be empty!")
@@ -50,7 +68,25 @@ class Map():
 
 @export
 class StandardMaps(Map):
+	"""
+	Calculates and saves standard deviation and mean maps for specified features and years.
 
+	Attributes:
+		mean_map (xr.DataArray):
+			Mean values across time for each feature.
+		stdv_map (xr.DataArray):
+			Standard deviation values across time for each feature.
+		name (str):
+			Name derived from the last feature.
+
+	Methods:
+		__init__(features, years, data_filepath, store_dir):
+			Initializes the class.
+		get_maps():
+			Calculates mean and standard deviation maps.
+		save():
+			Saves the maps to NetCDF files.
+	"""
 	def __init__(self, features: List[str], years: List[int], data_filepath: str, store_dir: str) -> None:
 		super().__init__(features, years, data_filepath, store_dir)
 		
@@ -85,7 +121,34 @@ class StandardMaps(Map):
 
 @export
 class StandardMapsPointWise(Map):
+	"""
+	Calculates and saves mean and standard deviation maps point-wise across time, latitude and longitude,
+	for specified features and years from a Zarr dataset.
 
+	Attributes:
+		features (List[str]):
+			List of feature names to process.
+		years (List[int]):
+			List of years to select data from.
+		data_filepath (str):
+			Path to the Zarr dataset file.
+		store_dir (str):
+			Directory to save the calculated maps.
+		name (str):
+			Name of the variable (derived from the last feature name).
+		mean_map (xarray.DataArray):
+			Mean values across time, latitude, and longitude for each feature.
+		stdv_map (xarray.DataArray):
+			Standard deviation values across time, latitude, and longitude for each feature.
+
+	Methods:
+		__init__(features, years, data_filepath, store_dir):
+			Initializes the StandardMapsPointWise object.
+		get_maps():
+			Calculates and returns the mean and standard deviation maps.
+		save():
+			Saves the mean and standard deviation maps to NetCDF files in the store directory.
+	"""
 	def __init__(self, features: List[str], years: List[int], data_filepath: str, store_dir: str) -> None:
 		super().__init__(features, years, data_filepath, store_dir)
 
@@ -123,7 +186,25 @@ class StandardMapsPointWise(Map):
 
 @export
 class MinMaxMaps(Map):
+	"""
+	Calculates and saves minimum and maximum maps for specified features and years.
 
+	Attributes:
+		min_map (xr.DataArray):
+			Minimum values across time for each feature.
+		max_map (xr.DataArray):
+			Maximum values across time for each feature.
+		name (str):
+			Name derived from the last feature.
+
+	Methods:
+		__init__(features, years, data_filepath, store_dir):
+			Initializes the class.
+		get_maps():
+			Calculates minimum and maximum maps.
+		save():
+			Saves the maps to NetCDF files.
+	"""
 	def __init__(self, features: List[str], years: List[int], data_filepath: str, store_dir: str) -> None:
 		super().__init__(features, years, data_filepath, store_dir)
 		
@@ -158,7 +239,34 @@ class MinMaxMaps(Map):
 
 @export
 class MinMaxMapsPointWise(Map):
+	"""
+	Calculates and saves minimum and maximum maps point-wise across time, latitude and longitude,
+	for specified features and years from a Zarr dataset.
 
+	Attributes:
+		features (List[str]):
+			List of feature names to process.
+		years (List[int]):
+			List of years to select data from.
+		data_filepath (str):
+			Path to the Zarr dataset file.
+		store_dir (str):
+			Directory to save the calculated maps.
+		name (str):
+			Name of the variable (derived from the last feature name).
+		min_map (xarray.DataArray):
+			Minimum values across time, latitude, and longitude for each feature.
+		max_map (xarray.DataArray):
+			Maximum values across time, latitude, and longitude for each feature.
+
+	Methods:
+		__init__(features, years, data_filepath, store_dir):
+			Initializes the MinMaxMapsPointWise object.
+		get_maps():
+			Calculates and returns the minimum and maximum maps.
+		save():
+			Saves the minimum and maximum maps to NetCDF files in the store directory.
+	"""
 	def __init__(self, features: List[str], years: List[int], data_filepath: str, store_dir: str) -> None:
 		super().__init__(features, years, data_filepath, store_dir)
 		
