@@ -1,10 +1,10 @@
 [model]
 devices = "tf.config.experimental.list_physical_devices('GPU')"
-strategy = "tf.distribute.MirroredStrategy()"
+strategy = "tf.distribute.MirroredStrategy(devices)"
 loss = "tf.keras.losses.MeanAbsoluteError(name='mae')"
 metrics = "[tf.keras.metrics.MeanSquaredError(name='mse'), tf.keras.metrics.RootMeanSquaredError(name='rmse')]"
 optimizer = "tf.keras.optimizers.Adam(learning_rate=lr)"
-learning_rate = 1e-4 # 3e-5
+learning_rate = 1e-4
 ba_hectares = "True"
 
 [layers]
@@ -20,12 +20,12 @@ maxpool_data_format="channels_last"
 
 [config_1]
 bsize = 4
-base_shape = "(720, 1440)"
+base_shape = '(720, 1440)'
 shuffle = "True"
-shard_size = 2
-epochs = 50 # 50
+shard_size = 1
+epochs = 10
 shift_list = [0]
-scaler_type_minmax = "minmax"
-scaler_type_zscore = "standard"
+scaler_type_minmax = 'minmax'
+scaler_type_zscore = 'standard'
 scaler_name = "scaler.dump"
 target_source = "FCCI"

@@ -1,0 +1,43 @@
+[model]
+devices = "tf.config.experimental.list_physical_devices('GPU')"
+strategy = "tf.distribute.MirroredStrategy(devices)"
+
+
+	[model.unetpp]
+	model_name = "UNET++"
+	loss = "tf.keras.losses.MeanAbsoluteError(name='mae')"
+	metrics = "[tf.keras.metrics.MeanSquaredError(name='mse'), tf.keras.metrics.RootMeanSquaredError(name='rmse')]"
+	optimizer = "tf.keras.optimizers.Adam(learning_rate=lr)"
+	learning_rate = 1e-4
+
+		[model.unetpp.dir]
+		RUN_DIR = "os.path.join(EXPERIMENTS_DIR, MODEL_NAME)"
+		CHECKPOINTS_DIR = "os.path.join(RUN_DIR, 'checkpoints')"
+		TENSORBOARD_DIR = "os.path.join(RUN_DIR, 'tensorboard')"
+		SKIP_DAYS_DIRNAME = "skip_days_00"
+	
+		[model.unetpp.choose_target]
+		ba_hectares = "True"
+
+		[model.unetpp.layers]
+		drop_rate = 25e-2
+		kernel = "(3, 3)"
+		activation = "relu"
+		initializer = "he_normal"
+		padding = "same"
+		regularizer = "tf.keras.regularizers.L2(1e-4)"
+		maxpool_size = "(2, 2)"
+		maxpool_strides = "(2, 2)"
+		maxpool_data_format="channels_last"
+
+		[model.unetpp.configuration]
+		bsize = 4
+		base_shape = '(720, 1440)'
+		shuffle = "True"
+		shard_size = 1
+		epochs = 10
+		shift_list = [0]
+		scaler_type_minmax = 'minmax'
+		scaler_type_zscore = 'standard'
+		scaler_name = "scaler.dump"
+		target_source = "FCCI"

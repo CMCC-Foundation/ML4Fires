@@ -1,28 +1,46 @@
-
-#####################################################################
-#								DATA								#
-#####################################################################
-[toml_configuration_files]
-toml_model = "load_global_config(config_fname='models.toml')"
-
 [data]
-seasfirecube_path = "os.path.join(DATA_DIR, 'seasfire_v03.zarr')"
-seed = 34698270934765 # "int(str(dt.now().timestamp()).split('.')[0])"
-tfrecords_dir = "00_days_dataset"
-selected_configuration = 'config_1'
 
-[data.features]
-drivers = ['lst_day', 'lai', 'rel_hum', 'ssr', 'sst', 't2m_min', 'tp']
-targets = ['fcci_ba', 'gwis_ba']
-target_masks = ['fcci_ba_valid_mask', 'gwis_ba_valid_mask']
-landsea_mask = ['lsm']
-merged_ba = ['merged_ba']
-merged_ba_mask = ['merged_ba_valid_mask']
+	[data.configs]
+	config_total = ['lai', 'lst_day', 'rel_hum', 'ssr', 'sst', 't2m_min', 'tp', 'lsm', 'fcci_ba', 'gwis_ba', 'fcci_ba_valid_mask', 'gwis_ba_valid_mask']
+	config_fcci = ['lai', 'lst_day', 'rel_hum', 'ssr', 'sst', 't2m_min', 'tp', 'lsm', 'fcci_ba']
+	config_gwis = ['lai', 'lst_day', 'rel_hum', 'ssr', 'sst', 't2m_min', 'tp', 'lsm', 'gwis_ba']
+	
+	[data.features]
+	drivers = ['lai', 'lst_day', 'rel_hum', 'ssr', 'sst', 't2m_min', 'tp']
+	targets = ['fcci_ba', 'gwis_ba']
+	target_masks = ['fcci_ba_valid_mask', 'gwis_ba_valid_mask']
+	landsea_mask = ['lsm']
+	training_years_range = "range(2001, 2017)"
+	validation_years_range = "range(2017, 2019)"
+	testing_years_range = "range(2019, 2022)"
+	target_data_sources = ['FCCI', 'GWIS', 'MERGE']
+
+	[data.files]
+	DATA_FPATH = "os.path.join(DATA_DIR, 'seasfire_v03.zarr')"
+	DATA_NEW_FPATH = "os.path.join(DATA_DIR, 'seasfire_v03_preprocessed.zarr')"
+	NEW_DS_PATH = "lambda name: os.path.join(DATA_DIR, f'sfv03_{name.lower()}.zarr')"
 
 
-#####################################################################
-#								DATETIME							#
-#####################################################################
+[dir]
+CURR_DIR = "os.getcwd()"
+LOG_DIR = "os.path.join(CURR_DIR, 'logs')"
+EXPERIMENTS_DIR = "os.path.join(CURR_DIR, 'experiments')"
+DATA_DIR = "os.path.join(CURR_DIR, 'data')"
+TFRECORDS = "os.path.join(DATA_DIR, 'Dataset')"
+SCALER_DIR = "os.path.join(DATA_DIR, 'scaler')"
 
-[datetime]
-today = "str(dt.now()).replace('-','').replace(' ','_').replace(':','').split('.')[0]"
+
+[toml]
+tflow_fname = "tflow.toml"
+torch_fname = "torch.toml"
+
+	[toml.logs]
+	discord_fname = "discord.toml"
+
+[utils]
+
+	[utils.random]
+	seed = 34698270934765
+
+	[utils.datetime]
+	today = "str(dt.now()).split('.')[0].replace('-', '').replace(':', '').replace(' ', '_')"
