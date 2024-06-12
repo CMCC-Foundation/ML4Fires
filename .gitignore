@@ -4,3 +4,4 @@
 # data
 *.log
 *.zarr
+digital_twin_notebooks/img/*.png
