@@ -2,7 +2,7 @@
 
 ## Sources
 
-<p align="justify"> The first data source is the <a href="https://zenodo.org/records/8055879"> SeasFire Cube v3 </a>, a data cube of pre-processed data provided by SeasFire project integrating multiple sources. The <b>SeasFire Cube Dataset</b> contains a set of 59 climate variables aligned on a <b>regular grid</b>.</p>
+<p align="justify"> The first data source is the <a href="https://zenodo.org/records/8055879" style="text-decoration:none"> SeasFire Cube v3 </a>, a data cube of pre-processed data provided by SeasFire project integrating multiple sources. The <b>SeasFire Cube Dataset</b> contains a set of 59 climate variables aligned on a <b>regular grid</b>.</p>
 
 All variables have:
 
@@ -18,7 +18,7 @@ All variables have:
 |        Number of variables         |              59              |
 |          Overall size              |           ~ 44 Gb            |
 
-<p align="justify"> The second data source is <a href="https://esgf-node.llnl.gov/projects/cmip6/">CMIP6</a> data. <b>CMIP6</b> data are climate model projections produced on long time frames (up to 2100) by different climate modeling centers. Data is provided (mainly) on <b>regular grids</b> in NetCDF format and made available through the ESGF infrastructure. Various scenarios are implemented according to different <i>Shared Socioeconomic Pathways (SSP)</i>, representative of socio-economic and greenhouse gas emissions projected changes. Such data will be used for model inference.</p>
+<p align="justify"> The second data source is <a href="https://esgf-node.llnl.gov/projects/cmip6/" style="text-decoration:none">CMIP6</a> data. <b>CMIP6</b> data are climate model projections produced on long time frames (up to 2100) by different climate modeling centers. Data is provided (mainly) on <b>regular grids</b> in NetCDF format and made available through the ESGF infrastructure. Various scenarios are implemented according to different <i>Shared Socioeconomic Pathways (SSP)</i>, representative of socio-economic and greenhouse gas emissions projected changes. Such data will be used for model inference.</p>
 
 |                Feature             |            Value             |
 |                :--                 |             :--              |
