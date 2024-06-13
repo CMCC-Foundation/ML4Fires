@@ -1,4 +1,4 @@
-## Run the code on a LSF cluster (with GPUs)
+# [&larr;](../README.md) Run the code on a LSF cluster (with GPUs)
 
 <p align="justify">  In order to execute the code, the working directory <b> must be set </b> to <code>src</code> and a <code>*.sh</code> file must be prepared with the following template: </p>
 
