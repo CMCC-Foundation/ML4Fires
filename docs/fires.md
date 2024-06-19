@@ -47,10 +47,22 @@
 
 ## Datasets
 
+[_datasets](../Fires/_datasets/)
+[datasets.py](../Fires/datasets.py)
+
 ## Layers
 
+[_layers](../Fires/_layers/)
+[layers.py](../Fires/layers.py)
+
 ## Macros
+[_macros](../Fires/_macros/)
+[macros.py](../Fires/macros.py)
 
 ## Scalers
+[_scalers](../Fires/_scalers/)
+[scalers.py](../Fires/scalers.py)
 
 ## Utilities
+[_utilities](../Fires/_utilities/)
+[utils.py](../Fires/utils.py)
