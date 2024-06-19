@@ -93,7 +93,7 @@
 
 | File |      Type     |     Main function     |
 | :--  |      :--      |          :--          |
-|[**`config`**](../config/) | <code style="color:blue">DIR</code> | store [**`TOML`**](https://toml.io/en/) configuration files|
+|[**`config`**](../config/) | $\small{\textcolor{blue}{\texttt{DIR}}}$ | store [**`TOML`**](https://toml.io/en/) configuration files|
 |[**`data`**](../data/) | <code style="color:blue">DIR</code> | store important files (e.g., scalers, symbolic links to the dataset, etc)|
 |[**`digital_twin_notebooks`**](../digital_twin_notebooks/) | <code style="color:blue">DIR</code> | store Jupyter notebooks that carry on the Digital Twin's tasks on Wildfires use case|
 |[**`docs`**](../docs/) | <code style="color:blue">DIR</code> | store documentation files|
