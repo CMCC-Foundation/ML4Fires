@@ -30,10 +30,7 @@ All variables have:
 
 ## Overview
 
-<p align="justify"> The dataset used to carry on the development of the code is composed by 14 climate variables: </p>
-
-- 12 climate variables belong to SeasFire Cube v3;
-- 2 (`merged_ba` and `merged_ba_valid_mask`) are obtained by merging _FCCI_ (`fcci_ba` and `fcci_ba_valid_mask`) and _GWIS_ (`gwis_ba` and `gwis_ba_valid_mask`) variables on burned areas.
+<p align="justify"> The dataset used to carry on the development of the code is composed by 9 climate variables. </p>
 
 ### Drivers
 
@@ -52,13 +49,8 @@ All variables have:
 
 ### Targets
 
-<p align="justify"> The table below contains all the targets used to train the Deep Neural Network model. To train the model, a data source must be chosen among FCCI, GWIS and MERGE.</p>
+<p align="justify"> The table below contains all the targets used to train the Deep Neural Network model. </p>
 
 | Variable | CMIP6 | SeasFire Cube | Shape | Units | Origin |
 | :--- | :---: | :--- | :--- | :--- | :--- |
 | _Burned Areas - FCCI_ | - | `fcci_ba` | (**time**, lat, lon) | ha | Fire Climate Change Initiative (FCCI) |
-| _Valid mask (B.A.) - FCCI_ | - | `fcci_ba_valid_mask` | (**time**) | 0-1 | Fire Climate Change Initiative (FCCI) |
-| _Burned Areas - GWIS_ | - | `gwis_ba` | (**time**, lat, lon) | ha | Global Wildfire Information System  (GWIS) |
-| _Valid mask (B.A.) - GWIS_ | - | `gwis_ba_valid_mask` | (**time**) | 0-1 | Global Wildfire Information System  (GWIS) |
-| _Burned Areas - MERGE_ | - | `merge_ba` | (**time**, lat, lon) | ha | _Computed_ |
-| _Valid mask (B.A.) - MERGE_ | - | `merge_ba_valid_mask` | (**time**) | 0-1| _Computed_ |
