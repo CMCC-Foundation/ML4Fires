@@ -93,10 +93,10 @@
 
 | File |      Type     |     Main function     |
 | :--  |      :--:      |          :--          |
-|[**`config`**](../config/) | $\small{\textcolor{blue}{\texttt{DIR}}}$ | store [**`TOML`**](https://toml.io/en/) configuration files|
-|[**`data`**](../data/) | $\small{\textcolor{blue}{\texttt{DIR}}}$ | store important files (e.g., scalers, symbolic links to the dataset, etc)|
-|[**`digital_twin_notebooks`**](../digital_twin_notebooks/) | $\small{\textcolor{blue}{\texttt{DIR}}}$ | store Jupyter notebooks that carry on the Digital Twin's tasks on Wildfires use case|
-|[**`docs`**](../docs/) | $\small{\textcolor{blue}{\texttt{DIR}}}$ | store documentation files|
+|[**`config`**](../config/) | $\small{\textcolor{blue}{\texttt{DIR}}}$ | It stores [**`TOML`**](https://toml.io/en/) configuration files|
+|[**`data`**](../data/) | $\small{\textcolor{blue}{\texttt{DIR}}}$ | It stores important files (e.g., scalers, symbolic links to the dataset, etc)|
+|[**`digital_twin_notebooks`**](../digital_twin_notebooks/) | $\small{\textcolor{blue}{\texttt{DIR}}}$ | It stores Jupyter notebooks that carry on the Digital Twin's tasks on Wildfires use case|
+|[**`docs`**](../docs/) | $\small{\textcolor{blue}{\texttt{DIR}}}$ | It stores documentation files|
 |[**`experiments`**](../experiments/) | $\small{\textcolor{blue}{\texttt{DIR}}}$ | <p align="justify"> It contains folders named with the current date and time when the experiment took place. The best model, the experiment configuration file and the benchmark file will be saved in this folder after the completion of the experiment. </p> |
 |[**`Fires`**](../Fires/) | $\small{\textcolor{blue}{\texttt{DIR}}}$ | <p align="justify"> It is the main library that is used to carry on the training of the Machine Learning model and the inference on the SeasFireCube data. It is used to store, in an organized way, all the code that provides support to the `main.py` script during its execution. Model implementations and training utility functions can be found here. </p> |
 |[**`main.py`**](../main.py) | $\small{\textcolor{red}{\texttt{FILE}}}$ | <p align="justify"> It contains all the workflow code that must be executed. </p> |
