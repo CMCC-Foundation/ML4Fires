@@ -19,6 +19,7 @@
 1. [Input Data Preparation](./docs/input_data_preparation.md)
 1. [Conda Environment](./docs/conda.md)
 1. [Library Structure](./docs/library_structure.md)
+1. [Fires](./docs/fires.md)
 1. [Run the code on a LSF cluster (with GPUs)](./docs/run_on_lsf_cluster.md)
 
 ## Contributors
