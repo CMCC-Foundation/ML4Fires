@@ -8,8 +8,10 @@
  
 ![Unet++](../images/unetpp_paper.png)
 
-**a.** UNet++ consists of an encoder and decoder that are connected through a series of nested dense convolutional blocks. The main idea behind UNet++ is to bridge the semantic gap between the feature maps of the encoder and decoder prior to fusion. For example, the semantic gap between ( $X^{0,0}$, $X^{1,3}$ ) is bridged using a dense convolution block with three convolution layers. In the graphical abstract, black indicates the original U-Net, green and blue show dense convolution blocks on the skip pathways, and red indicates deep supervision. Red, green, and blue components distinguish UNet++ from U-Net.
+**a.** UNet++ consists of an encoder and decoder that are connected through a series of nested dense convolutional blocks. The main idea behind UNet++ is to bridge the semantic gap between the feature maps of the encoder and decoder prior to fusion. For example, the semantic gap between ( $X^{0,0}$, $X^{1,3}$ ) is bridged using a dense convolution block with three convolution layers. In the graphical abstract, black indicates the original [U-Net](https://arxiv.org/pdf/1505.04597), green and blue show dense convolution blocks on the skip pathways, and red indicates deep supervision. Red, green, and blue components distinguish UNet++ from U-Net.
+
 **b.** Detailed analysis of the first skip pathway of UNet++.
+
 **c.** UNet++ can be pruned at inference time, if trained with deep supervision.
 
 
