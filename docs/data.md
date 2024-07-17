@@ -2,7 +2,9 @@
 
 ## Sources
 
-<p align="justify"> The first data source is the <a href="https://zenodo.org/records/8055879" style="text-decoration:none;"> SeasFire Cube v3 </a>, a data cube of pre-processed data provided by SeasFire project integrating multiple sources. The <b>SeasFire Cube Dataset</b> contains a set of 59 climate variables aligned on a <b>regular grid</b>.</p>
+<!-- <p align="justify"> The first data source is the <a href="https://zenodo.org/records/8055879" style="text-decoration:none;"> -->
+
+<p align="justify"> The first data source is the <a href="https://doi.org/10.5281/zenodo.8055879" style="text-decoration:none;"> SeasFire Cube v3 </a>, a data cube of pre-processed data provided by SeasFire project integrating multiple sources. The <b>SeasFire Cube Dataset</b> contains a set of 59 climate variables aligned on a <b>regular grid</b>.</p>
 
 All variables have:
 
