@@ -116,19 +116,19 @@ class Unet(BaseLightningModule):
 	def forward(self, input):
 
 		# Encoder
-		x0_0 = self.conv0_0(input)									# Dimension: (180, 360, 32)
-		x1_0 = self.conv1_0(self.pool1(x0_0))						# Dimension: (90, 180, 64)
-		x2_0 = self.conv2_0(self.pool2(x1_0))						# Dimension: (45, 90, 128)
-		x3_0 = self.conv3_0(self.pool3(x2_0))						# Dimension: (15, 30, 256)
-		x4_0 = self.conv4_0(self.pool4(x3_0))						# Dimension: (5, 10, 512)
-		x5_0 = self.conv5_0(self.pool5(x4_0))						# Dimension: (1, 2, 512)
+		x0_0 = self.conv0_0(input)
+		x1_0 = self.conv1_0(self.pool1(x0_0))
+		x2_0 = self.conv2_0(self.pool2(x1_0))
+		x3_0 = self.conv3_0(self.pool3(x2_0))
+		x4_0 = self.conv4_0(self.pool4(x3_0))
+		x5_0 = self.conv5_0(self.pool5(x4_0))
 
 		# Decoder
-		x4_1 = self.conv4_1(torch.cat([self.up1(x5_0), x4_0], 1))	# Dimension: (5, 10, 256)
-		x3_2 = self.conv3_2(torch.cat([self.up2(x4_1), x3_0], 1))	# Dimension: (15, 30, 128)
-		x2_3 = self.conv2_3(torch.cat([self.up3(x3_2), x2_0], 1))	# Dimension: (45, 90, 64)
-		x1_4 = self.conv1_4(torch.cat([self.up4(x2_3), x1_0], 1))	# Dimension: (90, 180, 32)
-		x0_5 = self.conv0_5(torch.cat([self.up5(x1_4), x0_0], 1))	# Dimension: (180, 360, 32)
+		x4_1 = self.conv4_1(torch.cat([self.up1(x5_0), x4_0], 1))
+		x3_2 = self.conv3_2(torch.cat([self.up2(x4_1), x3_0], 1))
+		x2_3 = self.conv2_3(torch.cat([self.up3(x3_2), x2_0], 1))
+		x1_4 = self.conv1_4(torch.cat([self.up4(x2_3), x1_0], 1))
+		x0_5 = self.conv0_5(torch.cat([self.up5(x1_4), x0_0], 1))
 
 		output = self.activation(self.final(x0_5))
 		return output
