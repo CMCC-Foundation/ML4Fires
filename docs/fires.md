@@ -47,7 +47,13 @@
 
 ## Datasets
 
-[_datasets](../Fires/_datasets/)
+The [_datasets](../Fires/_datasets/) folder contains all the python scripts necessary to create the datasets:
+
+- [dataset_zarr.py](../Fires/_datasets/dataset_zarr.py)
+- [torch_dataset.py](../Fires/_datasets/torch_dataset.py)
+
+Il file [dataset_zarr.py](../Fires/_datasets/dataset_zarr.py) c
+
 [datasets.py](../Fires/datasets.py)
 
 ## Layers

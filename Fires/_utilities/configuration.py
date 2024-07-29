@@ -27,7 +27,10 @@ import munch
 from Fires._utilities.decorators import export
 
 _config_dir =  os.path.join(os.path.dirname(os.getcwd()), "config")
-print(_config_dir)
+if os.path.exists(_config_dir):
+	print(f"Path to config: {_config_dir}")
+else:
+	raise ValueError(f"Path {_config_dir} doesn't exist")
 
 @export
 def load_global_config(dir_name:str=_config_dir , config_fname : str = "configuration.toml"):
