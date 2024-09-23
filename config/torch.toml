@@ -10,7 +10,7 @@ loss = "torch.nn.BCELoss()"
 metrics = "[]" # "[torch.nn.MSELoss()]"
 
 	[model.dir]
-	RUN_DIR = "os.path.join(EXPERIMENTS_DIR, _today)"
+	RUN_DIR = "os.path.join(EXPS_DIR, _today)"
 	CHECKPOINTS_DIR = "os.path.join(RUN_DIR, 'checkpoints')"
 	SKIP_DAYS_DIRNAME = "skip_days_00"
 

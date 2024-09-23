@@ -69,8 +69,11 @@ class StandardScaler(Scaler):
 		coeff = 1 / stdv_ds
 		element = mean_ds * coeff
 		
-		self.coeff_ = torch.as_tensor(coeff.to_array().data, dtype=self.dtype).view(8, 1, 1)
-		self.element_ = torch.as_tensor(element.to_array().data, dtype=self.dtype).view(8, 1, 1)
+		# self.coeff_ = torch.as_tensor(coeff.to_array().data, dtype=self.dtype).view(8, 1, 1)
+		# self.element_ = torch.as_tensor(element.to_array().data, dtype=self.dtype).view(8, 1, 1)
+		
+		self.coeff_ = torch.as_tensor(coeff.to_array().data, dtype=self.dtype).view(7, 1, 1)
+		self.element_ = torch.as_tensor(element.to_array().data, dtype=self.dtype).view(7, 1, 1)
 		
 	def transform(self, tensor: torch.Tensor):
 		scaled_tensor = tensor * self.coeff_ - self.element_

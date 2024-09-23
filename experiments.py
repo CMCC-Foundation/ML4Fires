@@ -24,6 +24,7 @@ import torch
 import itertools
 from typing import List, Tuple
 
+from Fires._macros.macros import CONFIG_DIR
 from Fires._scalers.minmax import MinMaxScaler
 from Fires._scalers.standard import StandardScaler
 from Fires._utilities.configuration import save_exp_config
@@ -96,6 +97,6 @@ if __name__ == '__main__':
 	# save experiments in configuration files
 	for exp, fname in zip(experiments, filenames):
 		print(f'  - Saving experiment in {fname} configuration file')
-		save_exp_config(new_config=exp, filepath=fname)
+		save_exp_config(exp_configuration=exp, config_dir=CONFIG_DIR, filepath=fname)
 	
 	print("Experiments saved")

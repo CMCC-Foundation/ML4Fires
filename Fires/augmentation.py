@@ -22,10 +22,10 @@
 
 from torchvision.transforms.functional import rotate, vflip, hflip
 
-from Fires._macros.macros import LOG_DIR
+from Fires._macros.macros import LOGS_DIR
 from Fires._utilities.decorators import debug, export
 from Fires._utilities.logger import Logger as logger
-_logger = logger(log_dir=LOG_DIR).get_logger("Augmentation")
+_logger = logger(log_dir=LOGS_DIR).get_logger("Augmentation")
 
 @export
 @debug(log=_logger)

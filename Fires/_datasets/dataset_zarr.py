@@ -22,27 +22,33 @@
 
 import os
 import inspect
+from typing import List
 import numpy as np
 import xarray as xr
 
 from Fires._macros.macros import (
-	DATA_FPATH,
 	CONFIG,
-	LOG_DIR,
+	DATA_PATH_025KM,
+	DATA_PATH_100KM,
+	DATA_PATH_ORIGINAL,
 	DATA_DIR,
+	LOGS_DIR,
 	NEW_DS_PATH,
+	DRIVERS,
+	TARGETS
 )
 from Fires._utilities.decorators import debug, export
 from Fires._utilities.logger import Logger as logger
 
-_log = logger(log_dir=LOG_DIR).get_logger("DatasetUtils")
+_log = logger(log_dir=LOGS_DIR).get_logger("DatasetUtils")
 
 # toml_g_data = config.data
 # toml_g_features = toml_g_data['features']		
 
+
 @export
 @debug(log=_log)
-class DatasetZarr:
+class Dataset025:
 	"""
 	Class used to create a xarray Dataset with the 
 	features specified in a TOML configuration file
@@ -53,8 +59,8 @@ class DatasetZarr:
 		self.logger = _log
 
 		# define path to zarr file
-		self.path_to_zarr = DATA_FPATH
-		self.path_new_zarr = NEW_DS_PATH
+		self.path_to_zarr = DATA_PATH_ORIGINAL
+		self.path_new_zarr = DATA_PATH_025KM
 
 		# define drivers and targets
 		self.drivers = sorted(CONFIG.data.features.drivers) + CONFIG.data.features.landsea_mask
@@ -143,6 +149,94 @@ class DatasetZarr:
 
 @export
 @debug(log=_log)
+class Dataset100:
+	"""
+	Class used to create a xarray Dataset with the 
+	features specified in a TOML configuration file
+	"""
+
+	def __init__(self) -> None:
+		# define logger
+		self.logger = _log
+
+		# define path to zarr file
+		self.path_025km = DATA_PATH_025KM
+		self.path_100km = DATA_PATH_100KM
+
+		# define drivers and targets
+		self.drivers = DRIVERS
+		self.targets = TARGETS
+		self.init_features = DRIVERS + TARGETS
+
+		# save the current dataset in a zarr file
+		# name = self.targets[0].split('_')[0].lower()
+		# path = self.path_new_zarr(name=name)
+		if not os.path.exists(self.path_100km):
+			# get the dataset with all features	
+			self.logger.info(f"Creating zarr dataset for 100km resolution")
+			self._025km_to_original()
+			self._original_to_100km()
+
+			self.logger.info(f"Saving dataset to {self.path_100km}")
+			self.dataset_100km.to_zarr(self.path_100km)
+		else:
+			self.logger.warning(f"File {self.path_100km} already exists. Skipping")
+	
+	def _025km_to_original(self):
+		"""
+		Generates the dataset used to train ML models.
+
+		Parameters
+		----------
+		target : str
+			defines the target feature
+		"""
+		# 
+		
+		fn_name = inspect.currentframe().f_code.co_name
+
+		# define initial features
+		self.logger.info(f"{fn_name} | Define features that must be used to retrieve data")
+		self.init_features = self.drivers + self.targets
+		for feature in self.init_features: self.logger.info(f" - {feature.upper()}")
+
+		# define path to .zarr dataset file and load it
+		_ds = xr.open_zarr(self.path_025km)[self.init_features].sel(time=slice('2001', '2020')).load()
+		self.logger.info(f"{fn_name} | Loaded dataset from: {self.path_025km}")
+
+		# turn target's burned areas from hectares to percentage of hectares
+		_max_hectares_025km = pow((111/4), 2) * 100
+		min_trg =  _ds[self.targets[0]].min(dim=['time', 'latitude', 'longitude'], skipna=True).data
+		max_trg =  _ds[self.targets[0]].max(dim=['time', 'latitude', 'longitude'], skipna=True).data
+		self.logger.info(f"{fn_name} | MIN: {min_trg} - MAX: {max_trg} - MAX HECT: {_max_hectares_025km}")
+		self.logger.info(f"{fn_name} | MAX HECT: {_max_hectares_025km} - IS MAX GREATHER THAN MAX HECT: {max_trg > _max_hectares_025km}")
+		self.logger.info(f"{fn_name} | Dataset target {self.targets[0]}: \n {_ds[self.targets]} \n")
+				
+		# descale target from 25km to original
+		_ds[self.targets[0]] = _ds[self.targets[0]] * _max_hectares_025km
+		
+		# define the final dataset that must be saved
+		self.dataset_025km = _ds
+	
+	def _original_to_100km(self):
+		
+		fn_name = inspect.currentframe().f_code.co_name
+
+		# define the max hectares value for 100 km data
+		_max_hectares_100km = pow(111, 2) * 100
+		self.logger.info(f"{fn_name} | max hectares for 100km: {_max_hectares_100km}")
+
+		# convert from 25km to 100km
+		_ds = self.dataset_025km.coarsen(latitude=4, longitude=4, boundary='trim').mean(skipna=True)
+		_ds[self.targets[0]] = _ds[self.targets[0]] / _max_hectares_100km
+		self.dataset_100km = _ds
+
+		#
+
+
+
+@export
+@debug(log=_log)
 def load_zarr(name:str):
 	"""
 	Load the preprocessed `.zarr` dataset with xarray.
@@ -154,7 +248,7 @@ def load_zarr(name:str):
 	"""
 	path = NEW_DS_PATH(name=name.lower())
 	# create dataset if not exists
-	if not os.path.exists(path): DatasetZarr()
+	if not os.path.exists(path): Dataset025()
 	# open dataset zarr file
 	data = xr.open_zarr(path) #.load()
 	return data

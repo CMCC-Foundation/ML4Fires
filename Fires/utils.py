@@ -20,6 +20,14 @@
 # limitations under the License.											
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
+from Fires._plots.plot_utils import (
+	draw_features,
+	highlight_ba,
+	set_axis,
+	draw_tropics_and_equator,
+	plot_dataset_map,
+)
+
 from Fires._utilities.cli_args_checker import checker
 
 from Fires._utilities.cli_args_parser import CLIParser

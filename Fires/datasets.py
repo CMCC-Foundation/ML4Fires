@@ -20,5 +20,5 @@
 # limitations under the License.											
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-from Fires._datasets.dataset_zarr import DatasetZarr, load_zarr
+from Fires._datasets.dataset_zarr import Dataset025, Dataset100, load_zarr
 from Fires._datasets.torch_dataset import FireDataset

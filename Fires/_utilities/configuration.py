@@ -26,14 +26,14 @@ import munch
 
 from Fires._utilities.decorators import export
 
-_config_dir =  os.path.join(os.path.dirname(os.getcwd()), "config")
-if os.path.exists(_config_dir):
-	print(f"Path to config: {_config_dir}")
-else:
-	raise ValueError(f"Path {_config_dir} doesn't exist")
+# _config_dir =  os.path.join(CURR_DIR, "config")
+# if os.path.exists(_config_dir):
+# 	print(f"Path to config: {_config_dir}")
+# else:
+# 	raise ValueError(f"Path {_config_dir} doesn't exist")
 
 @export
-def load_global_config(dir_name:str=_config_dir , config_fname : str = "configuration.toml"):
+def load_global_config(dir_name:str , config_fname : str = "configuration.toml"):
 	"""
 	Loads the global configuration from a TOML file.
 
@@ -50,7 +50,7 @@ def load_global_config(dir_name:str=_config_dir , config_fname : str = "configur
 	return munch.munchify(toml.load(filepath))
 
 @export
-def save_global_config(new_config:dict, folder:str=_config_dir, filename:str="new_configuration.toml"):
+def save_global_config(new_config:dict, folder:str, filename:str="new_configuration.toml"):
 	"""
 	Saves a new global configuration to a TOML file.
 
@@ -67,30 +67,40 @@ def save_global_config(new_config:dict, folder:str=_config_dir, filename:str="ne
 		file.write("\n")
 
 @export
-def save_exp_config(new_config:dict|list, dir_name:str='experiments', filepath:str="experiments.toml"):
+def save_exp_config(exp_configuration:dict|list, config_dir:str, dir_name:str='experiments', filepath:str="experiments.toml"):
 	"""
-    Saves experiment configurations to a TOML file.
+	Saves experiment configurations to a TOML file.
 
-    Args:
-        new_config (dict | list): The experiment configurations to be saved.
-            - If `dict`, it represents a single experiment configuration.
-            - If `list`, it represents a list of experiment configurations
-              (each element being a dictionary).
-        dir_name (str, optional): The directory to save the configuration file
-            (relative to the global configuration directory). Defaults to "experiments".
-        filepath (str, optional): The filename of the configuration file.
-            Defaults to "experiments.toml".
-    """
-	base_path = os.path.join(_config_dir, dir_name)
+	Args:
+		new_config (dict | list):
+			The experiment configurations to be saved.
+			- If `dict`, it represents a single experiment configuration.
+			- If `list`, it represents a list of experiment configurations
+			(each element being a dictionary).
+		
+		config_dir (str):
+			The directory containing all the configuration files.
+		dir_name (str, optional):
+			The directory to save the configuration file
+			(relative to the global configuration directory). Defaults to "experiments".
+		
+		filepath (str, optional):
+			The filename of the configuration file.
+			Defaults to "experiments.toml".
+	"""
+	
+	# TODO modificare funzione per includere come argomento il path alla cartella dove ci sono tutti i file di configurazione
+
+	base_path = os.path.join(config_dir, dir_name)
 	os.makedirs(name=base_path, exist_ok=True)
 	path = os.path.join(base_path, filepath)
 	with open(path , "w") as file:
-		if type(new_config) == dict:
-			experiment = {'exp': new_config}
+		if type(exp_configuration) == dict:
+			experiment = {'exp': exp_configuration}
 			toml.dump(experiment , file)
 			file.write("\n")
-		elif type(new_config) == list:
-			for i, d in enumerate(new_config):
+		elif type(exp_configuration) == list:
+			for i, d in enumerate(exp_configuration):
 				experiment = {f'exp_{i+1}': d}
 				toml.dump(experiment , file)
 				file.write("\n")

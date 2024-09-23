@@ -32,10 +32,10 @@ from tqdm import tqdm
 import torch
 import os
 
-from Fires._macros.macros import LOG_DIR
+from Fires._macros.macros import LOGS_DIR
 from Fires._utilities.swin_model import seed_everything
 from Fires._utilities.logger import Logger as logger
-_log = logger(log_dir=LOG_DIR).get_logger("Fabric Trainer")
+_log = logger(log_dir=LOGS_DIR).get_logger("Fabric Trainer")
 
 
 class FabricTrainer:
