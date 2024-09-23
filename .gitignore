@@ -1,8 +1,13 @@
 .DS_Store
 # seasfire.zarr
 *.pyc
-# data
 *.log
 *.zarr
 digital_twin_notebooks/img/*.png
+digital_twin_notebooks/*.onnx
+digital_twin_notebooks/inference_with_onnx.ipynb
+digital_twin_notebooks/model_conversion_pytorch_to_onnx.ipynb
 experiments
+transfer.sh
+*.png
+data
