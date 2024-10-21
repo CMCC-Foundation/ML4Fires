@@ -29,6 +29,7 @@ from lightning.fabric.loggers import Logger
 from functools import partial
 import lightning as L
 from tqdm import tqdm
+import mlflow
 import torch
 import os
 
@@ -58,7 +59,7 @@ class FabricTrainer:
 		use_distributed_sampler: bool = True,
 		checkpoint_dir: str = None, 
 		checkpoint_frequency: int = 1, 
-		seed: int = 42, 
+		seed: int = 42,
 	) -> None:
 		"""Exemplary Trainer with Fabric. This is a very simple trainer focused on readablity but with reduced
 		featureset. As a trainer with more included features, we recommend using the
@@ -111,6 +112,7 @@ class FabricTrainer:
 			callbacks written for the lightning trainer (especially making assumptions on the trainer), won't work!
 
 		"""
+		
 		# init fabric accelerator
 		self.fabric = L.Fabric(
 			accelerator=accelerator,
@@ -123,6 +125,9 @@ class FabricTrainer:
 			loggers=loggers,
 		)
 
+		# define accelerator
+		self.accelerator = accelerator
+		
 		# launch fabric
 		self.fabric.launch()
 
@@ -161,7 +166,8 @@ class FabricTrainer:
 		self._current_val_return: Optional[Union[torch.Tensor, Mapping[str, Any]]] = {}
 
 		self.checkpoint_dir = checkpoint_dir
-		self.checkpoint_frequency = checkpoint_frequency
+		self.checkpoint_frequency = checkpoint_frequency	
+
 
 	def setup(
 		self, 
@@ -253,6 +259,15 @@ class FabricTrainer:
 
 		self.call("on_fit_start", trainer=self, pl_module=self.model)
 
+		# Log parameters with MLFlow
+		mlflow.log_params({
+			"max_epochs": self.max_epochs,
+			"max_steps": self.max_steps,
+			"grad_accum_steps": self.grad_accum_steps,
+			"validation_frequency": self.validation_frequency,
+			"checkpoint_frequency": self.checkpoint_frequency,
+		})
+
 		# log
 		_log.info(f'Training started')
 
@@ -270,6 +285,7 @@ class FabricTrainer:
 			# step with the LR scheduler
 			self.step_scheduler(self.model, self.scheduler_cfg, level="epoch", current_value=self.current_epoch)
 
+
 			# add 1 to the current epoch
 			self.current_epoch += 1
 
@@ -282,6 +298,20 @@ class FabricTrainer:
 
 			# save model state
 			self.save(state)
+		
+			# Log metrics with MLFlow
+			mlflow.log_metrics(
+				run_id=mlflow.active_run().info.run_id,
+				metrics={
+					"trn_loss": self._current_train_return.get("loss", None) if isinstance(self._current_train_return, Mapping) else self._current_train_return,
+					"val_loss": self._current_val_return.get("loss", None) if isinstance(self._current_val_return, Mapping) else self._current_val_return,
+				}, step=self.current_epoch)
+
+			# Log model metrics after each epoch
+			for metric in self.model.metrics:
+				metric_value = metric.compute()
+				if metric_value is not None:
+					mlflow.log_metric(run_id=mlflow.active_run().info.run_id, key=metric.name, value=metric_value, step=self.current_epoch)
 
 		# reset for next fit call
 		self.should_stop = False
@@ -546,7 +576,11 @@ class FabricTrainer:
 		state.update(global_step=self.global_step, current_epoch=self.current_epoch)
 
 		if self.checkpoint_dir:
-			self.fabric.save(os.path.join(self.checkpoint_dir, f"epoch-{self.current_epoch:04d}.ckpt"), state)
+			_ckpt_fpath = os.path.join(self.checkpoint_dir, f"epoch-{self.current_epoch:04d}.ckpt")
+			self.fabric.save(_ckpt_fpath, state)
+
+			# log checkpoint
+			mlflow.log_artifact(local_path=_ckpt_fpath, artifact_path=f"ckpt-epoch-{self.current_epoch:04d}")
 
 	@staticmethod
 	def get_latest_checkpoint(checkpoint_dir: str) -> Optional[str]:

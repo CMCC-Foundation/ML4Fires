@@ -7,7 +7,7 @@ set -e
 
 BASE=2
 FROM=2
-TO=7
+TO=2 #7
 from_value="$FROM"
 to_value="$TO"
 

@@ -25,10 +25,11 @@ import torch.nn as nn
 import lightning.pytorch as pl
 
 from turtle import forward
-from typing import Any, List
+from typing import Any, Dict, List, Optional
 from timm.layers import to_2tuple
 
 from Fires._utilities.decorators import export
+from Fires._utilities.logger_itwinai import SimpleItwinaiLogger, ItwinaiLightningLogger 
 
 
 @export
@@ -60,7 +61,17 @@ class BaseLightningModule(pl.LightningModule):
 	"""
 	def __init__(self, *args: Any, **kwargs: Any) -> None:
 		super().__init__(*args, **kwargs)
-		self.callback_metrics = {}
+		self.callback_metrics:Dict[str | Any] = {}
+	
+	@property
+	def itwinai_logger(self) -> Optional[SimpleItwinaiLogger]:
+		if hasattr(self.trainer, 'loggers'):
+			for logger in self.trainer.loggers:
+				if isinstance(logger, ItwinaiLightningLogger):
+					return logger.logger
+		print("WARNING: itwinai_logger non trovato nei trainer loggers.")
+		return None
+
 	
 	def training_step(self, batch, batch_idx):
 		# get data from the batch
@@ -68,14 +79,30 @@ class BaseLightningModule(pl.LightningModule):
 		# forward pass
 		y_pred = self(x)
 		# compute loss
-		loss = self.loss(y_pred, y)
+		loss = self.loss(y_pred, y)	
 		# define log dictionary
 		log_dict = {'train_loss': loss}
+		
+		# binarize real and predicted data
+		y_true_bin = (y > 0).int()
+		y_pred_bin = (y_pred > 0).int()
+
+		# flatten tensors
+		y_true_flat = y_true_bin.view(-1)
+		y_pred_flat = y_pred_bin.view(-1)
+
 		# compute metrics
 		for metric in self.metrics:
-			log_dict.update({f'train_{metric.name}' : metric(y_pred, y)})
+			metric_name = f'train_{metric.name.lower()}'
+			log_dict[metric_name] = metric(y_pred_flat, y_true_flat)
 		# log the outputs
 		self.callback_metrics = {**self.callback_metrics, **log_dict}
+
+		# Log with itwinai logger all the hyperparameters from training step
+		if self.itwinai_logger:
+			# Log hyper-parameters
+			self.itwinai_logger.save_hyperparameters(self.callback_metrics)
+
 		# return the loss
 		return {'loss':loss}
 
@@ -88,11 +115,27 @@ class BaseLightningModule(pl.LightningModule):
 		loss = self.loss(y_pred, y)
 		# define log dictionary
 		log_dict = {'val_loss': loss}
+
+		# binarize real and predicted data
+		y_true_bin = (y > 0).int()
+		y_pred_bin = (y_pred > 0).int()
+
+		# flatten tensors
+		y_true_flat = y_true_bin.view(-1)
+		y_pred_flat = y_pred_bin.view(-1)
+
 		# compute metrics
 		for metric in self.metrics:
-			log_dict.update({f'val_{metric.name}' : metric(y_pred, y)})
+			metric_name = f'val_{metric.name.lower()}'
+			log_dict[metric_name] = metric(y_pred_flat, y_true_flat)
 		# log the outputs
 		self.callback_metrics = {**self.callback_metrics, **log_dict}
+
+		# Log with itwinai logger all the hyperparameters from validation step
+		if self.itwinai_logger:
+			# Log hyper-parameters
+			self.itwinai_logger.save_hyperparameters(self.callback_metrics)
+
 		# return the loss
 		return {'loss':loss}
 

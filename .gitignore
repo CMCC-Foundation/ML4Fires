@@ -11,3 +11,6 @@ experiments
 transfer.sh
 *.png
 data
+ml4fires_old_3_10
+ML4F_venv
+requirements_files
