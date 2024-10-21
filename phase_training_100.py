@@ -65,8 +65,8 @@ from Fires.trainer import FabricTrainer
 _log = logger(log_dir=LOGS_DIR).get_logger("Training_on_100km")
 
 os.environ['MLFLOW_TRACKING_INSECURE_TLS'] = 'true'
-os.environ['MLFLOW_TRACKING_USERNAME'] = 'emanuele.donno@cmcc.it'
-os.environ['MLFLOW_TRACKING_PASSWORD'] = 'gumvax-7rijze-quqroT'
+os.environ['MLFLOW_TRACKING_USERNAME'] = 'YOUR_EMAIL'
+os.environ['MLFLOW_TRACKING_PASSWORD'] = 'YOUR_PASSWORD'
 TRACKING_URI = 'https://mlflow.intertwin.fedcloud.eu/'
 
 # Step 1: Set up MLflow
