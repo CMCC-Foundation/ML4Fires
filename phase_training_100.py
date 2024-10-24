@@ -10,6 +10,8 @@ from datetime import datetime as dt
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+from itwinai.loggers import MLFlowLogger as MLF_Logger
+
 import torch
 from torch.utils.data import DataLoader
 from torch.distributed.fsdp import ShardingStrategy
@@ -37,6 +39,7 @@ from Fires._macros.macros import (
 	TORCH_CFG,
 	DISCORD_CFG,
 	CHECKPOINTS_DIR,
+	CREDENTIALS_CFG,
 	DATA_DIR,
 	LOGS_DIR,
 	NEW_DS_PATH,
@@ -66,8 +69,8 @@ _log = logger(log_dir=LOGS_DIR).get_logger("Training_on_100km")
 
 
 os.environ['MLFLOW_TRACKING_INSECURE_TLS'] = 'true'
-os.environ['MLFLOW_TRACKING_USERNAME'] = 'YOUR_EMAIL'
-os.environ['MLFLOW_TRACKING_PASSWORD'] = 'YOUR_PASSWORD'
+os.environ['MLFLOW_TRACKING_USERNAME'] = CREDENTIALS_CFG.credentials.username
+os.environ['MLFLOW_TRACKING_PASSWORD'] = CREDENTIALS_CFG.credentials.password
 TRACKING_URI = 'https://mlflow.intertwin.fedcloud.eu/'
 
 
@@ -128,13 +131,16 @@ def get_trainer(run) -> FabricTrainer:
 	"""
 
 	itwinai_logger = ItwinaiLightningLogger(savedir=os.path.join(LOGS_DIR, "ITWINAI"))
+	
+	# itwinai MLFlow logger
+	itwinai_mlflow_logger = MLF_Logger(experiment_name=run.info.run_name, tracking_uri=TRACKING_URI, log_freq=10)
 
-	mlf_logger = MLFlowLogger(
-	 experiment_name=mlflow.get_experiment(run.info.experiment_id).name,
-	 tracking_uri=mlflow.get_tracking_uri(),
-	 log_model=True,
-	)
-	mlf_logger._run_id = run.info.run_id
+	# mlf_logger = MLFlowLogger(
+	#  experiment_name=mlflow.get_experiment(run.info.experiment_id).name,
+	#  tracking_uri=mlflow.get_tracking_uri(),
+	#  log_model=True,
+	# )
+	# mlf_logger._run_id = run.info.run_id
 
 	# check backend if MPS, CUDA or CPU
 	# backend = check_backend()
@@ -162,7 +168,11 @@ def get_trainer(run) -> FabricTrainer:
 	 # define number of devices (GPUs) that must be used
 	 'devices': TORCH_CFG.trainer.devices,
 	 # define csv logger
-	 'loggers':[CSVLogger(root_dir=LOGS_DIR, name=csv_fname), itwinai_logger, mlf_logger],
+	 'loggers':[
+		CSVLogger(root_dir=LOGS_DIR, name=csv_fname),
+		itwinai_logger,
+		#  mlf_logger,
+		itwinai_mlflow_logger],
 	 # define number of epochs
 	 'max_epochs':10, #TORCH_CFG.trainer.epochs,
 	 # define number of nodes used on the cluster

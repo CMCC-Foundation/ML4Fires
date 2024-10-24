@@ -26,6 +26,7 @@ SCALER_DIR = "os.path.join(DATA_DIR, 'scaler')"
 [toml]
 tflow_fname = "tflow.toml"
 torch_fname = "torch.toml"
+credentials_fname = "credentials.toml"
 
 	[toml.logs]
 	discord_fname = "discord.toml"

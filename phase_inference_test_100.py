@@ -112,7 +112,6 @@ def compute_aggregated_data(data, other_data=None, operation="mean") -> tuple[np
 	return data, descaled_on_lats, descaled_on_lons
 
 
-
 @debug(log=_log)
 def load_model(model_path: str) -> nn.Module:
 	"""
@@ -157,7 +156,6 @@ def load_model(model_path: str) -> nn.Module:
 	return model
 
 
-
 @debug(log=_log)
 def make_predictions(model: nn.Module, data_loader: torch.utils.data.DataLoader) -> np.ndarray:
 	"""
@@ -185,7 +183,6 @@ def make_predictions(model: nn.Module, data_loader: torch.utils.data.DataLoader)
 	return preds_array
 
 
-
 @debug(log=_log)
 def up_and_lower_bounds(avg_value, std_value):
 	"""
@@ -208,7 +205,6 @@ def up_and_lower_bounds(avg_value, std_value):
 	_upper = avg_value + std_value
 	_lower = avg_value - std_value
 	return _upper, _lower
-
 
 
 @debug(log=_log)
@@ -254,7 +250,6 @@ def prepare_data_loader(path_to_dataset:str, drivers_list:List[str], targets_lis
 	)
 	
 	return torch_data_loader
-
 
 
 @debug(log=_log)
@@ -305,7 +300,6 @@ def process_and_plot_data(data, label, lats, lons, model_name):
 		title=f'{label} ({model_name.upper()})',
 		cmap='nipy_spectral_r'
 	)
-
 
 
 @debug(log=_log)
