@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 echo Start the program " "
 echo ""
@@ -15,7 +15,7 @@ exponents=($(seq "$from_value" "$to_value"))
 
 echo "Performing experiments"
 
-MODEL=unet
+MODEL=unetpp
 TRAINING_FILE=phase_training_100.py
 for exp in "${exponents[@]}"; do
   BASE_FILTER_DIM=$(($BASE ** $exp))

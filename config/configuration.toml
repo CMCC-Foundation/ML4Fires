@@ -19,7 +19,7 @@
 [dir]
 LOGS_DIR = "os.path.join(CURR_DIR, 'logs')"
 EXPS_DIR = "os.path.join(CURR_DIR, 'experiments')"
-DATA_DIR = "os.path.join(CURR_DIR, 'data')"
+DATA_DIR = "/ceph/hpc/home/ciangottinid/ML4Fires_demo" # "os.path.join(CURR_DIR, 'data')"
 SCALER_DIR = "os.path.join(DATA_DIR, 'scaler')"
 
 
