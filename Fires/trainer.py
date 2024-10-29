@@ -42,14 +42,7 @@ _log = logger(log_dir=LOGS_DIR).get_logger("Fabric Trainer")
 class FabricTrainer:
 	def __init__(
 		self,
-		accelerator: Union[str, Accelerator] = "auto",
-		strategy: Union[str, Strategy] = "auto",
-		devices: Union[List[int], str, int] = "auto",
-		num_nodes: int = 1, 
-		precision: Union[str, int] = "32-true",
-		plugins: Optional[Union[str, Any]] = None,
-		callbacks: Optional[Union[List[Any], Any]] = None,
-		loggers: Optional[Union[Logger, List[Logger]]] = None,
+		fabric: L.Fabric,
 		max_epochs: Optional[int] = 1000,
 		max_steps: Optional[int] = None,
 		grad_accum_steps: int = 1,
@@ -59,9 +52,10 @@ class FabricTrainer:
 		use_distributed_sampler: bool = True,
 		checkpoint_dir: str = None, 
 		checkpoint_frequency: int = 1, 
-		seed: int = 42,
+		seed: int = 42, 
 	) -> None:
-		"""Exemplary Trainer with Fabric. This is a very simple trainer focused on readablity but with reduced
+		"""
+		Exemplary Trainer with Fabric. This is a very simple trainer focused on readablity but with reduced
 		featureset. As a trainer with more included features, we recommend using the
 		:class:`lightning.pytorch.Trainer`.
 
@@ -112,36 +106,15 @@ class FabricTrainer:
 			callbacks written for the lightning trainer (especially making assumptions on the trainer), won't work!
 
 		"""
+
+		# fabric accelerator
+		self.fabric = fabric
 		
-		# init fabric accelerator
-		self.fabric = L.Fabric(
-			accelerator=accelerator,
-			strategy=strategy,
-			devices=devices,
-			num_nodes=num_nodes,
-			precision=precision,
-			plugins=plugins,
-			callbacks=callbacks,
-			loggers=loggers,
-		)
-
-		# define accelerator
-		self.accelerator = accelerator
-		
-		# launch fabric
-		self.fabric.launch()
-
-		# get info about the nodes
-		self.world_size = self.fabric.world_size
-		self.node_rank = self.fabric.node_rank
-		self.global_rank = self.fabric.global_rank
-		self.local_rank = self.fabric.local_rank
-
 		# store random seed
 		self.seed = seed
 
 		# seed the run (add the global rank to differentiate the parallel executions)
-		seed_everything(seed=self.seed+self.global_rank)
+		seed_everything(seed=self.seed+self.fabric.global_rank)
 
 		self.global_step = 0
 		self.grad_accum_steps: int = grad_accum_steps
@@ -166,8 +139,7 @@ class FabricTrainer:
 		self._current_val_return: Optional[Union[torch.Tensor, Mapping[str, Any]]] = {}
 
 		self.checkpoint_dir = checkpoint_dir
-		self.checkpoint_frequency = checkpoint_frequency	
-
+		self.checkpoint_frequency = checkpoint_frequency
 
 	def setup(
 		self, 
@@ -189,9 +161,6 @@ class FabricTrainer:
 			model.load_state_dict(state_dict['model'])
 			# log
 			_log.info(f'Model checkpoint provided. Restored weights from checkpoint at {checkpoint}')
-
-		# print model summary
-		# if self.fabric.global_rank == 0: print(ModelSummary(model=model, max_depth=2))
 
 		# setup the model in sync
 		self.model = self.fabric.setup_module(model)
@@ -234,9 +203,11 @@ class FabricTrainer:
 		self,
 		train_loader: torch.utils.data.DataLoader,
 		val_loader: torch.utils.data.DataLoader,
+		log_mlflow: bool,
 		# ckpt_path: Optional[str] = None,
 	):
-		"""The main entrypoint of the trainer, triggering the actual training.
+		"""
+		The main entrypoint of the trainer, triggering the actual training.
 
 		Args:
 			model: the LightningModule to train.
@@ -259,14 +230,15 @@ class FabricTrainer:
 
 		self.call("on_fit_start", trainer=self, pl_module=self.model)
 
-		# Log parameters with MLFlow
-		mlflow.log_params({
-			"max_epochs": self.max_epochs,
-			"max_steps": self.max_steps,
-			"grad_accum_steps": self.grad_accum_steps,
-			"validation_frequency": self.validation_frequency,
-			"checkpoint_frequency": self.checkpoint_frequency,
-		})
+		if log_mlflow:
+			# Log parameters with MLFlow
+			mlflow.log_params({
+				"max_epochs": self.max_epochs,
+				"max_steps": self.max_steps,
+				"grad_accum_steps": self.grad_accum_steps,
+				"validation_frequency": self.validation_frequency,
+				"checkpoint_frequency": self.checkpoint_frequency,
+			})
 
 		# log
 		_log.info(f'Training started')
@@ -285,7 +257,6 @@ class FabricTrainer:
 			# step with the LR scheduler
 			self.step_scheduler(self.model, self.scheduler_cfg, level="epoch", current_value=self.current_epoch)
 
-
 			# add 1 to the current epoch
 			self.current_epoch += 1
 
@@ -298,20 +269,22 @@ class FabricTrainer:
 
 			# save model state
 			self.save(state)
-		
-			# Log metrics with MLFlow
-			mlflow.log_metrics(
-				run_id=mlflow.active_run().info.run_id,
-				metrics={
-					"trn_loss": self._current_train_return.get("loss", None) if isinstance(self._current_train_return, Mapping) else self._current_train_return,
-					"val_loss": self._current_val_return.get("loss", None) if isinstance(self._current_val_return, Mapping) else self._current_val_return,
-				}, step=self.current_epoch)
 
-			# Log model metrics after each epoch
-			for metric in self.model.metrics:
-				metric_value = metric.compute()
-				if metric_value is not None:
-					mlflow.log_metric(run_id=mlflow.active_run().info.run_id, key=metric.name, value=metric_value, step=self.current_epoch)
+			if log_mlflow:
+				# Log metrics with MLFlow
+				mlflow.log_metrics(
+					run_id=mlflow.active_run().info.run_id,
+					metrics={
+						"trn_loss": self._current_train_return.get("loss", None) if isinstance(self._current_train_return, Mapping) else self._current_train_return,
+						"val_loss": self._current_val_return.get("loss", None) if isinstance(self._current_val_return, Mapping) else self._current_val_return,
+					}, step=self.current_epoch)
+
+				# Log model metrics after each epoch
+				for metric in self.model.metrics:
+					metric_value = metric.compute()
+					if metric_value is not None:
+						mlflow.log_metric(run_id=mlflow.active_run().info.run_id, key=metric.name, value=metric_value, step=self.current_epoch)
+
 
 		# reset for next fit call
 		self.should_stop = False
@@ -324,7 +297,8 @@ class FabricTrainer:
 		limit_batches: Union[int, float] = float("inf"),
 		scheduler_cfg: Optional[Mapping[str, Union[L.fabric.utilities.types.LRScheduler, bool, str, int]]] = None,
 	):
-		"""The training loop running a single training epoch.
+		"""
+		The training loop running a single training epoch.
 
 		Args:
 			model: the LightningModule to train
@@ -395,7 +369,8 @@ class FabricTrainer:
 		val_loader: Optional[torch.utils.data.DataLoader],
 		limit_batches: Union[int, float] = float("inf"),
 	):
-		"""The validation loop ruunning a single validation epoch.
+		"""
+		The validation loop ruunning a single validation epoch.
 
 		Args:
 			model: the LightningModule to evaluate
@@ -449,7 +424,8 @@ class FabricTrainer:
 		torch.set_grad_enabled(True)
 
 	def training_step(self, model: L.LightningModule, batch: Any, batch_idx: int) -> torch.Tensor:
-		"""A single training step, running forward and backward. The optimizer step is called separately, as this is
+		"""
+		A single training step, running forward and backward. The optimizer step is called separately, as this is
 		given as a closure to the optimizer step.
 
 		Args:
@@ -483,7 +459,8 @@ class FabricTrainer:
 		level: Literal["step", "epoch"],
 		current_value: int,
 	) -> None:
-		"""Steps the learning rate scheduler if necessary.
+		"""
+		Steps the learning rate scheduler if necessary.
 
 		Args:
 			model: The LightningModule to train
@@ -534,7 +511,8 @@ class FabricTrainer:
 		return self.current_epoch % self.validation_frequency == 0
 
 	def progbar_wrapper(self, iterable: Iterable, total: int, **kwargs: Any):
-		"""Wraps the iterable with tqdm for global rank zero.
+		"""
+		Wraps the iterable with tqdm for global rank zero.
 
 		Args:
 			iterable: the iterable to wrap with tqdm
@@ -546,7 +524,8 @@ class FabricTrainer:
 		return iterable
 
 	def load(self, state: Optional[Mapping], path: str) -> None:
-		"""Loads a checkpoint from a given file into state.
+		"""
+		Loads a checkpoint from a given file into state.
 
 		Args:
 			state: a mapping contaning model, optimizer and lr scheduler
@@ -564,7 +543,8 @@ class FabricTrainer:
 			raise RuntimeError(f"Unused Checkpoint Values: {remainder}")
 
 	def save(self, state: Optional[Mapping]) -> None:
-		"""Saves a checkpoint to the ``checkpoint_dir``
+		"""
+		Saves a checkpoint to the ``checkpoint_dir``
 
 		Args:
 			state: A mapping containing model, optimizer and lr scheduler.
@@ -584,7 +564,8 @@ class FabricTrainer:
 
 	@staticmethod
 	def get_latest_checkpoint(checkpoint_dir: str) -> Optional[str]:
-		"""Returns the latest checkpoint from the ``checkpoint_dir``
+		"""
+		Returns the latest checkpoint from the ``checkpoint_dir``
 
 		Args:
 			checkpoint_dir: the directory to search for checkpoints
@@ -606,7 +587,8 @@ class FabricTrainer:
 		Optional[L.fabric.utilities.types.Optimizable],
 		Optional[Mapping[str, Union[L.fabric.utilities.types.LRScheduler, bool, str, int]]],
 	]:
-		"""Recursively parses the output of :meth:`lightning.pytorch.LightningModule.configure_optimizers`.
+		"""
+		Recursively parses the output of :meth:`lightning.pytorch.LightningModule.configure_optimizers`.
 
 		Args:
 			configure_optim_output: The output of ``configure_optimizers``.
@@ -662,7 +644,8 @@ class FabricTrainer:
 		prefix: str, 
 		status: str = 'train'
 	):
-		"""Adds values as postfix string to progressbar.
+		"""
+		Adds values as postfix string to progressbar.
 
 		Args:
 			prog_bar: a progressbar (on global rank zero) or an iterable (every other rank).
