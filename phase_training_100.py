@@ -5,17 +5,25 @@ import xarray as xr
 import numpy as np
 from datetime import datetime as dt
 
-import mlflow
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+# MLFlow imports
+import mlflow
+
+# Itwinai imports
+from itwinai.loggers import MLFlowLogger as MLF_Logger
+
+# Pytorch imports
 import torch
 from torch.utils.data import DataLoader
 from torch.distributed.fsdp import ShardingStrategy
 from torch.utils.data.distributed import DistributedSampler
 from torchmetrics import F1Score, FBetaScore, MatthewsCorrCoef, Precision, Recall
-from torchmetrics.regression import MeanSquaredError
+from torchmetrics.regression import MeanSquaredError, ConcordanceCorrCoef
+from torchmetrics.classification import Precision, Recall, F1Score, FBetaScore, MatthewsCorrCoef, ConfusionMatrix
 
+# Lightning imports
 import lightning as L
 import lightning.pytorch as pl
 from lightning.pytorch.loggers import MLFlowLogger
@@ -25,6 +33,7 @@ from lightning.fabric.strategies.fsdp import FSDPStrategy
 from lightning.fabric.plugins.environments import MPIEnvironment
 from lightning.pytorch.utilities.rank_zero import rank_zero_only
 
+# ML4Fires imports
 import Fires
 from Fires._datasets.torch_dataset import FireDataset
 from Fires._macros.macros import (
@@ -44,7 +53,6 @@ from Fires._macros.macros import (
 	RUN_DIR,
 	SCALER_DIR,
 )
-
 import Fires._models
 from Fires._models.unet import Unet
 import Fires._models.unetpp
@@ -55,12 +63,10 @@ from Fires._utilities.callbacks import DiscordBenchmark, FabricBenchmark, Fabric
 from Fires._utilities.cli_args_checker import checker
 from Fires._utilities.cli_args_parser import CLIParser
 from Fires._utilities.configuration import load_global_config
-
 from Fires._utilities.decorators import debug
 from Fires._utilities.logger import Logger as logger
-
+from Fires._utilities.logger_itwinai import ItwinaiLightningLogger
 from Fires._utilities.metrics import TverskyLoss, FocalLoss
-
 from Fires.trainer import FabricTrainer
 
 # define logger
@@ -119,12 +125,12 @@ def init_fabric():
 	# check backend if MPS, CUDA or CPU
 	backend = check_backend()
 
-	# get MLFlow logger
-	mlf_logger = MLFlowLogger(
-		experiment_name="ML4Fires_Juno",
-		tracking_uri=TRACKING_URI,
-		log_model=True,
-	)
+	# # get MLFlow logger
+	# mlf_logger = MLFlowLogger(
+	# 	experiment_name="ML4Fires_Juno",
+	# 	tracking_uri=TRACKING_URI,
+	# 	log_model=True,
+	# )
 
 	# define today's date
 	today = eval(CONFIG.utils.datetime.today)
@@ -134,6 +140,26 @@ def init_fabric():
 	csv_fname = f'{today}_csv_logs'
 	_log.info(f" | CSV Filename: {csv_fname}")
 
+	# define Itwinai Logger 
+	itwinai_logger = ItwinaiLightningLogger(savedir=os.path.join(LOGS_DIR, "ITWINAI"))
+	# define Itwinai MLFlow logger
+	itwinai_mlflow_logger = MLF_Logger(experiment_name=run_name, tracking_uri=TRACKING_URI, log_freq=10)
+	# define CSV logger
+	_csv_logger = CSVLogger(root_dir=LOGS_DIR, name=csv_fname)
+	# define loggers for Fabric trainer
+	_loggers = [_csv_logger, itwinai_logger, itwinai_mlflow_logger]
+
+	# define Discord benchmark callback
+	_discord_bench_cllbk = DiscordBenchmark(webhook_url=DISCORD_CFG.hooks.webhook_gen, benchmark_csv=os.path.join(RUN_DIR, "fabric_benchmark.csv"))
+	# define Fabric benchmark callback
+	_fabric_bench_cllbk = FabricBenchmark(filename=os.path.join(RUN_DIR, "fabric_benchmark.csv"))
+	# define Fabric checkpoint callback
+	_fabric_check_cllbk = FabricCheckpoint(dst=CHECKPOINTS_DIR)
+	# define Early Stopping callback
+	_earlystop_cllbk = EarlyStopping('val_loss')
+	# define callbacks for Fabric trainer
+	_callbacks = [_discord_bench_cllbk, _fabric_bench_cllbk, _fabric_check_cllbk, _earlystop_cllbk]
+
 	# init fabric accelerator
 	fabric = L.Fabric(
 		accelerator=backend,
@@ -142,13 +168,8 @@ def init_fabric():
 		num_nodes=TORCH_CFG.trainer.num_nodes,
 		precision=TORCH_CFG.trainer.precision,
 		plugins=eval(TORCH_CFG.trainer.plugins),
-		callbacks=[
-			DiscordBenchmark(webhook_url=DISCORD_CFG.hooks.webhook_gen, benchmark_csv=os.path.join(RUN_DIR, "fabric_benchmark.csv")),
-			FabricBenchmark(filename=os.path.join(RUN_DIR, "fabric_benchmark.csv")),
-			FabricCheckpoint(dst=CHECKPOINTS_DIR),
-			EarlyStopping('val_loss')
-		],
-		loggers=[CSVLogger(root_dir=LOGS_DIR, name=csv_fname), mlf_logger],
+		callbacks=_callbacks,
+		loggers=_loggers,
 	)
 
 	# launch fabric
@@ -320,7 +341,6 @@ def main():
 
 	# Initialize MLflow run using the setup_mlflow_run function
 	if global_rank == 0:
-		run_name=f"JUNO_{cli_model_name.upper()}_BCE_{cli_base_filter_dim}"
 		mlflow.start_run(run_name=run_name)
 
 	# define trainer
@@ -410,7 +430,6 @@ def check_cli_args():
 
 	activation_fn = torch.nn.Sigmoid() if cli_args.activation == 'S' else torch.nn.ReLU()
 	
-	global cli_base_filter_dim
 	cli_base_filter_dim = cli_args.base_filter_dim
 
 	model_config = {
@@ -419,7 +438,6 @@ def check_cli_args():
 		'activation':activation_fn
 	}
 
-	global cli_model_name
 	cli_model_name = cli_args.model
 
 	if cli_model_name == 'unet':
@@ -428,6 +446,9 @@ def check_cli_args():
 		model_class = Fires._models.unetpp.UnetPlusPlus
 	else:
 		raise ValueError(f"Model not supported: {cli_args.model}")
+	
+	global run_name
+	run_name=f"LOCAL_{cli_model_name.upper()}_BCE_{cli_base_filter_dim}"
 		
 	return model_class, model_config
 
