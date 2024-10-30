@@ -20,7 +20,7 @@
 # limitations under the License.											
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-from typing import Any, Iterable, List, Literal, Optional, Tuple, Mapping, Union, cast
+from typing import Any, Dict, Iterable, List, Literal, Optional, Tuple, Mapping, Union, cast
 from lightning.pytorch.utilities.model_summary import ModelSummary
 from lightning.fabric.accelerators import Accelerator
 from lightning_utilities import apply_to_collection
@@ -42,7 +42,8 @@ _log = logger(log_dir=LOGS_DIR).get_logger("Fabric Trainer")
 class FabricTrainer:
 	def __init__(
 		self,
-		fabric: L.Fabric,
+		# fabric_: L.Fabric,
+		fabric_args: Dict,
 		max_epochs: Optional[int] = 1000,
 		max_steps: Optional[int] = None,
 		grad_accum_steps: int = 1,
@@ -108,7 +109,13 @@ class FabricTrainer:
 		"""
 
 		# fabric accelerator
-		self.fabric = fabric
+		self.fabric = L.Fabric(**fabric_args)
+
+		# launch fabric
+		self.fabric.launch()
+
+		# get global rank
+		self.global_rank = self.fabric.global_rank
 		
 		# store random seed
 		self.seed = seed

@@ -1,5 +1,5 @@
 import os
-from typing import Tuple
+from typing import Dict, Tuple
 import toml
 import xarray as xr
 import numpy as np
@@ -12,7 +12,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 import mlflow
 
 # Itwinai imports
-from itwinai.loggers import MLFlowLogger as MLF_Logger
+from itwinai.loggers import MLFlowLogger as MLF_Logger, Prov4MLLogger
 
 # Pytorch imports
 import torch
@@ -85,7 +85,7 @@ def setup_mlflow_experiment():
 	This function should be called once at the beginning of the script.
 	"""
 	mlflow.set_tracking_uri(TRACKING_URI)
-	experiment_name = "ML4Fires_Juno"
+	experiment_name = "ML4Fires_LOCAL"
 	mlflow.set_experiment(experiment_name)
 	_log.info(f"MLflow Experiment set to '{experiment_name}' with tracking URI '{TRACKING_URI}'")
 
@@ -140,14 +140,17 @@ def init_fabric():
 	csv_fname = f'{today}_csv_logs'
 	_log.info(f" | CSV Filename: {csv_fname}")
 
+
 	# define Itwinai Logger 
-	itwinai_logger = ItwinaiLightningLogger(savedir=os.path.join(LOGS_DIR, "ITWINAI"))
+	_itwinai_logger = ItwinaiLightningLogger(savedir=os.path.join(LOGS_DIR, "ITWINAI"))
 	# define Itwinai MLFlow logger
-	itwinai_mlflow_logger = MLF_Logger(experiment_name=run_name, tracking_uri=TRACKING_URI, log_freq=10)
+	_itwinai_mlflow_logger = MLF_Logger(experiment_name=run_name, tracking_uri=TRACKING_URI, log_freq=10)
 	# define CSV logger
-	_csv_logger = CSVLogger(root_dir=LOGS_DIR, name=csv_fname)
+	_csv_logger = CSVLogger(root_dir=RUN_DIR, name=csv_fname)
+	# define Provenance logger
+	_provenance_logger = Prov4MLLogger(experiment_name=run_name, provenance_save_dir=os.path.join(LOGS_DIR, 'prov_logs'), save_after_n_logs=1)
 	# define loggers for Fabric trainer
-	_loggers = [_csv_logger, itwinai_logger, itwinai_mlflow_logger]
+	_loggers = [_csv_logger, _itwinai_logger, _itwinai_mlflow_logger, _provenance_logger]
 
 	# define Discord benchmark callback
 	_discord_bench_cllbk = DiscordBenchmark(webhook_url=DISCORD_CFG.hooks.webhook_gen, benchmark_csv=os.path.join(RUN_DIR, "fabric_benchmark.csv"))
@@ -160,8 +163,8 @@ def init_fabric():
 	# define callbacks for Fabric trainer
 	_callbacks = [_discord_bench_cllbk, _fabric_bench_cllbk, _fabric_check_cllbk, _earlystop_cllbk]
 
-	# init fabric accelerator
-	fabric = L.Fabric(
+	# fabric args
+	fabric_args = dict(
 		accelerator=backend,
 		strategy=eval(TORCH_CFG.model.strategy) if backend in ['mps', 'cuda'] else 'auto',
 		devices=TORCH_CFG.trainer.devices,
@@ -172,14 +175,23 @@ def init_fabric():
 		loggers=_loggers,
 	)
 
-	# launch fabric
-	fabric.launch()
+	# # init fabric accelerator
+	# fabric = L.Fabric(
+	# 	accelerator=backend,
+	# 	strategy=eval(TORCH_CFG.model.strategy) if backend in ['mps', 'cuda'] else 'auto',
+	# 	devices=TORCH_CFG.trainer.devices,
+	# 	num_nodes=TORCH_CFG.trainer.num_nodes,
+	# 	precision=TORCH_CFG.trainer.precision,
+	# 	plugins=eval(TORCH_CFG.trainer.plugins),
+	# 	callbacks=_callbacks,
+	# 	loggers=_loggers,
+	# )
 
-	return fabric
+	return fabric_args
 
 
 @debug(log=_log)
-def get_trainer(fabric: L.Fabric) -> FabricTrainer:
+def get_trainer(fabric_args: Dict) -> FabricTrainer:
 	"""
 	Creates and configures a FabricTrainer instance for model training.
 
@@ -195,10 +207,10 @@ def get_trainer(fabric: L.Fabric) -> FabricTrainer:
 
 	# define trainer args
 	trainer_args = {
-		# fabric
-		'fabric':fabric,
+		# fabric args
+		'fabric_args':fabric_args,
 		# define number of epochs
-		'max_epochs':TORCH_CFG.trainer.epochs,
+		'max_epochs':5, #TORCH_CFG.trainer.epochs,
 		# define trainer accumulation steps
 		'grad_accum_steps':TORCH_CFG.trainer.accumulation_steps,
 		# set distributed sampler
@@ -331,21 +343,12 @@ def main():
 	valid_loader = DataLoader(val_torch_ds, **dloader_args)
 
 	# get fabric
-	fabric = init_fabric()
-
-	# get global rank
-	global_rank = fabric.global_rank
-
-	# Automatically log params, metrics, and model
-	mlflow.pytorch.autolog()
-
-	# Initialize MLflow run using the setup_mlflow_run function
-	if global_rank == 0:
-		mlflow.start_run(run_name=run_name)
+	# fabric = init_fabric()
+	fabric_args = init_fabric()
 
 	# define trainer
-	trainer = get_trainer(fabric=fabric)
-
+	trainer = get_trainer(fabric_args=fabric_args)
+	
 	# setup the model and the optimizer
 	trainer.setup(
 		model=model,
@@ -355,6 +358,18 @@ def main():
 		scheduler_args=eval(TORCH_CFG.trainer.scheduler.args),
 		checkpoint=eval(TORCH_CFG.trainer.checkpoint.ckpt)
 	)
+
+	# get global rank
+	global_rank = trainer.global_rank
+	print(f" | Global rank {global_rank}")
+	print(f" | Trainer global rank {trainer.global_rank}")
+
+	# Automatically log params, metrics, and model
+	mlflow.pytorch.autolog()
+
+	# Initialize MLflow run using the setup_mlflow_run function
+	if global_rank == 0:
+		mlflow.start_run(run_name=run_name)
 
 	# fit the model
 	trainer.fit(train_loader=train_loader, val_loader=valid_loader, log_mlflow=True)
