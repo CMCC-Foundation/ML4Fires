@@ -58,6 +58,9 @@ DISCORD_CFG = load_global_config(dir_name=CONFIG_DIR, config_fname=CONFIG.toml.l
 # set credentials configuration file
 CREDENTIALS_CFG = load_global_config(dir_name=CONFIG_DIR, config_fname=CONFIG.toml.credentials_fname)
 
+# define seed for reproducibility
+SEED = CONFIG.utils.seed
+
 # define features
 DRIVERS = CONFIG.data.features.drivers
 TARGETS = CONFIG.data.features.targets
@@ -81,7 +84,7 @@ LOGS_DIR = eval(CONFIG.dir.LOGS_DIR)
 os.makedirs(LOGS_DIR, exist_ok=True)
 
 # define data dir
-DATA_DIR = CONFIG.dir.DATA_DIR # eval(CONFIG.dir.DATA_DIR)
+DATA_DIR = eval(CONFIG.dir.DATA_DIR) # CONFIG.dir.DATA_DIR 
 os.makedirs(DATA_DIR, exist_ok=True)
 
 # define scaler dir

@@ -34,7 +34,7 @@ from Fires._utilities.cli_args_parser import CLIParser
 
 from Fires._utilities.logger import Logger as logger
 
-from Fires._utilities.logger_itwinai import (SimpleItwinaiLogger, ItwinaiLightningLogger)
+from Fires._utilities.logger_itwinai import (SimpleItwinaiLogger, ItwinaiLightningLogger, ProvenanceLogger)
 
 from Fires._utilities.metrics import (DiceLoss, FocalLoss, TverskyLoss)
 
@@ -56,3 +56,7 @@ from Fires._utilities.decorators import (
 )
 
 from Fires._utilities.swin_model import seed_everything
+
+from Fires._utilities.utils_general import check_backend
+from Fires._utilities.utils_mlflow import setup_mlflow_experiment
+from Fires._utilities.utils_trainer import get_loggers, get_callbacks
