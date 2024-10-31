@@ -22,14 +22,19 @@
 
 import numpy as np
 import torch.nn as nn
-import lightning.pytorch as pl
+# import lightning.pytorch as pl
+import lightning as pl
+
+from torch.optim import Adam
 
 from turtle import forward
 from typing import Any, Dict, List, Optional
 from timm.layers import to_2tuple
 
 from Fires._utilities.decorators import export
-from Fires._utilities.logger_itwinai import SimpleItwinaiLogger, ItwinaiLightningLogger 
+from Fires._utilities.logger_itwinai import SimpleItwinaiLogger, ItwinaiLightningLogger, ProvenanceLogger
+
+from itwinai.loggers import ConsoleLogger, Prov4MLLogger
 
 
 @export
@@ -64,14 +69,16 @@ class BaseLightningModule(pl.LightningModule):
 		self.callback_metrics:Dict[str | Any] = {}
 	
 	@property
-	def itwinai_logger(self) -> Optional[SimpleItwinaiLogger]:
+	def itwinai_logger(self) -> Optional[List[SimpleItwinaiLogger | Prov4MLLogger] | None]:
 		if hasattr(self.trainer, 'loggers'):
+			_loggers = []
 			for logger in self.trainer.loggers:
-				if isinstance(logger, ItwinaiLightningLogger):
-					return logger.logger
-		print("WARNING: itwinai_logger non trovato nei trainer loggers.")
-		return None
-
+				if isinstance(logger, (ItwinaiLightningLogger, ProvenanceLogger)):
+					_loggers.append(logger.logger)
+			return _loggers
+		else:
+			print("WARNING: itwinai_logger non trovato nei trainer loggers.")
+			return None
 	
 	def training_step(self, batch, batch_idx):
 		# get data from the batch
@@ -82,6 +89,8 @@ class BaseLightningModule(pl.LightningModule):
 		loss = self.loss(y_pred, y)	
 		# define log dictionary
 		log_dict = {'train_loss': loss}
+
+		self.log("trn_loss", loss, prog_bar=True, on_epoch=True)
 		
 		# binarize real and predicted data
 		y_true_bin = (y > 0).int()
@@ -100,8 +109,11 @@ class BaseLightningModule(pl.LightningModule):
 
 		# Log with itwinai logger all the hyperparameters from training step
 		if self.itwinai_logger:
-			# Log hyper-parameters
-			self.itwinai_logger.save_hyperparameters(self.callback_metrics)
+			for l in self.itwinai_logger:
+				if isinstance(l, SimpleItwinaiLogger):
+					print("Simple Itwinai Logger train step")
+					# Log hyper-parameters
+					l.save_hyperparameters(self.callback_metrics)
 
 		# return the loss
 		return {'loss':loss}
@@ -115,6 +127,8 @@ class BaseLightningModule(pl.LightningModule):
 		loss = self.loss(y_pred, y)
 		# define log dictionary
 		log_dict = {'val_loss': loss}
+
+		self.log("val_loss", loss, prog_bar=True, on_epoch=True)
 
 		# binarize real and predicted data
 		y_true_bin = (y > 0).int()
@@ -131,14 +145,42 @@ class BaseLightningModule(pl.LightningModule):
 		# log the outputs
 		self.callback_metrics = {**self.callback_metrics, **log_dict}
 
-		# Log with itwinai logger all the hyperparameters from validation step
+		# Log with itwinai logger all the hyperparameters from training step
 		if self.itwinai_logger:
-			# Log hyper-parameters
-			self.itwinai_logger.save_hyperparameters(self.callback_metrics)
+			for l in self.itwinai_logger:
+				if isinstance(l, Prov4MLLogger):
+					print("Prov4ML Logger validation step")
+					context='validation'
+					l.log(item=self.current_epoch, identifier="epoch", kind='metric', step=self.current_epoch, context=context)
+					l.log(item=self, identifier=f"model_version_{self.current_epoch}", kind='model_version', step=self.current_epoch, context=context)
+					l.log(item=None, identifier=None, kind='system', step=self.current_epoch, context=context)
+					# l.log(item=None, identifier=None, kind='carbon', step=self.current_epoch, context=context)
+					l.log(item=None, identifier="train_epoch_time", kind='execution_time', step=self.current_epoch,context=context)
 
 		# return the loss
 		return {'loss':loss}
 
+	def configure_optimizers(self):
+		optimizer = Adam(self.parameters(), lr=1e-3)
+		return optimizer
+	
+
+	def on_validation_epoch_end(self):
+		
+		# Log with itwinai logger all the hyperparameters from training step
+		if self.itwinai_logger:
+			for l in self.itwinai_logger:
+				if isinstance(l, Prov4MLLogger):
+					print("Prov4ML Logger validation step")
+					context='validation'
+					l.log(item=self.current_epoch, identifier="epoch", kind='metric', step=self.current_epoch, context=context)
+					l.log(item=self, identifier=f"model_version_{self.current_epoch}", kind='model_version', step=self.current_epoch, context=context)
+					l.log(item=None, identifier=None, kind='system', step=self.current_epoch, context=context)
+					# l.log(item=None, identifier=None, kind='carbon', step=self.current_epoch, context=context)
+					l.log(item=None, identifier="train_epoch_time", kind='execution_time', step=self.current_epoch,context=context)
+
+		return super().on_validation_epoch_end()
+	
 	def on_validation_model_eval(self) -> None:
 		self.eval()
 	def on_validation_model_train(self) -> None:
