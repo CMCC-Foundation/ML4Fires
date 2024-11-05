@@ -32,9 +32,7 @@ credentials_fname = "credentials.toml"
 	discord_fname = "discord.toml"
 
 [utils]
-
-	[utils.random]
-	seed = 34698270934765
+seed = 346	
 
 	[utils.datetime]
 	today = "str(dt.now()).split('.')[0].replace('-', '').replace(':', '').replace(' ', '_')"
