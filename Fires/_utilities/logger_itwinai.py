@@ -23,7 +23,7 @@
 import os
 import joblib
 import lightning.pytorch as lp
-from itwinai.loggers import Logger, Prov4MLLogger, ConsoleLogger
+from itwinai.loggers import Logger, Prov4MLLogger, ConsoleLogger, MLFlowLogger
 from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
 from Fires._utilities.decorators import export
@@ -155,6 +155,63 @@ class ItwinaiLightningLogger(lp.loggers.Logger):
 	def __init__(self, savedir: str, name: str = "itwinai", version:Optional[int | None] = None):
 		super().__init__()
 		self.logger = SimpleItwinaiLogger(savedir=savedir) # ConsoleLogger(savedir=savedir)
+		self._name = name
+		self._version = version if version is not None else 0
+		self.logger.worker_rank = None
+
+	@property
+	def name(self) -> str:
+		"""Nome del logger."""
+		return self._name
+
+	@property
+	def version(self) -> str:
+		"""Versione del logger."""
+		return self._version
+
+	@property
+	def experiment(self) -> Any:
+		"""Ritorna l'istanza dell'esperimento. Può essere utilizzato per accedere a funzionalità specifiche del logger."""
+		return self.logger
+
+	def log_hyperparams(self, params: Dict[str, Any]) -> None:
+		"""Log dei parametri iper."""
+		self.logger.save_hyperparameters(params)
+
+	def log_metrics(self, metrics: Dict[str, Any], step: Optional[int] = None) -> None:
+		"""Log delle metriche."""
+		for key, value in metrics.items():
+			self.logger.log(
+			 item=value,
+			 identifier=key,
+			 step=step
+			)
+
+	def save(self) -> None:
+		"""Salva lo stato del logger, se necessario."""
+		# Implementa la logica di salvataggio se necessaria
+		pass
+
+	def finalize(self, status: str) -> None:
+		"""Finalizza il logger al termine dell'esperimento."""
+		self.logger.destroy_logger_context()
+
+
+
+@export
+class ItwinaiMLFlowLogger(lp.loggers.Logger):
+	def __init__(
+			self,
+			savedir: str, 
+			name: str = "itwinai", 
+			version:Optional[int | None] = None,
+			experiment_name:str = "experiment_name"):
+		super().__init__()
+		self.logger = MLFlowLogger(
+			savedir=savedir,
+			experiment_name=experiment_name,
+			tracking_uri=os.getenv('MLFLOW_TRACKING_URI')
+		)
 		self._name = name
 		self._version = version if version is not None else 0
 		self.logger.worker_rank = None
