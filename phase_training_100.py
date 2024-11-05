@@ -16,7 +16,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 import mlflow
 
 # Itwinai imports
-from itwinai.loggers import MLFlowLogger as Itwinai_MLFLogger, Prov4MLLogger
+from itwinai.loggers import MLFlowLogger as Itwinai_MLFLogger, Prov4MLLogger, LoggersCollection
 
 # Pytorch imports
 import torch
@@ -69,7 +69,7 @@ from Fires._utilities.logger import Logger as logger
 from Fires._utilities.metrics import TverskyLoss, FocalLoss
 from Fires._utilities.utils_general import check_backend
 from Fires._utilities.utils_mlflow import setup_mlflow_experiment
-from Fires._utilities.utils_trainer import get_callbacks, get_loggers   
+from Fires._utilities.utils_trainer import get_trainer_loggers, get_itwinai_loggers, get_callbacks 
 from Fires.trainer import FabricTrainer
 
 # define logger
@@ -78,11 +78,45 @@ _log = logger(log_dir=LOGS_DIR).get_logger("Training_on_100km")
 
 @debug(log=_log)
 def init_fabric():
+	"""
+	Initializes the configuration arguments for the Fabric Trainer.
+
+	This function checks the current backend (MPS, CUDA, or CPU) and configures
+	the trainer settings based on the available hardware. It also retrieves logger
+	and callback instances for monitoring and managing the training process.
+
+
+	**Configurations**
+	- `TORCH_CFG.model.strategy` (str): The training strategy to use (e.g., 'ddp', 'dp').
+	- `TORCH_CFG.trainer.devices` (int): Number of devices (e.g., GPUs) to use.
+	- `TORCH_CFG.trainer.num_nodes` (int): Number of nodes for distributed training.
+	- `TORCH_CFG.trainer.precision` (int): Precision level for training (e.g., 16 for mixed precision).
+	- `TORCH_CFG.trainer.plugins` (str): Additional plugins for training.
+	
+	**Notes**
+	- If `backend` is set to 'mps' or 'cuda', the accelerator is set to 'gpu' and the strategy is defined from `TORCH_CFG`.
+	- If `backend` is 'cpu', the accelerator is set to 'cpu' and strategy defaults to 'auto'.
+	- Ensure that `TORCH_CFG` values are properly configured to match your training environment.
+
+	**Returns**
+		`fabric_args` (dict): 
+			A dictionary of arguments (`fabric_args`) to be passed to the Fabric Trainer, 
+			including settings for accelerator type, strategy, devices, precision, callbacks, 
+			and loggers.
+	
+	**Example**
+		```
+		fabric_args = init_fabric()
+		trainer = Trainer(**fabric_args)
+		```
+
+
+	"""
 	# check backend if MPS, CUDA or CPU
 	backend = check_backend()
 
 	# get loggers for Fabric Trainer
-	_loggers = get_loggers()
+	_loggers = get_trainer_loggers()
 
 	# get callbacks for Fabric Trainer
 	_callbacks = get_callbacks()
@@ -98,18 +132,6 @@ def init_fabric():
 		callbacks=_callbacks,
 		loggers=_loggers,
 	)
-
-	# # init fabric accelerator
-	# fabric = L.Fabric(
-	# 	accelerator=backend,
-	# 	strategy=eval(TORCH_CFG.model.strategy) if backend in ['mps', 'cuda'] else 'auto',
-	# 	devices=TORCH_CFG.trainer.devices,
-	# 	num_nodes=TORCH_CFG.trainer.num_nodes,
-	# 	precision=TORCH_CFG.trainer.precision,
-	# 	plugins=eval(TORCH_CFG.trainer.plugins),
-	# 	callbacks=_callbacks,
-	# 	loggers=_loggers,
-	# )
 
 	return fabric_args
 
@@ -134,7 +156,7 @@ def get_trainer(fabric_args: Dict) -> FabricTrainer:
 		# fabric args
 		'fabric_args':fabric_args,
 		# define number of epochs
-		'max_epochs':5, #TORCH_CFG.trainer.epochs,
+		'max_epochs':TORCH_CFG.trainer.epochs,
 		# define trainer accumulation steps
 		'grad_accum_steps':TORCH_CFG.trainer.accumulation_steps,
 		# set distributed sampler
@@ -210,7 +232,6 @@ def setup_model() -> Optional[Unet | UnetPlusPlus]:
 	Unet
 		An instance of the Unet class configured for training.
 	"""
-
 	
 	# define model loss
 	model.loss = torch.nn.modules.loss.BCELoss()
@@ -245,7 +266,7 @@ def setup_model() -> Optional[Unet | UnetPlusPlus]:
 	_metrics.append(mcc)
 
 	all_metrics = False
-
+	
 	# define model metrics
 	model.metrics = _metrics if all_metrics else []
 
@@ -256,23 +277,54 @@ def setup_model() -> Optional[Unet | UnetPlusPlus]:
 
 @debug(log=_log)
 def get_lightning_trainer():
+	"""
+	Initializes and returns a PyTorch Lightning `Trainer` 
+	configured with necessary loggers, callbacks, and settings.
+
+	This function configures the Lightning Trainer with appropriate hardware 
+	settings, loggers, callbacks, and a fixed seed for reproducibility. 
+	It also incorporates a custom `itwinai_logger` collection for additional logging.
+
+	**Returns**
+		Trainer: A PyTorch Lightning Trainer instance configured for training.
+
+	**Environment/Configuration**
+	- `SEED` (int): Seed value for reproducibility.
+	- `TORCH_CFG.trainer.precision` (int): Precision level (e.g., 16 for mixed precision).
+	- `TORCH_CFG.model.strategy` (str): Model training strategy (e.g., 'ddp', 'dp').
+
+	**Example**
+		```
+		trainer = get_lightning_trainer()
+		trainer.fit(model)
+		```
+	
+	**Notes**
+	- Sets `accelerator` to 'gpu' if the backend is MPS or CUDA, otherwise defaults to 'cpu'.
+	- For distributed training, uses `ddp` as the strategy when GPU support is detected, otherwise defaults to 'auto'.
+	- `_loggers_collection` is assigned to `itwinai_logger` on the trainer for additional logging support.
+	"""
 
 	# check backend
-	backend=check_backend()
+	backend = check_backend()
 
-	# get loggers for Fabric Trainer
-	_loggers = get_loggers(run_name=run_name)
+	# get loggers for Pytorch Lightning Trainer
+	_loggers = get_trainer_loggers()
 
-	# get callbacks for Fabric Trainer
+	# get itwinai loggers
+	_loggers_collection = get_itwinai_loggers()
+
+	# get callbacks for Pytorch Lightning Trainer
 	_callbacks = get_callbacks()
 
 	# seed everything for reproducibility
 	lp.seed_everything(seed=SEED, workers=True)
 
 	# define lightining.pytorch.Trainer object
-	pl_trainer=lp.Trainer(
+	_trainer=lp.Trainer(
 		accelerator='gpu' if backend in ['mps', 'cuda'] else 'cpu',
-		strategy='ddp' if backend in ['mps', 'cuda'] else 'auto', # eval(TORCH_CFG.model.strategy) if backend in ['mps', 'cuda'] else 'auto',
+		# strategy=eval(TORCH_CFG.model.strategy) if backend in ['mps', 'cuda'] else 'auto',
+		strategy='ddp' if backend in ['mps', 'cuda'] else 'auto',
 		devices=1, #TORCH_CFG.trainer.devices,
 		num_nodes=1, #TORCH_CFG.trainer.num_nodes,
 		precision= TORCH_CFG.trainer.precision,
@@ -281,7 +333,9 @@ def get_lightning_trainer():
 		max_epochs=5, # TORCH_CFG.trainer.epochs,
 	)
 
-	return pl_trainer
+	_trainer.itwinai_logger = _loggers_collection
+
+	return _trainer
 
 
 @debug(log=_log)
@@ -306,80 +360,41 @@ def main():
 	train_loader = DataLoader(trn_torch_ds,	**dloader_args)
 	valid_loader = DataLoader(val_torch_ds, **dloader_args)
 
-	# get fabric
-	# fabric = init_fabric()
-	# fabric_args = init_fabric()
-
-	# define trainer
-	# trainer = get_trainer(fabric_args=fabric_args)
-	
-	# setup the model and the optimizer
-	# trainer.setup(
-	# 	model=model,
-	# 	optimizer_cls=eval(TORCH_CFG.trainer.optim.cls),
-	# 	optimizer_args=eval(TORCH_CFG.trainer.optim.args),
-	# 	scheduler_cls=eval(TORCH_CFG.trainer.scheduler.cls),
-	# 	scheduler_args=eval(TORCH_CFG.trainer.scheduler.args),
-	# 	checkpoint=eval(TORCH_CFG.trainer.checkpoint.ckpt)
-	# )
-
 	# get instance of Pytorch Lightning Trainer
 	trainer = get_lightning_trainer()
+	with trainer.itwinai_logger.start_logging(rank=trainer.global_rank):
 
-	# get global rank
-	global_rank = trainer.global_rank
-	print(f" | Global rank {global_rank}")
+		# get global rank
+		global_rank = trainer.global_rank
+		print(f" | Global rank {global_rank}")
 
-	# Automatically log params, metrics, and model
-	mlflow.pytorch.autolog()
+		# Automatically log params, metrics, and model
+		mlflow.pytorch.autolog()
 
-	# Initialize MLflow run using the setup_mlflow_run function
-	if global_rank == 0:
-		mlflow.start_run(run_name=run_name)
+		# fit the model
+		trainer.fit(
+			model=model,
+			train_dataloaders=train_loader,
+			val_dataloaders=valid_loader
+		)
 
-	# fit the model
-	trainer.fit(
-		model=model,
-		train_dataloaders=train_loader, 
-		val_dataloaders=valid_loader
-	)
-		# log_mlflow=True)
+		# save the model to disk
+		last_model = os.path.join(RUN_DIR,'last_model.pt')
+		trainer.save_checkpoint(filepath=last_model)
+		trainer.itwinai_logger.log(
+				item=last_model,
+				identifier="model_weights",
+				kind='artifact'
+		)
 
-	# save the model to disk
-	last_model = os.path.join(RUN_DIR,'last_model.pt')
-	trainer.save_checkpoint(filepath=last_model)
-
-	# trainer.fabric.save(
-	# 	path=last_model,
-	# 	state={
-	# 		'model':trainer.model,
-	# 		'optimizer':trainer.optimizer,
-	# 		'scheduler': trainer.scheduler_cfg
-	# 	}
-	# )
-
-	# log weights
-	if global_rank == 0:
-		mlflow.log_artifact(last_model, artifact_path="model_weights")
-
-	# log model
-	original_model = trainer.model # trainer.model.module
-
-	# Remove non-serializable attributes
-	# if hasattr(original_model, '_fabric'):
-	# 	del original_model._fabric
-	# if hasattr(original_model, 'comm'):
-	# 	del original_model.comm
-
-	original_model.cpu()
-
-	# log model
-	if global_rank == 0:
-		mlflow.pytorch.log_model(original_model, "last_model")
-
-	# end MLFlow run
-	if global_rank == 0:
-		mlflow.end_run()
+		# log model
+		original_model = trainer.model # trainer.model.module
+		original_model.cpu()
+		trainer.itwinai_logger.log(
+			item=original_model,
+			identifier="last_model",
+			kind='model'
+		)
 
 
 @debug(log=_log)
@@ -434,8 +449,8 @@ def check_cli_args():
 	else:
 		raise ValueError(f"Model not supported: {cli_args.model}")
 	
-	global run_name
-	run_name=f"LOCAL_{cli_model_name.upper()}_BCE_{cli_base_filter_dim}"
+	# define run name as an environment variable
+	os.environ['MLFLOW_RUN_NAME'] = f"LOCAL_{cli_model_name.upper()}_BCE_{cli_base_filter_dim}"
 		
 	return model_class, model_config
 
@@ -457,3 +472,104 @@ if __name__ == '__main__':
 	print(f"Model: {model}")
 
 	main()
+
+
+'''
+# @debug(log=_log)
+# def main():
+# 	"""
+# 	Main function to execute the model training pipeline.
+
+# 	This function orchestrates the entire training process by creating datasets, 
+# 	initializing the trainer and model, setting up data loaders, and starting the 
+# 	training process. It also logs the training progress and saves the final model 
+# 	to disk.
+# 	"""
+		
+# 	# create pytorch datasets for training and validation
+# 	trn_torch_ds, val_torch_ds = create_torch_datasets(data_source_path=DATA_PATH_100KM)
+	
+# 	# define model
+# 	model = setup_model()
+
+# 	# load dataloader
+# 	dloader_args = dict(batch_size=TORCH_CFG.trainer.batch_size, shuffle=True, drop_last=TORCH_CFG.trainer.drop_reminder, num_workers=2)
+# 	train_loader = DataLoader(trn_torch_ds,	**dloader_args)
+# 	valid_loader = DataLoader(val_torch_ds, **dloader_args)
+
+# 	# get fabric
+# 	# fabric = init_fabric()
+# 	# fabric_args = init_fabric()
+
+# 	# define trainer
+# 	# trainer = get_trainer(fabric_args=fabric_args)
+	
+# 	# setup the model and the optimizer
+# 	# trainer.setup(
+# 	# 	model=model,
+# 	# 	optimizer_cls=eval(TORCH_CFG.trainer.optim.cls),
+# 	# 	optimizer_args=eval(TORCH_CFG.trainer.optim.args),
+# 	# 	scheduler_cls=eval(TORCH_CFG.trainer.scheduler.cls),
+# 	# 	scheduler_args=eval(TORCH_CFG.trainer.scheduler.args),
+# 	# 	checkpoint=eval(TORCH_CFG.trainer.checkpoint.ckpt)
+# 	# )
+
+# 	# get instance of Pytorch Lightning Trainer
+# 	trainer = get_lightning_trainer()
+
+# 	# get global rank
+# 	global_rank = trainer.global_rank
+# 	print(f" | Global rank {global_rank}")
+
+# 	# Automatically log params, metrics, and model
+# 	mlflow.pytorch.autolog()
+
+# 	# Initialize MLflow run using the setup_mlflow_run function
+# 	if global_rank == 0:
+# 		mlflow.start_run(run_name=os.getenv('MLFLOW_RUN_NAME'))
+
+# 	# fit the model
+# 	trainer.fit(
+# 		model=model,
+# 		train_dataloaders=train_loader, 
+# 		val_dataloaders=valid_loader
+# 	)
+# 		# log_mlflow=True)
+
+# 	# save the model to disk
+# 	last_model = os.path.join(RUN_DIR,'last_model.pt')
+# 	trainer.save_checkpoint(filepath=last_model)
+
+# 	# trainer.fabric.save(
+# 	# 	path=last_model,
+# 	# 	state={
+# 	# 		'model':trainer.model,
+# 	# 		'optimizer':trainer.optimizer,
+# 	# 		'scheduler': trainer.scheduler_cfg
+# 	# 	}
+# 	# )
+
+# 	# log weights
+# 	if global_rank == 0:
+# 		mlflow.log_artifact(last_model, artifact_path="model_weights")
+
+# 	# log model
+# 	original_model = trainer.model # trainer.model.module
+
+# 	# Remove non-serializable attributes
+# 	# if hasattr(original_model, '_fabric'):
+# 	# 	del original_model._fabric
+# 	# if hasattr(original_model, 'comm'):
+# 	# 	del original_model.comm
+
+# 	original_model.cpu()
+
+# 	# log model
+# 	if global_rank == 0:
+# 		mlflow.pytorch.log_model(original_model, "last_model")
+
+# 	# end MLFlow run
+# 	if global_rank == 0:
+# 		mlflow.end_run()
+
+'''
