@@ -330,7 +330,7 @@ def get_lightning_trainer():
 		precision= TORCH_CFG.trainer.precision,
 		logger=_loggers,
 		callbacks=_callbacks,
-		max_epochs=5, # TORCH_CFG.trainer.epochs,
+		max_epochs=TORCH_CFG.trainer.epochs,
 	)
 
 	_trainer.itwinai_logger = _loggers_collection
