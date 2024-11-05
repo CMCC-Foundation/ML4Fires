@@ -18,9 +18,10 @@ echo "Performing experiments"
 MODEL=unetpp
 TRAINING_FILE=phase_training_100.py
 for exp in "${exponents[@]}"; do
-  BASE_FILTER_DIM=$(($BASE ** $exp))
-  echo $BASE_FILTER_DIM
-  mpirun -- python $TRAINING_FILE -bfd $BASE_FILTER_DIM -mdl $MODEL
+	BASE_FILTER_DIM=$(($BASE ** $exp))
+	echo "Base filter dimension: "$BASE_FILTER_DIM
+	# mpirun python $TRAINING_FILE -bfd $BASE_FILTER_DIM -mdl $MODEL
+	python $TRAINING_FILE -bfd $BASE_FILTER_DIM -mdl $MODEL
 done
 
 # End of script
