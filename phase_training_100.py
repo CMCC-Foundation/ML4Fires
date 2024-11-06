@@ -5,6 +5,8 @@ import xarray as xr
 import numpy as np
 from datetime import datetime as dt
 
+import joblib
+
 # Settings the warnings to be ignored 
 import warnings
 warnings.filterwarnings('ignore')
@@ -74,7 +76,6 @@ from Fires.trainer import FabricTrainer
 
 # define logger
 _log = logger(log_dir=LOGS_DIR).get_logger("Training_on_100km")
-
 
 @debug(log=_log)
 def init_fabric():
@@ -179,7 +180,7 @@ def create_torch_datasets(data_source_path:str) -> Tuple[FireDataset, FireDatase
 
 	This function checks if the data source path exists, loads the training data, 
 	applies standard scaling, and creates PyTorch datasets for training and validation.
-
+ 
 	Parameters
 	----------
 	data_source_path : str
@@ -214,7 +215,7 @@ def create_torch_datasets(data_source_path:str) -> Tuple[FireDataset, FireDatase
 	trn_torch_ds = FireDataset(**fire_ds_args, years=trn_years, scalers=[x_scaler, None])
 	val_torch_ds = FireDataset(**fire_ds_args, years=val_years, scalers=[x_scaler, None])
 
-	return trn_torch_ds, val_torch_ds
+	return trn_torch_ds, val_torch_ds, x_scaler
 
 
 @debug(log=_log)
@@ -350,7 +351,7 @@ def main():
 	"""
 		
 	# create pytorch datasets for training and validation
-	trn_torch_ds, val_torch_ds = create_torch_datasets(data_source_path=DATA_PATH_100KM)
+	trn_torch_ds, val_torch_ds, x_scaler = create_torch_datasets(data_source_path=DATA_PATH_100KM)
 	
 	# define model
 	model = setup_model()
@@ -394,6 +395,15 @@ def main():
 			item=original_model,
 			identifier="last_model",
 			kind='model'
+		)
+
+		#Log scaler
+		scaler_file = os.path.join(RUN_DIR,'scaler.dump')
+		joblib.dump(x_scaler, scaler_file) 
+		trainer.itwinai_logger.log(
+			item=scaler_file,
+			identifier="scaler",
+			kind='artifact'
 		)
 
 
