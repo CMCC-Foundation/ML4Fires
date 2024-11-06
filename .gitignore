@@ -11,6 +11,7 @@ digital_twin_notebooks/*.onnx
 digital_twin_notebooks/inference_with_onnx.ipynb
 digital_twin_notebooks/model_conversion_pytorch_to_onnx.ipynb
 transfer.sh
+.ipynb_checkpoints
 
 # folders
 experiments
