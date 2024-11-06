@@ -3,9 +3,10 @@ import xarray as xr
 import os
 import joblib
 import torch
+import pydot
 
 from Fires._datasets.torch_dataset import FireDataset
-from Fires._macros.macros import DRIVERS, TARGETS, MAX_HECTARES_100KM, LOGS_DIR
+from Fires._macros.macros import DRIVERS, TARGETS, MAX_HECTARES_100KM, LOGS_DIR, CONFIG
 from Fires._plots.plot_utils import plot_dataset_map
 from Fires._scalers.standard import StandardScaler
 from Fires._utilities.logger import Logger as logger
@@ -13,6 +14,16 @@ from Fires._utilities.decorators import debug, export
 
 # define logger
 _log = logger(log_dir=LOGS_DIR).get_logger("Inference Utilities")
+
+
+@export
+@debug(log=_log)
+def get_prov_image(run_id):
+	prov_doc = os.path.join(os.getcwd(), 'MLFLOW', f"{run_id}/provgraph_{CONFIG.mlflow.EXPERIMENT_NAME}.dot")
+	prov_img = os.path.join(os.getcwd(), 'MLFLOW', f"{run_id}/provgraph_{CONFIG.mlflow.EXPERIMENT_NAME}.png")
+	(graph,) = pydot.graph_from_dot_file(prov_doc)
+	graph.write_png(prov_img)
+	return prov_img
 
 @export
 @debug(log=_log)
