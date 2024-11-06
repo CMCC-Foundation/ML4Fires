@@ -56,6 +56,7 @@ from Fires._macros.macros import (
 	NEW_DS_PATH,
 	RUN_DIR,
 	SCALER_DIR,
+	PROVENANCE_DIR,
 )
 import Fires._models
 from Fires._models.unet import Unet
@@ -325,11 +326,11 @@ def get_lightning_trainer():
 	# define lightining.pytorch.Trainer object
 	_trainer=lp.Trainer(
 		accelerator='gpu' if backend in ['mps', 'cuda'] else 'cpu',
-		# strategy=eval(TORCH_CFG.model.strategy) if backend in ['mps', 'cuda'] else 'auto',
+		#strategy=eval(TORCH_CFG.model.strategy) if backend in ['mps', 'cuda'] else 'auto',
 		strategy='ddp' if backend in ['mps', 'cuda'] else 'auto',
-		devices=1, #TORCH_CFG.trainer.devices,
-		num_nodes=1, #TORCH_CFG.trainer.num_nodes,
-		precision= TORCH_CFG.trainer.precision,
+		devices=TORCH_CFG.trainer.devices,
+		num_nodes=TORCH_CFG.trainer.num_nodes,
+		precision=TORCH_CFG.trainer.precision,
 		logger=_loggers,
 		callbacks=_callbacks,
 		max_epochs=TORCH_CFG.trainer.epochs,
@@ -398,6 +399,7 @@ def main():
 			kind='model'
 		)
 
+		
 		#Log scaler
 		scaler_file = os.path.join(RUN_DIR,'scaler.dump')
 		joblib.dump(x_scaler, scaler_file) 
@@ -406,6 +408,14 @@ def main():
 			identifier="scaler",
 			kind='artifact'
 		)
+
+		#Log provenance
+		trainer.itwinai_logger.log(
+			item=None,
+			identifier=None,
+			kind="prov_documents")
+
+
 
 
 @debug(log=_log)

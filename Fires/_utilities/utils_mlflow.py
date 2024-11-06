@@ -68,7 +68,8 @@ def load_model_from_mlflow(run_id, scaler=True, provenance=False):
     if scaler:
         artifact_path = client.download_artifacts(run_id=run_id, path="scaler", dst_path=local_path)
     if provenance:
-        artifact_path = client.download_artifacts(run_id=run_id, path="provenance", dst_path=local_path)
+        artifact_path = client.download_artifacts(run_id=run_id, path=f"provgraph_{CONFIG.mlflow.EXPERIMENT_NAME}.dot", dst_path=local_path)
+        artifact_path = client.download_artifacts(run_id=run_id, path=f"provgraph_{CONFIG.mlflow.EXPERIMENT_NAME}.json", dst_path=local_path)
 
     model_uri = f'runs:/{run_id}/last_model'
     model = mlflow.pytorch.load_model(model_uri, map_location=torch.device(check_backend()), dst_path=local_path)
