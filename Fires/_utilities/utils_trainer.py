@@ -15,7 +15,7 @@ import pytorch_lightning.loggers as pl_log
 from itwinai.loggers import MLFlowLogger as Itwinai_MLFLogger, LoggersCollection, Prov4MLLogger
 
 # ML4Fires imports
-from Fires._macros.macros import CHECKPOINTS_DIR, CONFIG, DISCORD_CFG, LOGS_DIR, RUN_DIR
+from Fires._macros.macros import CHECKPOINTS_DIR, CONFIG, DISCORD_CFG, LOGS_DIR, RUN_DIR, PROVENANCE_DIR
 from Fires._utilities.callbacks import DiscordBenchmark, FabricBenchmark, FabricCheckpoint
 from Fires._utilities.logger import Logger as logger
 from Fires._utilities.decorators import debug, export
@@ -124,7 +124,7 @@ def get_itwinai_loggers() -> LoggersCollection:
 	_loggers.append(_itwinai_mlflow_logger)
 
 	# define Itwinai Provenance logger
-	_itwinai_provenance_logger = Prov4MLLogger(experiment_name=os.getenv('MLFLOW_EXPERIMENT_NAME'), provenance_save_dir=os.path.join(LOGS_DIR, "ITWINAI", "provenance"), save_after_n_logs=1)
+	_itwinai_provenance_logger = Prov4MLLogger(experiment_name=os.getenv('MLFLOW_EXPERIMENT_NAME'), provenance_save_dir=PROVENANCE_DIR, save_after_n_logs=1)
 	_loggers.append(_itwinai_provenance_logger)
 
 	# define loggers collection
