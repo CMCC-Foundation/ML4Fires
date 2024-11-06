@@ -23,6 +23,7 @@ DATA_DIR = "/ceph/hpc/home/ciangottinid/ML4Fires_demo" # "os.path.join(CURR_DIR,
 SCALER_DIR = "os.path.join(DATA_DIR, 'scaler')"
 
 [mlflow]
+TRACKING_INSECURE_TLS = 'true'
 TRACKING_URI = "https://mlflow.intertwin.fedcloud.eu/"
 EXPERIMENT_NAME = "ML4Fires_Experiment"
 

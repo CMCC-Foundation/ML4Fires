@@ -58,5 +58,6 @@ from Fires._utilities.decorators import (
 from Fires._utilities.swin_model import seed_everything
 
 from Fires._utilities.utils_general import check_backend
+from Fires._utilities.utils_inference import load_input_data, create_data_loader, compute_aggregated_data, up_and_lower_bounds, process_and_plot_data
 from Fires._utilities.utils_mlflow import setup_mlflow_experiment
 from Fires._utilities.utils_trainer import get_trainer_loggers, get_itwinai_loggers, get_callbacks

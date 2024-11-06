@@ -5,14 +5,17 @@ import joblib
 import torch
 
 from Fires._datasets.torch_dataset import FireDataset
-from Fires._macros.macros import (
-    DRIVERS,
-    TARGETS,
-    MAX_HECTARES_100KM,
-)
+from Fires._macros.macros import DRIVERS, TARGETS, MAX_HECTARES_100KM, LOGS_DIR
 from Fires._plots.plot_utils import plot_dataset_map
 from Fires._scalers.standard import StandardScaler
+from Fires._utilities.logger import Logger as logger
+from Fires._utilities.decorators import debug, export
 
+# define logger
+_log = logger(log_dir=LOGS_DIR).get_logger("Inference Utilities")
+
+@export
+@debug(log=_log)
 def load_input_data(data_path, time_start, time_end):
     drivers, targets = DRIVERS, TARGETS
     print(drivers, "\n", targets)
@@ -35,6 +38,9 @@ def load_input_data(data_path, time_start, time_end):
 
     return test_data
 
+
+@export
+@debug(log=_log)
 def create_data_loader(data_path, run_id):
     # define scaler
     local_path = os.path.join(os.getcwd(), 'MLFLOW', f"{run_id}/scaler/scaler.dump")
@@ -59,6 +65,9 @@ def create_data_loader(data_path, run_id):
     
     return torch_data_loader
 
+
+@export
+@debug(log=_log)
 def compute_aggregated_data(data, other_data=None, operation="mean") -> tuple[np.ndarray, np.ndarray, np.ndarray]:
 	"""
 	Compute the mean or difference between data, and aggregate along latitudes and longitudes
@@ -114,6 +123,8 @@ def compute_aggregated_data(data, other_data=None, operation="mean") -> tuple[np
 	return data, descaled_on_lats, descaled_on_lons
 
 
+@export
+@debug(log=_log)
 def up_and_lower_bounds(avg_value, std_value):
 	"""
 	Compute upper and lower bound values.
@@ -137,6 +148,8 @@ def up_and_lower_bounds(avg_value, std_value):
 	return _upper, _lower
 
 
+@export
+@debug(log=_log)
 def process_and_plot_data(data, label, lats, lons, model_name):
 	"""
 	Process the data and generate plots.
