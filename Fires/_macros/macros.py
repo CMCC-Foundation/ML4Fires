@@ -95,6 +95,14 @@ os.makedirs(SCALER_DIR, exist_ok=True)
 EXPS_DIR = eval(CONFIG.dir.EXPS_DIR)
 os.makedirs(EXPS_DIR, exist_ok=True)
 
+# define ITWINAI dir
+ITWINAI_DIR = os.path.join(LOGS_DIR, "ITWINAI")
+os.makedirs(ITWINAI_DIR, exist_ok=True)
+
+# define Provenance dir
+PROVENANCE_DIR = os.path.join(ITWINAI_DIR, "provenance")
+os.makedirs(PROVENANCE_DIR, exist_ok=True)
+
 # define lambda function to get experiment dir
 EXPS_PTH = lambda dirname : os.path.join(EXPS_DIR, dirname)
 
