@@ -32,8 +32,9 @@ from torchmetrics.classification import Precision, Recall, F1Score, FBetaScore, 
 # Lightning imports
 import lightning as L
 import lightning.pytorch as lp
-from lightning.fabric.strategies.fsdp import FSDPStrategy
+# from lightning.fabric.strategies.fsdp import FSDPStrategy
 from lightning.fabric.plugins.environments import MPIEnvironment
+from lightning.pytorch.strategies.fsdp import FSDPStrategy
 from lightning.pytorch.utilities.rank_zero import rank_zero_only
 
 

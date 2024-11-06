@@ -11,7 +11,7 @@ from Fires._utilities.decorators import debug, export
 from Fires._utilities.utils_general import check_backend
 
 # define environment variables
-os.environ['MLFLOW_TRACKING_INSECURE_TLS'] = 'true'
+os.environ['MLFLOW_TRACKING_INSECURE_TLS'] = CONFIG.mlflow.TRACKING_INSECURE_TLS
 os.environ['MLFLOW_TRACKING_USERNAME'] = CREDENTIALS_CFG.credentials.username
 os.environ['MLFLOW_TRACKING_PASSWORD'] = CREDENTIALS_CFG.credentials.password
 os.environ['MLFLOW_TRACKING_URI'] = CONFIG.mlflow.TRACKING_URI
