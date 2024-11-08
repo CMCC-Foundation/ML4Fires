@@ -67,6 +67,8 @@ class BaseLightningModule(pl.LightningModule):
 	def __init__(self, *args: Any, **kwargs: Any) -> None:
 		super().__init__(*args, **kwargs)
 		self.callback_metrics:Dict[str | Any] = {}
+		self._trn_loss = {'sum': 0, 'steps': 0}
+		self._vld_loss = {'sum': 0, 'steps': 0}
 	
 	# @property
 	# def itwinai_logger(self) -> Optional[List[SimpleItwinaiLogger | Prov4MLLogger] | None]:
@@ -131,7 +133,26 @@ class BaseLightningModule(pl.LightningModule):
 		# 	self.itwinai_logger.save_hyperparameters(self.callback_metrics)
 		
 		# return the loss
+		self._trn_loss['sum'] += loss
+		self._trn_loss['steps'] += 1
 		return {'loss':loss}
+
+	def on_train_epoch_end(self):
+
+		if self.itwinai_logger is not None:
+			# self.itwinai_logger.save_hyperparameters(self.callback_metrics)
+			context='training'
+			self.itwinai_logger.log(item=self.current_epoch, identifier="epoch", kind='metric', step=self.current_epoch, context=context)
+			self.itwinai_logger.log(item=self, identifier=f"model_version_{self.current_epoch}", kind='model_version', step=self.current_epoch, context=context)
+			self.itwinai_logger.log(item=None, identifier=None, kind='system', step=self.current_epoch, context=context)
+			self.itwinai_logger.log(item=None, identifier=None, kind='carbon', step=self.current_epoch, context=context)
+			self.itwinai_logger.log(item=None, identifier="train_epoch_time", kind='execution_time', step=self.current_epoch, context=context)
+			self.itwinai_logger.log(item=self._trn_loss['sum']/self._trn_loss['steps'], identifier="training_loss", kind='metric', step=self.current_epoch, context=context)
+
+		self._trn_loss = {'sum': 0, 'steps': 0}
+
+		return super().on_train_epoch_end()
+
 
 	def validation_step(self, batch, batch_idx):
 		# get data from the batch
@@ -175,48 +196,41 @@ class BaseLightningModule(pl.LightningModule):
 		# 			for k in log_dict.keys():
 		# 				l.log(item=log_dict[k], identifier=k, kind='metric')
 
-		if self.itwinai_logger is not None:
-			# self.itwinai_logger.save_hyperparameters(self.callback_metrics)
-			
-			context='validation'
-			self.itwinai_logger.log(batch_idx=batch_idx, item=self.current_epoch, identifier="epoch", kind='metric', step=self.current_epoch, context=context)
-			self.itwinai_logger.log(batch_idx=batch_idx, item=self, identifier=f"model_version_{self.current_epoch}", kind='model_version', step=self.current_epoch, context=context)
-			self.itwinai_logger.log(batch_idx=batch_idx, item=None, identifier=None, kind='system', step=self.current_epoch, context=context)
-			self.itwinai_logger.log(batch_idx=batch_idx, item=None, identifier=None, kind='carbon', step=self.current_epoch, context=context)
-			self.itwinai_logger.log(batch_idx=batch_idx, item=None, identifier="train_epoch_time", kind='execution_time', step=self.current_epoch,context=context)
+		#if self.itwinai_logger is not None:
+		#	# self.itwinai_logger.save_hyperparameters(self.callback_metrics)
+		#
+		#	context='validation'
+		#	self.itwinai_logger.log(batch_idx=batch_idx, item=self.current_epoch, identifier="epoch", kind='metric', step=self.current_epoch, context=context)
+		#	self.itwinai_logger.log(batch_idx=batch_idx, item=self, identifier=f"model_version_{self.current_epoch}", kind='model_version', step=self.current_epoch, context=context)
+		#	self.itwinai_logger.log(batch_idx=batch_idx, item=None, identifier=None, kind='system', step=self.current_epoch, context=context)
+		#	self.itwinai_logger.log(batch_idx=batch_idx, item=None, identifier=None, kind='carbon', step=self.current_epoch, context=context)
+		#	self.itwinai_logger.log(batch_idx=batch_idx, item=None, identifier="train_epoch_time", kind='execution_time', step=self.current_epoch,context=context)
+		#	self.itwinai_logger.log(batch_idx=batch_idx, item=loss, identifier="val_loss", kind='metric', step=self.current_epoch,context=context)
 
 		# return the loss
+		self._vld_loss['sum'] += loss
+		self._vld_loss['steps'] += 1
 		return {'loss':loss}
 
 	def configure_optimizers(self):
 		optimizer = Adam(self.parameters(), lr=1e-3)
 		return optimizer
 	
-
 	def on_validation_epoch_end(self):
-		
-		# Log with itwinai logger all the hyperparameters from training step
-		# if self.itwinai_logger:
-		# 	for l in self.itwinai_logger:
-		# 		if isinstance(l, Prov4MLLogger):
-		# 			print("Prov4ML Logger validation step")
-		# 			context='validation'
-		# 			l.log(item=self.current_epoch, identifier="epoch", kind='metric', step=self.current_epoch, context=context)
-		# 			l.log(item=self, identifier=f"model_version_{self.current_epoch}", kind='model_version', step=self.current_epoch, context=context)
-		# 			l.log(item=None, identifier=None, kind='system', step=self.current_epoch, context=context)
-		# 			# l.log(item=None, identifier=None, kind='carbon', step=self.current_epoch, context=context)
-		# 			l.log(item=None, identifier="train_epoch_time", kind='execution_time', step=self.current_epoch,context=context)
-		
+
 		if self.itwinai_logger is not None:
 			# self.itwinai_logger.save_hyperparameters(self.callback_metrics)
 
 			context='validation'
-			self.itwinai_logger.log(item=self.current_epoch, identifier="epoch", kind='metric', step=self.current_epoch, context=context)
+			#self.itwinai_logger.log(item=self.current_epoch, identifier="epoch", kind='metric', step=self.current_epoch, context=context)
 			self.itwinai_logger.log(item=self, identifier=f"model_version_{self.current_epoch}", kind='model_version', step=self.current_epoch, context=context)
 			self.itwinai_logger.log(item=None, identifier=None, kind='system', step=self.current_epoch, context=context)
 			self.itwinai_logger.log(item=None, identifier=None, kind='carbon', step=self.current_epoch, context=context)
-			self.itwinai_logger.log(item=None, identifier="train_epoch_time", kind='execution_time', step=self.current_epoch,context=context)
+			self.itwinai_logger.log(item=None, identifier="validation_epoch_time", kind='execution_time', step=self.current_epoch,context=context)
+			self.itwinai_logger.log(item=self._vld_loss['sum']/self._vld_loss['steps'], identifier="validation_loss", kind='metric', step=self.current_epoch, context=context)
 				
+		self._vld_loss = {'sum': 0, 'steps': 0}
+
 		return super().on_validation_epoch_end()
 	
 	def on_validation_model_eval(self) -> None:
