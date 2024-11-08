@@ -5,7 +5,8 @@ matmul_precision = 'medium'
 
 
 [model]
-strategy = "FSDPStrategy(sharding_strategy=ShardingStrategy.NO_SHARD)"
+#strategy = "FSDPStrategy(sharding_strategy=ShardingStrategy.FULL_SHARD)"
+strategy = "DDPStrategy()"
 loss = "torch.nn.BCELoss()"
 metrics = "[]" # "[torch.nn.MSELoss()]"
 

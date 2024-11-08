@@ -35,6 +35,7 @@ import lightning.pytorch as lp
 # from lightning.fabric.strategies.fsdp import FSDPStrategy
 from lightning.fabric.plugins.environments import MPIEnvironment
 from lightning.pytorch.strategies.fsdp import FSDPStrategy
+from lightning.pytorch.strategies.ddp import DDPStrategy
 from lightning.pytorch.utilities.rank_zero import rank_zero_only
 
 
@@ -326,8 +327,7 @@ def get_lightning_trainer():
 	# define lightining.pytorch.Trainer object
 	_trainer=lp.Trainer(
 		accelerator='gpu' if backend in ['mps', 'cuda'] else 'cpu',
-		#strategy=eval(TORCH_CFG.model.strategy) if backend in ['mps', 'cuda'] else 'auto',
-		strategy='ddp' if backend in ['mps', 'cuda'] else 'auto',
+		strategy=eval(TORCH_CFG.model.strategy) if backend in ['mps', 'cuda'] else 'auto',
 		devices=TORCH_CFG.trainer.devices,
 		num_nodes=TORCH_CFG.trainer.num_nodes,
 		precision=TORCH_CFG.trainer.precision,
