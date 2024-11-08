@@ -120,7 +120,7 @@ def get_itwinai_loggers() -> LoggersCollection:
 	_loggers = []
 
 	# define Itwinai MLFlow logger
-	_itwinai_mlflow_logger = Itwinai_MLFLogger(experiment_name=os.getenv('MLFLOW_EXPERIMENT_NAME'), tracking_uri=os.getenv('MLFLOW_TRACKING_URI'), log_freq=10)
+	_itwinai_mlflow_logger = Itwinai_MLFLogger(experiment_name=os.getenv('MLFLOW_EXPERIMENT_NAME'), tracking_uri=os.getenv('MLFLOW_TRACKING_URI'), log_freq='epoch')
 	_loggers.append(_itwinai_mlflow_logger)
 
 	# define Itwinai Provenance logger

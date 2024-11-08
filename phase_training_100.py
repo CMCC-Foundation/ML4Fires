@@ -372,7 +372,7 @@ def main():
 		print(f" | Global rank {global_rank}")
 
 		# Automatically log params, metrics, and model
-		mlflow.pytorch.autolog()
+		#mlflow.pytorch.autolog()
 
 		# fit the model
 		trainer.fit(
