@@ -57,18 +57,20 @@ def load_model_from_mlflow_registry(model_name, version=1, tag=None):
 
 @export
 @debug(log=_log)
-def load_model_from_mlflow(run_id, scaler=True, provenance=False):
+def load_model_from_mlflow(run_name, scaler=True, provenance=False):
     # set tracking uri
     mlflow.set_tracking_uri(os.getenv('MLFLOW_TRACKING_URI'))
 
-    local_path = os.path.join(os.getcwd(), 'MLFLOW', f"{run_id}")
+    run_id = mlflow.search_runs(filter_string=f"run_name='{run_name}'")['run_id'].values[0]
+
+    local_path = os.path.join(os.getcwd(), 'MLFLOW', f"{run_name}")
     os.makedirs(local_path, exist_ok=True)   
 
     client = mlflow.MlflowClient()
     if scaler:
         artifact_path = client.download_artifacts(run_id=run_id, path="scaler", dst_path=local_path)
     if provenance:
-        artifact_path = client.download_artifacts(run_id=run_id, path=f"provgraph_{CONFIG.mlflow.EXPERIMENT_NAME}.dot", dst_path=local_path)
+        artifact_path = client.download_artifacts(run_id=run_id, path=f"provgraph_{CONFIG.mlflow.EXPERIMENT_NAME}.svg", dst_path=local_path)
         artifact_path = client.download_artifacts(run_id=run_id, path=f"provgraph_{CONFIG.mlflow.EXPERIMENT_NAME}.json", dst_path=local_path)
 
     model_uri = f'runs:/{run_id}/last_model'

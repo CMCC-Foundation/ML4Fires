@@ -18,11 +18,12 @@ _log = logger(log_dir=LOGS_DIR).get_logger("Inference Utilities")
 
 @export
 @debug(log=_log)
-def get_prov_image(run_id):
-	prov_doc = os.path.join(os.getcwd(), 'MLFLOW', f"{run_id}/provgraph_{CONFIG.mlflow.EXPERIMENT_NAME}.dot")
-	prov_img = os.path.join(os.getcwd(), 'MLFLOW', f"{run_id}/provgraph_{CONFIG.mlflow.EXPERIMENT_NAME}.png")
-	(graph,) = pydot.graph_from_dot_file(prov_doc)
-	graph.write_png(prov_img)
+def get_prov_image(run_name):
+	#prov_doc = os.path.join(os.getcwd(), 'MLFLOW', f"{run_name}/provgraph_{CONFIG.mlflow.EXPERIMENT_NAME}.dot")
+	#prov_img = os.path.join(os.getcwd(), 'MLFLOW', f"{run_name}/provgraph_{CONFIG.mlflow.EXPERIMENT_NAME}.png")
+	#(graph,) = pydot.graph_from_dot_file(prov_doc)
+	#graph.write_png(prov_img)
+	prov_img = os.path.join(os.getcwd(), 'MLFLOW', f"{run_name}/provgraph_{CONFIG.mlflow.EXPERIMENT_NAME}.svg")
 	return prov_img
 
 @export
@@ -52,9 +53,9 @@ def load_input_data(data_path, time_start, time_end):
 
 @export
 @debug(log=_log)
-def create_data_loader(data_path, run_id):
+def create_data_loader(data_path, run_name):
     # define scaler
-    local_path = os.path.join(os.getcwd(), 'MLFLOW', f"{run_id}/scaler/scaler.dump")
+    local_path = os.path.join(os.getcwd(), 'MLFLOW', f"{run_name}/scaler/scaler.dump")
     x_scaler = joblib.load(local_path)
 
     # define torch dataset
