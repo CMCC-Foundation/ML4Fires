@@ -189,7 +189,7 @@ def get_callbacks() -> List:
 	# _callbacks.append(_fabric_check_cllbk)
 
 	# define Early Stopping callback
-	_earlystop_cllbk = lp_cllbks.EarlyStopping('val_loss')
+	_earlystop_cllbk = lp_cllbks.EarlyStopping('val_loss', patience=10)
 	_callbacks.append(_earlystop_cllbk)
 
 	# define ModelCheckpoint callback, monitoring 'val_loss'
