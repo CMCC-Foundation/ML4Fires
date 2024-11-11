@@ -26,6 +26,7 @@ import torch.nn as nn
 import lightning as pl
 
 from torch.optim import Adam
+from torch.optim.lr_scheduler import StepLR
 
 from turtle import forward
 from typing import Any, Dict, List, Optional
@@ -214,6 +215,7 @@ class BaseLightningModule(pl.LightningModule):
 
 	def configure_optimizers(self):
 		optimizer = Adam(self.parameters(), lr=1e-3)
+		scheduler = StepLR(optimizer, step_size=1, gamma=0.96)
 		return optimizer
 	
 	def on_validation_epoch_end(self):
