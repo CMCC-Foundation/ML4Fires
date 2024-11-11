@@ -238,8 +238,8 @@ def setup_model() -> Optional[Unet | UnetPlusPlus]:
 	"""
 	
 	# define model loss
-	model.loss = torch.nn.modules.loss.BCELoss()
-	# model.loss = TverskyLoss(alpha=0.5, beta=0.5)
+	model.loss = eval(TORCH_CFG.model.loss)   #torch.nn.modules.loss.BCELoss()
+	#model.loss = TverskyLoss(alpha=0.5, beta=0.5)
 
 	# define metrics list
 	_metrics = []
@@ -359,7 +359,7 @@ def main():
 	model = setup_model()
 
 	# load dataloader
-	dloader_args = dict(batch_size=TORCH_CFG.trainer.batch_size, shuffle=True, drop_last=TORCH_CFG.trainer.drop_reminder, num_workers=2)
+	dloader_args = dict(batch_size=TORCH_CFG.trainer.batch_size, shuffle=True, drop_last=TORCH_CFG.trainer.drop_reminder, num_workers=TORCH_CFG.trainer.workers)
 	train_loader = DataLoader(trn_torch_ds,	**dloader_args)
 	valid_loader = DataLoader(val_torch_ds, **dloader_args)
 

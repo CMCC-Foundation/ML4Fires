@@ -24,37 +24,12 @@ metrics = "[]" # "[torch.nn.MSELoss()]"
 		base_filter_dim = 64
 		deep_supervision = false
 
-	[model.earthformer]
-	cls = "Fires._models.pangu.EarthTransformer3D"
-		[model.earthformer.args]
-		in_channels=8
-		out_channels=1
-		shape=[720, 1440]
-		patch_size=4
-		win_size=6
-		depth=[2, 5]
-		heads=[5, 10]
-		attention_dim=32
-		num_wins="None"
-		activation= "torch.nn.ReLU()" #"torch.nn.Identity()"
-	
-	[model.swintransformer]
-	cls = "Fires._models.swin_transformer.SwinTransformerEarth2D"
-		[model.swintransformer.args]
-		in_channels=8
-		out_channels=1
-		shape=[720, 1440]
-		patch_size=4
-		win_size=6
-		depth=[2, 6]
-		heads=[6, 12]
-		attention_dim=32
-
 [trainer]
 accumulation_steps = 1
-devices = 2
+devices = 4
+workers = 1
 epochs = 75
-num_nodes = 4
+num_nodes = 1
 precision = '32-true'
 batch_size = 2
 drop_reminder = true
