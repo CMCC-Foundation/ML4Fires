@@ -64,7 +64,8 @@ def load_model_from_mlflow(run_name, scaler=True, provenance=False):
     run_id = mlflow.search_runs(filter_string=f"run_name='{run_name}'")['run_id'].values[0]
 
     local_path = os.path.join(os.getcwd(), 'MLFLOW', f"{run_name}")
-    os.makedirs(local_path, exist_ok=True)   
+    os.makedirs(local_path, exist_ok=True)
+    print(f"Data from MLFlow downloaded in: {local_path}")
 
     client = mlflow.MlflowClient()
     if scaler:
