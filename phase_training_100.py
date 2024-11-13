@@ -25,9 +25,7 @@ import torch
 from torch.utils.data import DataLoader
 from torch.distributed.fsdp import ShardingStrategy
 from torch.utils.data.distributed import DistributedSampler
-from torchmetrics import F1Score, FBetaScore, MatthewsCorrCoef, Precision, Recall
-from torchmetrics.regression import MeanSquaredError, ConcordanceCorrCoef
-from torchmetrics.classification import Precision, Recall, F1Score, FBetaScore, MatthewsCorrCoef, ConfusionMatrix
+from torchmetrics import F1Score, FBetaScore, MatthewsCorrCoef, Precision, Recall, Accuracy, MeanSquaredError, ConcordanceCorrCoef
 
 # Lightning imports
 import lightning as L
@@ -244,6 +242,11 @@ def setup_model() -> Optional[Unet | UnetPlusPlus]:
 	# define metrics list
 	_metrics = []
 
+	# accuracy
+	accuracy = Accuracy(task='binary')
+	accuracy.name = "accuracy"
+	_metrics.append(accuracy)
+
 	# precision
 	precision = Precision(task='binary')
 	precision.name = "precision"
@@ -269,7 +272,7 @@ def setup_model() -> Optional[Unet | UnetPlusPlus]:
 	mcc.name = "mcc"
 	_metrics.append(mcc)
 
-	all_metrics = False
+	all_metrics = True
 	
 	# define model metrics
 	model.metrics = _metrics if all_metrics else []
@@ -367,12 +370,12 @@ def main():
 	trainer = get_lightning_trainer()
 	with trainer.itwinai_logger.start_logging(rank=trainer.global_rank):
 
+		# change MLFLow run name
+		mlflow.set_tag('mlflow.runName', os.getenv('MLFLOW_RUN_NAME'))
+
 		# get global rank
 		global_rank = trainer.global_rank
 		print(f" | Global rank {global_rank}")
-
-		# Automatically log params, metrics, and model
-		#mlflow.pytorch.autolog()
 
 		# fit the model
 		trainer.fit(
@@ -414,7 +417,6 @@ def main():
 			item=None,
 			identifier=None,
 			kind="prov_documents")
-
 
 
 
