@@ -70,6 +70,8 @@ class BaseLightningModule(pl.LightningModule):
 		self.callback_metrics:Dict[str | Any] = {}
 		self._trn_loss = {'sum': 0, 'steps': 0}
 		self._vld_loss = {'sum': 0, 'steps': 0}
+		self._training_metrics = {'steps' : 0, 'metrics' : {}}
+		self._validation_metrics = {'steps' : 0, 'metrics' : {}}
 	
 	# @property
 	# def itwinai_logger(self) -> Optional[List[SimpleItwinaiLogger | Prov4MLLogger] | None]:
@@ -113,10 +115,17 @@ class BaseLightningModule(pl.LightningModule):
 		y_true_flat = y_true_bin.view(-1)
 		y_pred_flat = y_pred_bin.view(-1)
 
-		# compute metrics
+		self._training_metrics['steps'] += 1
+
+		# compute metrics		
 		for metric in self.metrics:
 			metric_name = f'train_{metric.name.lower()}'
-			log_dict[metric_name] = metric(y_pred_flat, y_true_flat)
+			computed_metric = metric(y_pred_flat, y_true_flat)
+			log_dict[metric_name] = computed_metric
+			if metric_name not in self._training_metrics['metrics'].keys():
+				self._training_metrics['metrics'][metric_name] = 0
+			self._training_metrics['metrics'][metric_name] += computed_metric
+		
 		# log the outputs
 		self.callback_metrics = {**self.callback_metrics, **log_dict}
 
@@ -132,7 +141,9 @@ class BaseLightningModule(pl.LightningModule):
 
 		# if self.itwinai_logger is not None:
 		# 	self.itwinai_logger.save_hyperparameters(self.callback_metrics)
-		
+
+		self._training_loss = loss
+
 		# return the loss
 		self._trn_loss['sum'] += loss
 		self._trn_loss['steps'] += 1
@@ -149,7 +160,12 @@ class BaseLightningModule(pl.LightningModule):
 			self.itwinai_logger.log(item=None, identifier=None, kind='carbon', step=self.current_epoch, context=context)
 			self.itwinai_logger.log(item=None, identifier="train_epoch_time", kind='execution_time', step=self.current_epoch, context=context)
 			self.itwinai_logger.log(item=self._trn_loss['sum']/self._trn_loss['steps'], identifier="training_loss", kind='metric', step=self.current_epoch, context=context)
+			# self.itwinai_logger.log(item=self._training_loss, identifier="training_loss", kind='metric', step=self.current_epoch, context=context)
 
+			for metric_name, metric_value in self._training_metrics['metrics'].items():
+				self.itwinai_logger.log(item=metric_value/self._training_metrics['steps'], identifier=metric_name, kind='metric', step=self.current_epoch, context=context)
+			
+		self._training_metrics = {'steps' : 0, 'metrics' : {}}
 		self._trn_loss = {'sum': 0, 'steps': 0}
 
 		return super().on_train_epoch_end()
@@ -175,10 +191,17 @@ class BaseLightningModule(pl.LightningModule):
 		y_true_flat = y_true_bin.view(-1)
 		y_pred_flat = y_pred_bin.view(-1)
 
+		self._validation_metrics['steps'] += 1
+
 		# compute metrics
 		for metric in self.metrics:
 			metric_name = f'val_{metric.name.lower()}'
-			log_dict[metric_name] = metric(y_pred_flat, y_true_flat)
+			computed_metric = metric(y_pred_flat, y_true_flat)
+			log_dict[metric_name] = computed_metric
+			if metric_name not in self._validation_metrics['metrics'].keys():
+				self._validation_metrics['metrics'][metric_name] = 0
+			self._validation_metrics['metrics'][metric_name] += computed_metric
+		
 		# log the outputs
 		self.callback_metrics = {**self.callback_metrics, **log_dict}
 
@@ -208,6 +231,8 @@ class BaseLightningModule(pl.LightningModule):
 		#	self.itwinai_logger.log(batch_idx=batch_idx, item=None, identifier="train_epoch_time", kind='execution_time', step=self.current_epoch,context=context)
 		#	self.itwinai_logger.log(batch_idx=batch_idx, item=loss, identifier="val_loss", kind='metric', step=self.current_epoch,context=context)
 
+		self._validation_loss = loss
+
 		# return the loss
 		self._vld_loss['sum'] += loss
 		self._vld_loss['steps'] += 1
@@ -216,7 +241,7 @@ class BaseLightningModule(pl.LightningModule):
 	def configure_optimizers(self):
 		optimizer = Adam(self.parameters(), lr=1e-3)
 		scheduler = StepLR(optimizer, step_size=1, gamma=0.96)
-		return optimizer
+		return [optimizer], [scheduler]
 	
 	def on_validation_epoch_end(self):
 
@@ -228,9 +253,14 @@ class BaseLightningModule(pl.LightningModule):
 			self.itwinai_logger.log(item=self, identifier=f"model_version_{self.current_epoch}", kind='model_version', step=self.current_epoch, context=context)
 			self.itwinai_logger.log(item=None, identifier=None, kind='system', step=self.current_epoch, context=context)
 			self.itwinai_logger.log(item=None, identifier=None, kind='carbon', step=self.current_epoch, context=context)
-			self.itwinai_logger.log(item=None, identifier="validation_epoch_time", kind='execution_time', step=self.current_epoch,context=context)
+			self.itwinai_logger.log(item=None, identifier="validation_epoch_time", kind='execution_time', step=self.current_epoch, context=context)
 			self.itwinai_logger.log(item=self._vld_loss['sum']/self._vld_loss['steps'], identifier="validation_loss", kind='metric', step=self.current_epoch, context=context)
-				
+			# self.itwinai_logger.log(item=self._validation_loss, identifier="validation_loss", kind='metric', step=self.current_epoch, context=context)
+
+			for metric_name, metric_value in self._validation_metrics['metrics'].items():
+				self.itwinai_logger.log(item=metric_value/self._validation_metrics['steps'], identifier=metric_name, kind='metric', step=self.current_epoch, context=context)
+
+		self._validation_metrics = {'steps' : 0, 'metrics' : {}}
 		self._vld_loss = {'sum': 0, 'steps': 0}
 
 		return super().on_validation_epoch_end()
