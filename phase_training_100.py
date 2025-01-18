@@ -272,7 +272,7 @@ def setup_model() -> Optional[Unet | UnetPlusPlus]:
 	mcc.name = "mcc"
 	_metrics.append(mcc)
 
-	all_metrics = True
+	all_metrics = False
 	
 	# define model metrics
 	model.metrics = _metrics if all_metrics else []
@@ -370,12 +370,13 @@ def main():
 	trainer = get_lightning_trainer()
 	with trainer.itwinai_logger.start_logging(rank=trainer.global_rank):
 
-		# change MLFLow run name
-		mlflow.set_tag('mlflow.runName', os.getenv('MLFLOW_RUN_NAME'))
-
 		# get global rank
 		global_rank = trainer.global_rank
 		print(f" | Global rank {global_rank}")
+
+		if not global_rank: 
+			# change MLFLow run name
+			mlflow.set_tag('mlflow.runName', os.getenv('MLFLOW_RUN_NAME'))
 
 		# fit the model
 		trainer.fit(
