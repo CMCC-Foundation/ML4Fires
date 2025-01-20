@@ -374,10 +374,6 @@ def main():
 		global_rank = trainer.global_rank
 		print(f" | Global rank {global_rank}")
 
-		if not global_rank: 
-			# change MLFLow run name
-			mlflow.set_tag('mlflow.runName', os.getenv('MLFLOW_RUN_NAME'))
-
 		# fit the model
 		trainer.fit(
 			model=model,
