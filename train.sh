@@ -24,7 +24,7 @@ for exp in "${exponents[@]}"; do
 	BASE_FILTER_DIM=$(($BASE ** $exp))
 	echo "Base filter dimension: "$BASE_FILTER_DIM
 	#mpirun -n $n_devices -- python $TRAINING_FILE -bfd $BASE_FILTER_DIM -mdl $MODEL
-	#torchrun --nnodes $n_nodes --nproc-per-node gpu --standalone $TRAINING_FILE -bfd $BASE_FILTER_DIM -mdl $MODEL
+	#OMP_NUM_THREADS=1 torchrun --nnodes $n_nodes --nproc-per-node gpu --standalone $TRAINING_FILE -bfd $BASE_FILTER_DIM -mdl $MODEL
 	python $TRAINING_FILE -bfd $BASE_FILTER_DIM -mdl $MODEL
 done
 
