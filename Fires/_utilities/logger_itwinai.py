@@ -211,6 +211,7 @@ class ItwinaiMLFlowLogger(lp.loggers.Logger):
 		self.logger = MLFlowLogger(
 			savedir=savedir,
 			experiment_name=experiment_name,
+			run_name=run_name,
 			tracking_uri=os.getenv('MLFLOW_TRACKING_URI')
 		)
 		self._name = name
