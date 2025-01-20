@@ -205,7 +205,8 @@ class ItwinaiMLFlowLogger(lp.loggers.Logger):
 			savedir: str, 
 			name: str = "itwinai", 
 			version:Optional[int | None] = None,
-			experiment_name:str = "experiment_name"):
+			experiment_name:str = "experiment_name",
+			run_name:Optional[str | None] = None):
 		super().__init__()
 		self.logger = MLFlowLogger(
 			savedir=savedir,
