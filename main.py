@@ -44,7 +44,6 @@ from Fires._datasets.torch_dataset import FireDataset
 from Fires._macros.macros import (
 	CONFIG,
 	TORCH_CFG,
-	DISCORD_CFG,
 	CHECKPOINTS_DIR,
 	DATA_DIR,
 	LOGS_DIR,
@@ -56,7 +55,7 @@ from Fires._macros.macros import (
 from Fires._scalers.scaling_maps import StandardMapsPointWise, MinMaxMapsPointWise
 from Fires._scalers.standard import StandardScaler
 from Fires._scalers.minmax import MinMaxScaler
-from Fires._utilities.callbacks import DiscordBenchmark, FabricBenchmark, FabricCheckpoint
+from Fires._utilities.callbacks import FabricBenchmark, FabricCheckpoint
 from Fires._utilities.cli_args_checker import checker
 from Fires._utilities.configuration import load_global_config
 from Fires._utilities.logger import Logger as logger
@@ -198,22 +197,12 @@ print(f" Accelerator: {accelerator.upper()}")
 
 _log.info(f" Accelerator: {accelerator.upper()}")
 
-_log.info(f"Discord configuration file:")
-
-# define discord configuration file
-for key in DISCORD_CFG.keys():
-	print(f"{key} : {DISCORD_CFG[key]}")
-
-	_log.info(f"{key} : {DISCORD_CFG[key]}")
-
-
 # define trainer accumulation steps
 accumulation_steps = TORCH_CFG.trainer.accumulation_steps
 current_experiment['trainer']['args']['grad_accum_steps'] = accumulation_steps
 
 # define callbacks
 callbacks = [
-	DiscordBenchmark(webhook_url=DISCORD_CFG.hooks.webhook_gen, benchmark_csv=os.path.join(RUN_DIR, "fabric_benchmark.csv")),
 	FabricBenchmark(filename=os.path.join(RUN_DIR, "fabric_benchmark.csv")),
 	FabricCheckpoint(dst=CHECKPOINTS_DIR),
 	EarlyStopping('val_loss')

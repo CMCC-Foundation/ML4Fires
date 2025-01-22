@@ -39,7 +39,6 @@ from Fires._utilities.logger_itwinai import (SimpleItwinaiLogger, ItwinaiLightni
 from Fires._utilities.metrics import (DiceLoss, FocalLoss, TverskyLoss)
 
 from Fires._utilities.callbacks import (
-	DiscordBenchmark,
 	FabricBenchmark,
 	FabricCheckpoint,
 )
@@ -55,7 +54,7 @@ from Fires._utilities.decorators import (
 	export,
 )
 
-from Fires._utilities.swin_model import seed_everything
+from Fires._utilities.utils_model import seed_everything
 
 from Fires._utilities.utils_general import check_backend
 from Fires._utilities.utils_inference import load_input_data, create_data_loader, compute_aggregated_data, up_and_lower_bounds, process_and_plot_data
