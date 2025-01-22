@@ -1,5 +1,3 @@
-
-
 import os
 from typing import List
 from datetime import datetime as dt
@@ -15,8 +13,8 @@ import pytorch_lightning.loggers as pl_log
 from itwinai.loggers import MLFlowLogger as Itwinai_MLFLogger, LoggersCollection, Prov4MLLogger
 
 # ML4Fires imports
-from Fires._macros.macros import CHECKPOINTS_DIR, CONFIG, DISCORD_CFG, LOGS_DIR, RUN_DIR, PROVENANCE_DIR
-from Fires._utilities.callbacks import DiscordBenchmark, FabricBenchmark, FabricCheckpoint
+from Fires._macros.macros import CHECKPOINTS_DIR, CONFIG, LOGS_DIR, RUN_DIR, PROVENANCE_DIR
+from Fires._utilities.callbacks import FabricBenchmark, FabricCheckpoint
 from Fires._utilities.logger import Logger as logger
 from Fires._utilities.decorators import debug, export
 from Fires._utilities.logger_itwinai import ItwinaiLightningLogger, ItwinaiMLFlowLogger, ProvenanceLogger
@@ -140,15 +138,14 @@ def get_callbacks() -> List:
 	Initializes and returns a list of callback instances for the Fabric trainer.
 
 	This function sets up a collection of callbacks to manage different aspects of the training process,
-	including early stopping, checkpointing, and benchmarking. Some callbacks, such as the `DiscordBenchmark`
-	and `FabricBenchmark`, are provided but currently commented out.
+	including early stopping, checkpointing, and benchmarking. Some callbacks, such as the `FabricBenchmark`, 
+	are provided but currently commented out.
 
 	**Available Callbacks**
 	- `EarlyStopping`: Stops training when validation loss stops improving.
 	- `ModelCheckpoint`: Saves the model checkpoint with the best validation loss.
 	
 	**Optional Callbacks**
-	- `DiscordBenchmark`: Sends benchmark data to a Discord webhook.
 	- `FabricBenchmark`: Logs benchmark data to a specified CSV file.
 	- `FabricCheckpoint`: Saves checkpoints to a specified directory.
 
@@ -175,10 +172,6 @@ def get_callbacks() -> List:
 
 	# define empty list of callbacks for the trainer
 	_callbacks = []
-
-	# define Discord benchmark callback
-	_discord_bench_cllbk = DiscordBenchmark(webhook_url=DISCORD_CFG.hooks.webhook_gen, benchmark_csv=os.path.join(RUN_DIR, "fabric_benchmark.csv"))
-	# _callbacks.append(_discord_bench_cllbk)
 
 	# define Fabric benchmark callback
 	_fabric_bench_cllbk = FabricBenchmark(filename=os.path.join(RUN_DIR, "fabric_benchmark.csv"))

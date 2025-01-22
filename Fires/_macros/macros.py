@@ -53,8 +53,6 @@ add_to_syspath(directory=CONFIG_DIR)
 CONFIG = load_global_config(dir_name=CONFIG_DIR)
 # set pytorch configuration file
 TORCH_CFG = load_global_config(dir_name=CONFIG_DIR, config_fname=CONFIG.toml.torch_fname)
-# set discord configuration file
-DISCORD_CFG = load_global_config(dir_name=CONFIG_DIR, config_fname=CONFIG.toml.logs.discord_fname)
 # set credentials configuration file
 CREDENTIALS_CFG = load_global_config(dir_name=CONFIG_DIR, config_fname=CONFIG.toml.credentials_fname)
 
@@ -84,7 +82,7 @@ LOGS_DIR = eval(CONFIG.dir.LOGS_DIR)
 os.makedirs(LOGS_DIR, exist_ok=True)
 
 # define data dir
-DATA_DIR = CONFIG.dir.DATA_DIR 
+DATA_DIR = eval(CONFIG.dir.DATA_DIR) 
 os.makedirs(DATA_DIR, exist_ok=True)
 
 # define scaler dir

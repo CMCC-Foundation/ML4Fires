@@ -99,33 +99,3 @@ class Logger():
 			
 		self.logger.addHandler(handler)
 		return self.logger
-
-
-class DiscordLog():
-    def __init__(self, epochs: int, webhook_url: str = None, benchmark_csv: str = None, msg_n_epochs: int = 1) -> None:
-    # def __init__(self, epochs: int, webhook_url: str = None, benchmark_csv: str = None, msg_n_epochs: int = 1, plot_n_epochs: int = 5) -> None:
-        super().__init__()
-        self.webhook_url = webhook_url
-        self.benchmark_csv = benchmark_csv
-        self.msg_n_epochs = msg_n_epochs
-        self.epochs = epochs
-        # init counters
-        self.msg_count = 0
-
-    def on_epoch_end(self, batch, logs={}):
-        # send a message only if we have a webhook_url and msg_every_n_epochs epochs have passed
-        if self.webhook_url and (self.msg_count+1) % self.msg_n_epochs == 0:
-            self.__log_message(logs=logs)
-        # increase counters
-        self.msg_count += 1
-
-    def __log_message(self, logs):
-        # create message header
-        message = f'Epoch [{self.msg_count+1}/{self.epochs}]\n'
-        # put metrics information for each message row
-        for key, value in logs.items():
-            message += f'   {key}: {value:.4f}\n'
-        # create data message
-        data = {'content':message}
-        # post to the message to the webhook
-        requests.post(self.webhook_url, data=json.dumps(data), headers={"Content-Type": "application/json"})
