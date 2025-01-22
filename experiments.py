@@ -38,7 +38,7 @@ SCALERS = [MinMaxScaler, StandardScaler]
 
 def create_exp_combinations() -> List[dict]:
 	"""
-		Generates all possible experiment combinations with filtering
+	Generates all possible experiment combinations with filtering
 	"""
 	combinations = list(itertools.product(BASE_FILTER_DIMS, ACTIVATIONS, LOSSES))
 	filtered_combinations = []
@@ -56,47 +56,38 @@ def create_exp_combinations() -> List[dict]:
 
 def categorize_exp(experiments:List[dict]) -> Tuple[List[dict], List[dict], List[dict]]:
 	"""
-		Categorizes experiments by base filter dimension.
+	Categorizes experiments by base filter dimension.
 	"""
-	bdim16, bdim32, bdim64 = [], [], []
-	for exp in experiments:
-		if exp["base_filter_dim"] == 16:
-			bdim16.append(exp)
-		elif exp["base_filter_dim"] == 32:
-			bdim32.append(exp)
-		elif exp["base_filter_dim"] == 64:
-			bdim64.append(exp)
-
+	bdim16 = [exp for exp in experiments if exp["base_filter_dim"] == 16]
+	bdim32 = [exp for exp in experiments if exp["base_filter_dim"] == 32]
+	bdim64 = [exp for exp in experiments if exp["base_filter_dim"] == 64]
 	return bdim16, bdim32, bdim64
 
 
 def upp_experiments() -> Tuple[List[dict], List[dict], List[dict], List[dict]]:
 	"""
-		Generates and categorizes UPP experiments.
+	Generates and categorizes UPP experiments.
 	"""
 	all_experiments = create_exp_combinations()
 	bdim16, bdim32, bdim64 = categorize_exp(all_experiments)
-	return all_experiments, bdim16, bdim32, bdim64
+	experiments = [all_experiments, bdim16, bdim32, bdim64]
+	return experiments
 
 
 if __name__ == '__main__':
-	
 	print("Creating experiments for Unet++")
 	
-	# create UPP experiments
-	all_experiments, bdim16, bdim32, bdim64 = upp_experiments()
-
-	# define list with all the filenames
 	filenames = ['UPP_all.toml', 'UPP_16.toml', 'UPP_32.toml', 'UPP_64.toml']
-
-	# create list with all the experiments
-	experiments = [all_experiments, bdim16, bdim32, bdim64]
+	experiments = upp_experiments()
 
 	print("Saving experiments oconfigurations...")
 
 	# save experiments in configuration files
 	for exp, fname in zip(experiments, filenames):
-		print(f'  - Saving experiment in {fname} configuration file')
-		save_exp_config(exp_configuration=exp, config_dir=CONFIG_DIR, filepath=fname)
-	
-	print("Experiments saved")
+		try:
+			print(f'  - Saving experiment in {fname} configuration file')
+			save_exp_config(exp_configuration=exp, config_dir=CONFIG_DIR, filepath=fname)
+		except Exception as e:
+			print(f"Error saving: {e}")
+		
+		print("Experiments saved")
