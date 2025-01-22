@@ -37,44 +37,44 @@ def setup_mlflow_experiment():
 @export
 @debug(log=_log)
 def load_model_from_mlflow_registry(model_name, version=1, tag=None):
-    # set tracking uri
-    mlflow.set_tracking_uri(os.getenv('MLFLOW_TRACKING_URI'))
+	# set tracking uri
+	mlflow.set_tracking_uri(os.getenv('MLFLOW_TRACKING_URI'))
 
-    if version:
-        # Load by specific version
-        model_uri = f"models:/{model_name}/{version}"
-        local_path = os.path.join(os.getcwd(), 'MLFLOW', f"{model_name}/{version}")
-    elif tag:
-        # Load by tag (if the tag is set in the UI)
-        model_uri = f"models:/{model_name}/{tag}"
-        local_path = os.path.join(os.getcwd(), 'MLFLOW', f"{model_name}/{tag}")
-    else:
-        raise ValueError("Either version or tag must be specified for model loading.")
-        
-    os.makedirs(local_path, exist_ok=True)    
-    model = mlflow.pytorch.load_model(model_uri, map_location=torch.device(check_backend()), dst_path=local_path)
-    return model
+	if version:
+		# Load by specific version
+		model_uri = f"models:/{model_name}/{version}"
+		local_path = os.path.join(os.getcwd(), 'MLFLOW', f"{model_name}/{version}")
+	elif tag:
+		# Load by tag (if the tag is set in the UI)
+		model_uri = f"models:/{model_name}/{tag}"
+		local_path = os.path.join(os.getcwd(), 'MLFLOW', f"{model_name}/{tag}")
+	else:
+		raise ValueError("Either version or tag must be specified for model loading.")
+		
+	os.makedirs(local_path, exist_ok=True)    
+	model = mlflow.pytorch.load_model(model_uri, map_location=torch.device(check_backend()), dst_path=local_path)
+	return model
 
 @export
 @debug(log=_log)
 def load_model_from_mlflow(run_name, scaler=True, provenance=False):
-    # set tracking uri
-    mlflow.set_tracking_uri(os.getenv('MLFLOW_TRACKING_URI'))
+	# set tracking uri
+	mlflow.set_tracking_uri(os.getenv('MLFLOW_TRACKING_URI'))
 
-    run_id = mlflow.search_runs(filter_string=f"run_name='{run_name}'")['run_id'].values[0]
+	run_id = mlflow.search_runs(filter_string=f"run_name='{run_name}'")['run_id'].values[0]
 
-    local_path = os.path.join(os.getcwd(), 'MLFLOW', f"{run_name}")
-    os.makedirs(local_path, exist_ok=True)
-    print(f"Data from MLFlow downloaded in: {local_path}")
+	local_path = os.path.join(os.getcwd(), 'MLFLOW', f"{run_name}")
+	os.makedirs(local_path, exist_ok=True)
+	print(f"Data from MLFlow downloaded in: {local_path}")
 
-    client = mlflow.MlflowClient()
-    if scaler:
-        artifact_path = client.download_artifacts(run_id=run_id, path="scaler", dst_path=local_path)
-    if provenance:
-        artifact_path = client.download_artifacts(run_id=run_id, path=f"provgraph_{CONFIG.mlflow.EXPERIMENT_NAME}.svg", dst_path=local_path)
-        artifact_path = client.download_artifacts(run_id=run_id, path=f"provgraph_{CONFIG.mlflow.EXPERIMENT_NAME}.json", dst_path=local_path)
+	client = mlflow.MlflowClient()
+	if scaler:
+		artifact_path = client.download_artifacts(run_id=run_id, path="scaler", dst_path=local_path)
+	if provenance:
+		artifact_path = client.download_artifacts(run_id=run_id, path=f"provgraph_{CONFIG.mlflow.EXPERIMENT_NAME}.svg", dst_path=local_path)
+		artifact_path = client.download_artifacts(run_id=run_id, path=f"provgraph_{CONFIG.mlflow.EXPERIMENT_NAME}.json", dst_path=local_path)
 
-    model_uri = f'runs:/{run_id}/last_model'
-    model = mlflow.pytorch.load_model(model_uri, map_location=torch.device(check_backend()), dst_path=local_path)
+	model_uri = f'runs:/{run_id}/last_model'
+	model = mlflow.pytorch.load_model(model_uri, map_location=torch.device(check_backend()), dst_path=local_path)
 
-    return model
+	return model
