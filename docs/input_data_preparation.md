@@ -2,7 +2,7 @@
 
 ## Choosing the variables
 
-<p align="justify"> SeasFire Cube v3 provides a list of 59 climate variables on a regular grid that are related to wildfires in an xArray dataset stored in <code>.zarr</code> format. As described previously in the <a href="../docs/data.md" style="text-decoration:none;">Data</a> section, a subset of 9 climate variables was chosen. Most of them have <i>time</i>, <i>latitude</i> and <i>longitude</i> as their coordinates. The variable <code>lsm</code> is the only variable having <i>latitude</i> and <i>longitude</i> as its coordinates; this is because the Land-Sea Mask is a binary map of water bodies. </p>
+<p align="justify"> SeasFire Cube v3 provides a list of 59 climate variables on a regular grid that are related to wildfires in an xArray dataset stored in <code>.zarr</code> format. As described previously in the <a href="../docs/data.md" style="text-decoration:none;">Data</a> section, a subset of 8 climate variables was chosen. Most of them have <i>time</i>, <i>latitude</i> and <i>longitude</i> as their coordinates. The variable <code>lsm</code> is the only variable having <i>latitude</i> and <i>longitude</i> as its coordinates; this is because the Land-Sea Mask is a binary map of water bodies. </p>
 
 ## Preprocessing data
 

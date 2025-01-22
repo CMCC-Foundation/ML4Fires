@@ -2,8 +2,7 @@
 
 <p align="justify">  The library is structured as follows: </p>
 
-    ├── README.md
-    │
+    ├── README.mdLR    │
     ├── config
     │    │
     │    ├── experiments
@@ -13,14 +12,15 @@
     │    │   ├── UPP_all.toml
     │    │
     │    ├── configuration.toml
-    │    ├── discord.toml
+    │    ├── credentials.toml
     │    ├── models.toml
-    │    ├── tflow.toml
     │    ├── torch.toml
     │    ├── train.toml
     │
     ├── data
     │   ├── sfv03_fcci.zarr
+    │   ├── data_025km.zarr
+    │   ├── data_100km.zarr
     │   │
     │   ├── scaler
     │   │   ├── fcci_max_point_map.nc
@@ -59,8 +59,12 @@
     │   │
     │   ├── _models
     │   │   ├── base.py
+    │   │   ├── unet.py
     │   │   ├── unetpp.py
     │   │   ├── vgg.py
+    │   │
+    │   ├── _plots
+    │   │   ├── plot_utils.py
     │   │
     │   ├── _scalers
     │   │   ├── base.py
@@ -74,8 +78,14 @@
     │   │   ├── cli_args_parser.py
     │   │   ├── configuration.py
     │   │   ├── decorators.py
+    │   │   ├── logger_itwinai.py
     │   │   ├── logger.py
-    │   │   ├── swin_model.py
+    │   │   ├── metrics.py
+    │   │   ├── utils_general.py
+    │   │   ├── utils_inference.py
+    │   │   ├── utils_mlflow.py
+    │   │   ├── utils_model.py
+    │   │   ├── utils_t.pyrainer
     │   │
     │   ├── __init__.py
     │   ├── augmentation.py
@@ -87,8 +97,12 @@
     │   ├── trainer.py
     │   ├── utils.py
     │
+    ├── experiments.py
     ├── main.py
-    ├── launch.sh
+    ├── phase_inference_test_100.py
+    ├── phase_training_100.py
+    ├── train.sh
+
 
 
 | File |      Type     |     Main function     |
@@ -100,7 +114,9 @@
 |[**`experiments`**](../experiments/) | $\small{\textcolor{blue}{\texttt{DIR}}}$ | <p align="justify"> It contains folders named with the current date and time when the experiment took place. The best model, the experiment configuration file and the benchmark file will be saved in this folder after the completion of the experiment. </p> |
 |[**`Fires`**](../Fires/) | $\small{\textcolor{blue}{\texttt{DIR}}}$ | <p align="justify"> It is the main library that is used to carry on the training of the Machine Learning model and the inference on the SeasFireCube data. It is used to store, in an organized way, all the code that provides support to the `main.py` script during its execution. Model implementations and training utility functions can be found here. ([details](./fires.md)) </p> |
 |[**`main.py`**](../main.py) | $\small{\textcolor{red}{\texttt{FILE}}}$ | <p align="justify"> It contains all the workflow code that must be executed. </p> |
-|[**`launch.sh`**](../launch.sh) | $\small{\textcolor{red}{\texttt{FILE}}}$ | <p align="justify"> It runs the experiments once it has been executed ([details](./run_on_lsf_cluster.md)) </p>|
+|[**`phase_inference_test_100.py`**](../phase_inference_test_100.py) | $\small{\textcolor{red}{\texttt{FILE}}}$ | <p align="justify"> It contains all the workflow code that must be executed. </p> |
+|[**`phase_training_100.py`**](../phase_training_100.py) | $\small{\textcolor{red}{\texttt{FILE}}}$ | <p align="justify"> It contains all the workflow code that must be executed. </p> |
+|[**`train.sh`**](../train.sh) | $\small{\textcolor{red}{\texttt{FILE}}}$ | <p align="justify"> It runs the experiments once it has been executed ([details](./run_on_lsf_cluster.md)) </p>|
 
 >[!WARNING]
 > <p align="justify"> Both <code>data</code> and <code>experiments</code> directories are <b>empty</b> and are <b>not</b> included in the repository as they contain too heavy files that cannot be stored. </p>

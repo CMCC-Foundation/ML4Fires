@@ -32,7 +32,7 @@ All variables have:
 
 ## Overview
 
-<p align="justify"> The dataset used to carry on the development of the code is composed by 9 climate variables. </p>
+<p align="justify"> The dataset used to carry on the development of the code is composed by 8 climate variables. </p>
 
 ### Drivers
 
@@ -44,7 +44,6 @@ All variables have:
 | _Land-Sea Mask_ | `sftlf` | `lsm` | (lat, lon) | 0-1 | ERA5 |
 | _Land Surface Temperature at Day_ | `ts` | `lst_day` | (**time**, lat, lon) | K | Nasa MODIS MOD11C1, MOD13C1, MCD15A2 |
 | _Relative Humidity_ | `hur` | `rel_hum` | (**time**, lat, lon) | % | ERA5 |
-| _Surface net Solar Radiation_ | `rss` | `ssr` | (**time**, lat, lon) | $\small{MJm^{-2}}$  |ERA5 |
 | _Sea Surface Temperature_ | `tos` | `sst` | (**time**, lat, lon) | K | ERA5 |
 | _Temperature at 2 meters - Min_ | `tasmin` | `t2m_min` | (**time**, lat, lon) | K | ERA5 |
 | _Total Precipitation_ | `pr` | `tp` | (**time**, lat, lon) | m | ERA5 |
