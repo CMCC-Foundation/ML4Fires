@@ -18,6 +18,8 @@ n_devices=$(grep "devices" config/torch.toml |  cut -d "=" -f 2 | tr -d " ")
 
 echo "Performing experiments"
 
+export MPLCONFIGDIR=~/.matplotlib
+
 MODEL=unetpp
 TRAINING_FILE=phase_training_100.py
 for exp in "${exponents[@]}"; do
