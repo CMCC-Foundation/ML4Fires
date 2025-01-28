@@ -33,9 +33,8 @@ from typing import Any, Dict, List, Optional
 from timm.layers import to_2tuple
 
 from Fires._utilities.decorators import export
-from Fires._utilities.logger_itwinai import ItwinaiMLFlowLogger, SimpleItwinaiLogger, ItwinaiLightningLogger, ProvenanceLogger
 
-from itwinai.loggers import ConsoleLogger, Prov4MLLogger, MLFlowLogger, Logger as BaseItwinaiLogger
+from itwinai.loggers import ConsoleLogger, Prov4MLLogger, MLFlowLogger as IMLFlowLogger, Logger as BaseItwinaiLogger
 
 
 @export
@@ -73,18 +72,6 @@ class BaseLightningModule(pl.LightningModule):
 		self._training_metrics = {'steps' : 0, 'metrics' : {}}
 		self._validation_metrics = {'steps' : 0, 'metrics' : {}}
 	
-	@property
-	def itwinai_logger(self) -> Optional[BaseItwinaiLogger]:
-		return getattr(self.trainer, 'itwinai_logger', None)
-
-		# try:
-		# 	itwinai_logger = self.trainer.itwinai_logger
-		# except AttributeError:
-		# 	print("WARNING: itwinai_logger attribute not set "
-		# 			f"in {self.__class__.__name__}")
-		# 	itwinai_logger = None
-		# return itwinai_logger
-	
 	def training_step(self, batch, batch_idx):
 		# get data from the batch
 		x, y = batch
@@ -95,7 +82,7 @@ class BaseLightningModule(pl.LightningModule):
 		# define log dictionary
 		# log_dict = {'train_loss': loss}
 
-		self.log("trn_loss", loss, prog_bar=True, on_epoch=True)
+		self.log("trn_loss", loss, prog_bar=True, on_epoch=True, logger=True)
 		
 		# binarize real and predicted data
 		y_true_bin = (y > 0).int()
@@ -126,25 +113,26 @@ class BaseLightningModule(pl.LightningModule):
 
 	def on_train_epoch_end(self):
 
-		if self.itwinai_logger is not None:
+		if self.loggers[0].experiment is not None:
+			self.loggers[0].experiment.log_metrics({"trn_loss": self._trn_loss['sum']/self._trn_loss['steps']}, step=self.current_epoch)
+		if self.loggers[-1].experiment is not None:
 
 			context='training'
-			self.itwinai_logger.log(item=self.current_epoch, identifier="epoch", kind='metric', step=self.current_epoch, context=context)
-			self.itwinai_logger.log(item=self, identifier=f"model_version_{self.current_epoch}", kind='model_version', step=self.current_epoch, context=context)
-			self.itwinai_logger.log(item=None, identifier=None, kind='system', step=self.current_epoch, context=context)
-			self.itwinai_logger.log(item=None, identifier=None, kind='carbon', step=self.current_epoch, context=context)
-			self.itwinai_logger.log(item=None, identifier="train_epoch_time", kind='execution_time', step=self.current_epoch, context=context)
-			self.itwinai_logger.log(item=self._trn_loss['sum']/self._trn_loss['steps'], identifier="training_loss", kind='metric', step=self.current_epoch, context=context)
+			self.loggers[-1].experiment.log(item=self.current_epoch, identifier="epoch", kind='metric', step=self.current_epoch, context=context)
+			self.loggers[-1].experiment.log(item=self, identifier=f"model_version_{self.current_epoch}", kind='model_version', step=self.current_epoch, context=context)
+			self.loggers[-1].experiment.log(item=None, identifier=None, kind='system', step=self.current_epoch, context=context)
+			self.loggers[-1].experiment.log(item=None, identifier=None, kind='carbon', step=self.current_epoch, context=context)
+			self.loggers[-1].experiment.log(item=None, identifier="train_epoch_time", kind='execution_time', step=self.current_epoch, context=context)
+			self.loggers[-1].experiment.log(item=self._trn_loss['sum']/self._trn_loss['steps'], identifier="training_loss", kind='metric', step=self.current_epoch, context=context)
 
-			for metric_name, metric_value in self._training_metrics['metrics'].items():
-				self.itwinai_logger.log(item=metric_value/self._training_metrics['steps'], identifier=metric_name, kind='metric', step=self.current_epoch, context=context)
+		for metric_name, metric_value in self._training_metrics['metrics'].items():
+				self.loggers[-1].experiment.log(item=metric_value/self._training_metrics['steps'], identifier=metric_name, kind='metric', step=self.current_epoch, context=context)
 			
 		self._training_metrics = {'steps' : 0, 'metrics' : {}}
 		self._trn_loss = {'sum': 0, 'steps': 0}
 
 		return super().on_train_epoch_end()
-
-
+	
 	def validation_step(self, batch, batch_idx):
 		# get data from the batch
 		x, y = batch
@@ -155,7 +143,7 @@ class BaseLightningModule(pl.LightningModule):
 		# define log dictionary
 		# log_dict = {'val_loss': loss}
 
-		self.log("val_loss", loss, prog_bar=True, on_epoch=True)
+		self.log("val_loss", loss, prog_bar=True, on_epoch=True, logger=True)
 
 		# binarize real and predicted data
 		y_true_bin = (y > 0).int()
@@ -191,18 +179,21 @@ class BaseLightningModule(pl.LightningModule):
 	
 	def on_validation_epoch_end(self):
 
-		if self.itwinai_logger is not None:
+		if self.loggers[0].experiment is not None:
+			self.loggers[0].experiment.log_metrics({"val_loss": self._vld_loss['sum']/self._vld_loss['steps']}, step=self.current_epoch)
+		if self.loggers[-1].experiment is not None:
 			
 			context='validation'
-			#self.itwinai_logger.log(item=self.current_epoch, identifier="epoch", kind='metric', step=self.current_epoch, context=context)
-			self.itwinai_logger.log(item=self, identifier=f"model_version_{self.current_epoch}", kind='model_version', step=self.current_epoch, context=context)
-			self.itwinai_logger.log(item=None, identifier=None, kind='system', step=self.current_epoch, context=context)
-			self.itwinai_logger.log(item=None, identifier=None, kind='carbon', step=self.current_epoch, context=context)
-			self.itwinai_logger.log(item=None, identifier="validation_epoch_time", kind='execution_time', step=self.current_epoch, context=context)
-			self.itwinai_logger.log(item=self._vld_loss['sum']/self._vld_loss['steps'], identifier="validation_loss", kind='metric', step=self.current_epoch, context=context)
+			self.loggers[-1].experiment.log(item=self.current_epoch, identifier="epoch", kind='metric', step=self.current_epoch, context=context)
+			self.loggers[-1].experiment.log(item=self, identifier=f"model_version_{self.current_epoch}", kind='model_version', step=self.current_epoch, context=context)
+			self.loggers[-1].experiment.log(item=None, identifier=None, kind='system', step=self.current_epoch, context=context)
+			self.loggers[-1].experiment.log(item=None, identifier=None, kind='system', step=self.current_epoch, context=context)
+			self.loggers[-1].experiment.log(item=None, identifier=None, kind='carbon', step=self.current_epoch, context=context)
+			self.loggers[-1].experiment.log(item=None, identifier="validation_epoch_time", kind='execution_time', step=self.current_epoch, context=context)
+			self.loggers[-1].experiment.log(item=self._vld_loss['sum']/self._vld_loss['steps'], identifier="validation_loss", kind='metric', step=self.current_epoch, context=context)
 
-			for metric_name, metric_value in self._validation_metrics['metrics'].items():
-				self.itwinai_logger.log(item=metric_value/self._validation_metrics['steps'], identifier=metric_name, kind='metric', step=self.current_epoch, context=context)
+		for metric_name, metric_value in self._validation_metrics['metrics'].items():
+				self.loggers[-1].experiment.log(item=metric_value/self._validation_metrics['steps'], identifier=metric_name, kind='metric', step=self.current_epoch, context=context)
 
 		self._validation_metrics = {'steps' : 0, 'metrics' : {}}
 		self._vld_loss = {'sum': 0, 'steps': 0}

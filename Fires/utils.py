@@ -34,8 +34,6 @@ from Fires._utilities.cli_args_parser import CLIParser
 
 from Fires._utilities.logger import Logger as logger
 
-from Fires._utilities.logger_itwinai import (SimpleItwinaiLogger, ItwinaiLightningLogger, ProvenanceLogger)
-
 from Fires._utilities.metrics import (DiceLoss, FocalLoss, TverskyLoss)
 
 from Fires._utilities.callbacks import (

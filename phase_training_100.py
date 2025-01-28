@@ -14,11 +14,9 @@ warnings.filterwarnings('ignore')
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-# MLFlow imports
-import mlflow
-
 # Itwinai imports
-from itwinai.loggers import MLFlowLogger as Itwinai_MLFLogger, Prov4MLLogger, LoggersCollection
+from itwinai.loggers import MLFlowLogger as IMLFlowLogger, Prov4MLLogger, LoggersCollection
+from itwinai.torch.loggers import ItwinaiLogger
 
 # Pytorch imports
 import torch
@@ -28,7 +26,6 @@ from torch.utils.data.distributed import DistributedSampler
 from torchmetrics import F1Score, FBetaScore, MatthewsCorrCoef, Precision, Recall, Accuracy, MeanSquaredError, ConcordanceCorrCoef
 
 # Lightning imports
-import lightning as L
 import lightning.pytorch as lp
 # from lightning.fabric.strategies.fsdp import FSDPStrategy
 from lightning.fabric.plugins.environments import MPIEnvironment
@@ -71,7 +68,6 @@ from Fires._utilities.decorators import debug
 from Fires._utilities.logger import Logger as logger
 from Fires._utilities.metrics import TverskyLoss, FocalLoss
 from Fires._utilities.utils_general import check_backend
-from Fires._utilities.utils_mlflow import setup_mlflow_experiment
 from Fires._utilities.utils_trainer import get_trainer_loggers, get_itwinai_loggers, get_callbacks 
 
 # define logger
@@ -179,7 +175,7 @@ def setup_model() -> Optional[Unet | UnetPlusPlus]:
 	
 	# define model metrics
 	model.metrics = _metrics if all_metrics else []
-
+	
 	_log.info(f" | Model: \n\n {model}")
 	
 	return model
@@ -222,7 +218,8 @@ def get_lightning_trainer():
 	_loggers = get_trainer_loggers()
 
 	# get itwinai loggers
-	_loggers_collection = get_itwinai_loggers()
+	itwinai_loggers = ItwinaiLogger(itwinai_logger=get_itwinai_loggers(), skip_finalize=True)
+	_loggers.append(itwinai_loggers)
 
 	# get callbacks for Pytorch Lightning Trainer
 	_callbacks = get_callbacks()
@@ -241,8 +238,6 @@ def get_lightning_trainer():
 		callbacks=_callbacks,
 		max_epochs=TORCH_CFG.trainer.epochs,
 	)
-
-	_trainer.itwinai_logger = _loggers_collection
 
 	return _trainer
 
@@ -271,8 +266,8 @@ def main():
 
 	# get instance of Pytorch Lightning Trainer
 	trainer = get_lightning_trainer()
-	with trainer.itwinai_logger.start_logging(rank=trainer.global_rank):
-
+	
+	with trainer.loggers[-1].itwinai_logger.start_logging(rank=trainer.global_rank):
 		# get global rank
 		global_rank = trainer.global_rank
 		print(f" | Global rank {global_rank}")
@@ -287,7 +282,7 @@ def main():
 		# save the model to disk
 		last_model = os.path.join(RUN_DIR,'last_model.pt')
 		trainer.save_checkpoint(filepath=last_model)
-		trainer.itwinai_logger.log(
+		trainer.loggers[-1].itwinai_logger.log(
 				item=last_model,
 				identifier="model_weights",
 				kind='artifact'
@@ -296,24 +291,23 @@ def main():
 		# log model
 		original_model = trainer.model # trainer.model.module
 		original_model.cpu()
-		trainer.itwinai_logger.log(
+		trainer.loggers[-1].itwinai_logger.log(
 			item=original_model,
 			identifier="last_model",
 			kind='model'
 		)
 
-		
 		#Log scaler
 		scaler_file = os.path.join(RUN_DIR,'scaler.dump')
 		joblib.dump(x_scaler, scaler_file) 
-		trainer.itwinai_logger.log(
+		trainer.loggers[-1].itwinai_logger.log(
 			item=scaler_file,
 			identifier="scaler",
 			kind='artifact'
 		)
 
 		#Log provenance
-		trainer.itwinai_logger.log(
+		trainer.loggers[-1].itwinai_logger.log(
 			item=None,
 			identifier=None,
 			kind="prov_documents")
@@ -380,9 +374,6 @@ def check_cli_args():
 
 if __name__ == '__main__':
 
-	# setup MLFlow experiment
-	setup_mlflow_experiment()
-
 	# check cli args
 	model_class, model_config = check_cli_args()
 	for k in model_config.keys():
@@ -392,6 +383,6 @@ if __name__ == '__main__':
 	# get model class and configuration
 	global model
 	model = model_class(**model_config)
-	print(f"Model: {model}")
+	#print(f"Model: {model}")
 
 	main()
