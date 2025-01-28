@@ -10,15 +10,13 @@ import lightning.pytorch.callbacks as lp_cllbks
 import pytorch_lightning.loggers as pl_log
 
 # Itwinai imports
-from itwinai.loggers import MLFlowLogger as Itwinai_MLFLogger, LoggersCollection, Prov4MLLogger
+from itwinai.loggers import MLFlowLogger as IMLFlowLogger, LoggersCollection, Prov4MLLogger
 
 # ML4Fires imports
 from Fires._macros.macros import CHECKPOINTS_DIR, CONFIG, LOGS_DIR, RUN_DIR, PROVENANCE_DIR
 from Fires._utilities.callbacks import FabricBenchmark, FabricCheckpoint
 from Fires._utilities.logger import Logger as logger
 from Fires._utilities.decorators import debug, export
-from Fires._utilities.logger_itwinai import ItwinaiLightningLogger, ItwinaiMLFlowLogger, ProvenanceLogger
-
 
 # define logger
 _log = logger(log_dir=LOGS_DIR).get_logger("Trainer Utilities")
@@ -118,11 +116,11 @@ def get_itwinai_loggers() -> LoggersCollection:
 	_loggers = []
 
 	# define Itwinai MLFlow logger
-	_itwinai_mlflow_logger = Itwinai_MLFLogger(experiment_name=os.getenv('MLFLOW_EXPERIMENT_NAME'), run_name=os.getenv('MLFLOW_RUN_NAME'), tracking_uri=os.getenv('MLFLOW_TRACKING_URI'), log_freq='epoch')
+	_itwinai_mlflow_logger = IMLFlowLogger(experiment_name=os.getenv('MLFLOW_EXPERIMENT_NAME'), run_name=os.getenv('MLFLOW_RUN_NAME'), tracking_uri=os.getenv('MLFLOW_TRACKING_URI'), log_freq='epoch')
 	_loggers.append(_itwinai_mlflow_logger)
 
 	# define Itwinai Provenance logger
-	_itwinai_provenance_logger = Prov4MLLogger(experiment_name=os.getenv('MLFLOW_EXPERIMENT_NAME'), provenance_save_dir=PROVENANCE_DIR, save_after_n_logs=1)
+	_itwinai_provenance_logger = Prov4MLLogger(experiment_name=os.getenv('MLFLOW_EXPERIMENT_NAME'), provenance_save_dir=PROVENANCE_DIR, save_after_n_logs=1, log_on_workers=0)
 	_loggers.append(_itwinai_provenance_logger)
 
 	# define loggers collection
