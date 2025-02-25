@@ -23,7 +23,6 @@ import torch
 from torch.utils.data import DataLoader
 from torch.distributed.fsdp import ShardingStrategy
 from torch.utils.data.distributed import DistributedSampler
-from torchmetrics import F1Score, FBetaScore, MatthewsCorrCoef, Precision, Recall, Accuracy, MeanSquaredError, ConcordanceCorrCoef
 
 # Lightning imports
 import lightning.pytorch as lp
@@ -137,44 +136,6 @@ def setup_model() -> Optional[Unet | UnetPlusPlus]:
 	# define model loss
 	model.loss = eval(TORCH_CFG.model.loss)   #torch.nn.modules.loss.BCELoss()
 	#model.loss = TverskyLoss(alpha=0.5, beta=0.5)
-
-	# define metrics list
-	_metrics = []
-
-	# accuracy
-	accuracy = Accuracy(task='binary')
-	accuracy.name = "accuracy"
-	_metrics.append(accuracy)
-
-	# precision
-	precision = Precision(task='binary')
-	precision.name = "precision"
-	_metrics.append(precision)
-
-	# recall
-	recall = Recall(task='binary')
-	recall.name = "recall"
-	_metrics.append(recall)
-
-	# f1 score
-	f1_score = F1Score(task='binary')
-	f1_score.name = "f1_score"
-	_metrics.append(f1_score)
-
-	# f2 score
-	f2_score = FBetaScore(task='binary', beta=float(2))
-	f2_score.name = "f2_score"
-	_metrics.append(f2_score)
-
-	# mcc
-	mcc = MatthewsCorrCoef(task='binary')
-	mcc.name = "mcc"
-	_metrics.append(mcc)
-
-	all_metrics = False
-	
-	# define model metrics
-	model.metrics = _metrics if all_metrics else []
 	
 	_log.info(f" | Model: \n\n {model}")
 	
