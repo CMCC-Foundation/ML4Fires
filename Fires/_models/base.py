@@ -81,7 +81,7 @@ class BaseLightningModule(pl.LightningModule):
 				# define metrics list
 		_metrics = []
 
-		# accuracy
+        # accuracy
 		accuracy = Accuracy(task='binary')
 		accuracy.name = "accuracy"
 		accuracy.to("cuda" if torch.cuda.is_available() else "cpu")
@@ -114,11 +114,20 @@ class BaseLightningModule(pl.LightningModule):
 		# mcc
 		mcc = MatthewsCorrCoef(task='binary')
 		mcc.name = "mcc"
+		mcc.to("cuda" if torch.cuda.is_available() else "cpu")
 		_metrics.append(mcc)
 
-		all_metrics = True
 		# define model metrics
-		self.metrics = _metrics if all_metrics else []
+		self.metrics = _metrics
+        
+    def compute_metrics(self,truth,pred):
+		for metric in self.metrics:
+			metric_name = f'train_{metric.name.lower()}'
+			computed_metric = metric(y_pred_flat, y_true_flat)
+			# log_dict[metric_name] = computed_metric
+			self._training_metrics['metrics'].setdefault(metric_name, 0.0)
+			self._training_metrics['metrics'][metric_name] += computed_metric
+        
  
 	def training_step(self, batch, batch_idx):
 		# get data from the batch
@@ -129,7 +138,6 @@ class BaseLightningModule(pl.LightningModule):
 		loss = self.loss(y_pred, y)
 		# define log dictionary
 		# log_dict = {'train_loss': loss}
-
 		self.log("trn_loss", loss, prog_bar=True, on_epoch=True, logger=True)
 		
 		# binarize real and predicted data
@@ -143,16 +151,12 @@ class BaseLightningModule(pl.LightningModule):
 		self._training_metrics['steps'] += 1
 
 		# compute metrics		
-		for metric in self.metrics:
-			metric_name = f'train_{metric.name.lower()}'
-			computed_metric = metric(y_pred_flat, y_true_flat)
-			# log_dict[metric_name] = computed_metric
-			self._training_metrics['metrics'].setdefault(metric_name, 0.0)
-			self._training_metrics['metrics'][metric_name] += computed_metric
 		
 		# log the outputs
 		# self.callback_metrics = {**self.callback_metrics, **log_dict}
-
+        
+		compute_metrics(truth=y_true_flat,pred=y_pred_flat)
+        
 		# return the loss
 		self._training_loss = loss
 		self._trn_loss['sum'] += loss
@@ -200,13 +204,13 @@ class BaseLightningModule(pl.LightningModule):
 		# flatten tensors
 		y_true_flat = y_true_bin.view(-1)
 		y_pred_flat = y_pred_bin.view(-1)
-
 		self._validation_metrics['steps'] += 1
 
 		# compute metrics
 		for metric in self.metrics:
 			metric_name = f'val_{metric.name.lower()}'
 			computed_metric = metric(y_pred_flat, y_true_flat)
+            
 			# log_dict[metric_name] = computed_metric
 			self._validation_metrics['metrics'].setdefault(metric_name, 0.0)
 			self._validation_metrics['metrics'][metric_name] += computed_metric
