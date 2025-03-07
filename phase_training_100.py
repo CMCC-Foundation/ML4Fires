@@ -318,6 +318,7 @@ def check_cli_args():
 		'activation':activation_fn
 	}
 
+	model_config = {**model_config,**{"TORCH_CFG":TORCH_CFG}}
 	cli_model_name = cli_args.model
 
 	if cli_model_name == 'unet':

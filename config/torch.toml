@@ -8,7 +8,8 @@ matmul_precision = 'medium'
 #strategy = "FSDPStrategy(sharding_strategy=ShardingStrategy.FULL_SHARD)"
 strategy = "DDPStrategy()"
 loss = "torch.nn.BCELoss()"
-metrics = "[]" # "[torch.nn.MSELoss()]"
+
+# metrics = "[]" # "[torch.nn.MSELoss()]"
 
 	[model.dir]
 	RUN_DIR = "os.path.join(EXPS_DIR, _today)"
@@ -23,6 +24,27 @@ metrics = "[]" # "[torch.nn.MSELoss()]"
 		depth = 4
 		base_filter_dim = 64
 		deep_supervision = false
+
+[metrics]
+    [metrics.accuracy]
+        target = "torchmetrics::Accuracy"
+        task = "binary"
+    [metrics.auroc]
+        target = "torchmetrics::AUROC"
+        task = "binary"
+    [metrics.precision]
+        target = "torchmetrics::Precision"
+        task = "binary"
+    [metrics.recall]
+        target = "torchmetrics::Recall"
+        task = "binary"
+    [metrics.f1]
+        target = "torchmetrics::F1Score"
+        task = "binary"
+    [metrics.fbeta]
+        target = "torchmetrics::FBetaScore"
+        task = "binary"
+        beta = 2.0
 
 [trainer]
 accumulation_steps = 1

@@ -35,6 +35,7 @@ from typing import Any, Dict, List, Optional
 from timm.layers import to_2tuple
 
 from Fires._utilities.decorators import export
+from Fires._utilities.general import general_utils
 
 from itwinai.loggers import ConsoleLogger, Prov4MLLogger, MLFlowLogger as IMLFlowLogger, Logger as BaseItwinaiLogger
 
@@ -74,51 +75,59 @@ class BaseLightningModule(pl.LightningModule):
 		self._training_metrics = {'steps' : 0, 'metrics' : {}}
 		self._validation_metrics = {'steps' : 0, 'metrics' : {}}
 	
-		self.setup_metrics()
+		self.setup_metrics(kwargs["TORCH_CFG"])
   
-	def setup_metrics(self):
-     
-				# define metrics list
+	def setup_metrics(self,torch_cfg):
 		_metrics = []
+        
+		for key, value in torch_cfg["metrics"].items():
+			matric_func, matric_func_kwargs = general_utils.separate_kwargs(value)
+			metric_instance = general_utils.call_instance_of_function(
+				**general_utils.process_call_string(input_string=matric_func),
+            	**matric_func_kwargs,
+            ).to("cuda" if torch.cuda.is_available() else "cpu")
+			metric_instance.name = key
+			_metrics.append(metric_instance)
+            
+            
+		# # accuracy
+		# accuracy = Accuracy(task='binary')
+		# accuracy.name = "accuracy"
+		# accuracy.to("cuda" if torch.cuda.is_available() else "cpu")
+		# _metrics.append(accuracy)
 
-		# accuracy
-		accuracy = Accuracy(task='binary')
-		accuracy.name = "accuracy"
-		accuracy.to("cuda" if torch.cuda.is_available() else "cpu")
-		_metrics.append(accuracy)
+		# # precision
+		# precision = Precision(task='binary')
+		# precision.name = "precision"
+		# precision.to("cuda" if torch.cuda.is_available() else "cpu")
+		# _metrics.append(precision)
 
-		# precision
-		precision = Precision(task='binary')
-		precision.name = "precision"
-		precision.to("cuda" if torch.cuda.is_available() else "cpu")
-		_metrics.append(precision)
+		# # recall
+		# recall = Recall(task='binary')
+		# recall.name = "recall"
+		# recall.to("cuda" if torch.cuda.is_available() else "cpu")
+		# _metrics.append(recall)
 
-		# recall
-		recall = Recall(task='binary')
-		recall.name = "recall"
-		recall.to("cuda" if torch.cuda.is_available() else "cpu")
-		_metrics.append(recall)
+		# # f1 score
+		# f1_score = F1Score(task='binary')
+		# f1_score.name = "f1_score"
+		# f1_score.to("cuda" if torch.cuda.is_available() else "cpu")
+		# _metrics.append(f1_score)
 
-		# f1 score
-		f1_score = F1Score(task='binary')
-		f1_score.name = "f1_score"
-		f1_score.to("cuda" if torch.cuda.is_available() else "cpu")
-		_metrics.append(f1_score)
+		# # f2 score
+		# f2_score = FBetaScore(task='binary', beta=float(2))
+		# f2_score.name = "f2_score"
+		# f2_score.to("cuda" if torch.cuda.is_available() else "cpu")
+		# _metrics.append(f2_score)
 
-		# f2 score
-		f2_score = FBetaScore(task='binary', beta=float(2))
-		f2_score.name = "f2_score"
-		f2_score.to("cuda" if torch.cuda.is_available() else "cpu")
-		_metrics.append(f2_score)
+		# # mcc
+		# mcc = MatthewsCorrCoef(task='binary')
+		# mcc.name = "mcc"
+		# _metrics.append(mcc)
 
-		# mcc
-		mcc = MatthewsCorrCoef(task='binary')
-		mcc.name = "mcc"
-		_metrics.append(mcc)
-
-		all_metrics = True
 		# define model metrics
-		self.metrics = _metrics if all_metrics else []
+  
+		self.metrics = _metrics
  
 	def training_step(self, batch, batch_idx):
 		# get data from the batch
@@ -160,7 +169,7 @@ class BaseLightningModule(pl.LightningModule):
 		return {'loss':loss}
 
 	def on_train_epoch_end(self):
-
+		print(self._training_metrics['metrics'])
 		if self.loggers[0].experiment is not None:
 			self.loggers[0].experiment.log_metrics({"trn_loss": self._trn_loss['sum']/self._trn_loss['steps']}, step=self.current_epoch)
 		if self.loggers[-1].experiment is not None:
