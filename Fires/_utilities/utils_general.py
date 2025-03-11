@@ -39,6 +39,13 @@ def check_backend() -> str:
 	_log.info(f" | {backend.upper()} available")
 	return backend
 
+def process_call_string(input_string: str):
+    split_string = input_string.split("::")
+    return {
+        "library_to_load": split_string[0].replace("/", "."),
+        "function_to_call": split_string[1],
+    }
+
 def call_instance_of_function(library_to_load, function_to_call, **kwargs):
 
     library_instance = import_module_from_path(library_to_load)
