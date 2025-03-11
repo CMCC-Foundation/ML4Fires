@@ -88,42 +88,6 @@ class BaseLightningModule(pl.LightningModule):
             ).to("cuda" if torch.cuda.is_available() else "cpu")
 			metric_instance.name = key
 			_metrics.append(metric_instance)
-            
-            
-		# # accuracy
-		# accuracy = Accuracy(task='binary')
-		# accuracy.name = "accuracy"
-		# accuracy.to("cuda" if torch.cuda.is_available() else "cpu")
-		# _metrics.append(accuracy)
-
-		# # precision
-		# precision = Precision(task='binary')
-		# precision.name = "precision"
-		# precision.to("cuda" if torch.cuda.is_available() else "cpu")
-		# _metrics.append(precision)
-
-		# # recall
-		# recall = Recall(task='binary')
-		# recall.name = "recall"
-		# recall.to("cuda" if torch.cuda.is_available() else "cpu")
-		# _metrics.append(recall)
-
-		# # f1 score
-		# f1_score = F1Score(task='binary')
-		# f1_score.name = "f1_score"
-		# f1_score.to("cuda" if torch.cuda.is_available() else "cpu")
-		# _metrics.append(f1_score)
-
-		# # f2 score
-		# f2_score = FBetaScore(task='binary', beta=float(2))
-		# f2_score.name = "f2_score"
-		# f2_score.to("cuda" if torch.cuda.is_available() else "cpu")
-		# _metrics.append(f2_score)
-
-		# # mcc
-		# mcc = MatthewsCorrCoef(task='binary')
-		# mcc.name = "mcc"
-		# _metrics.append(mcc)
 
 		# define model metrics
   
