@@ -82,7 +82,7 @@ LOGS_DIR = eval(CONFIG.dir.LOGS_DIR)
 os.makedirs(LOGS_DIR, exist_ok=True)
 
 # define data dir
-DATA_DIR = eval(CONFIG.dir.DATA_DIR) 
+DATA_DIR = CONFIG.dir.DATA_DIR 
 os.makedirs(DATA_DIR, exist_ok=True)
 
 # define scaler dir
