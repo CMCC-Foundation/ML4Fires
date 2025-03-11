@@ -1,5 +1,7 @@
 
 import torch
+import importlib as implib
+
 from Fires._macros.macros import LOGS_DIR, TORCH_CFG
 from Fires._utilities.logger import Logger as logger
 from Fires._utilities.decorators import debug, export
@@ -37,3 +39,35 @@ def check_backend() -> str:
 	_log.info(f" | {backend.upper()} available")
 	return backend
 
+def call_instance_of_function(library_to_load, function_to_call, **kwargs):
+
+    library_instance = import_module_from_path(library_to_load)
+    function_call = getattr(library_instance, function_to_call)
+    kwargs = _process_kwargs(kwargs)
+    return function_call(**kwargs)
+
+
+def import_module_from_path(library_to_path):
+    return implib.import_module(library_to_path.replace("/", "."))
+
+
+def separate_kwargs(input: dict):
+    kwargs = {}
+    for key in input.keys():
+        if key != "target":
+            kwargs[key] = input[key]
+    return input.target, kwargs
+
+
+def _process_kwargs(kwargs):
+    processed_kwargs = {}
+    for key, value in kwargs.items():
+        if isinstance(value, str):
+            if str(value).find("eval") == 0:
+                processed_kwargs[key] = eval(value)
+            else:
+                processed_kwargs[key] = value
+        else:
+            processed_kwargs[key] = value
+
+    return processed_kwargs

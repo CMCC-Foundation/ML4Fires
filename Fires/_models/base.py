@@ -35,6 +35,7 @@ from typing import Any, Dict, List, Optional
 from timm.layers import to_2tuple
 
 from Fires._utilities.decorators import export
+from Fires._utilities.general import general_utils
 
 from itwinai.loggers import ConsoleLogger, Prov4MLLogger, MLFlowLogger as IMLFlowLogger, Logger as BaseItwinaiLogger
 
@@ -74,60 +75,23 @@ class BaseLightningModule(pl.LightningModule):
 		self._training_metrics = {'steps' : 0, 'metrics' : {}}
 		self._validation_metrics = {'steps' : 0, 'metrics' : {}}
 	
-		self.setup_metrics()
+		self.setup_metrics(kwargs["TORCH_CFG"])
   
-	def setup_metrics(self):
-     
-				# define metrics list
+	def setup_metrics(self,torch_cfg):
 		_metrics = []
-
-        # accuracy
-		accuracy = Accuracy(task='binary')
-		accuracy.name = "accuracy"
-		accuracy.to("cuda" if torch.cuda.is_available() else "cpu")
-		_metrics.append(accuracy)
-
-		# precision
-		precision = Precision(task='binary')
-		precision.name = "precision"
-		precision.to("cuda" if torch.cuda.is_available() else "cpu")
-		_metrics.append(precision)
-
-		# recall
-		recall = Recall(task='binary')
-		recall.name = "recall"
-		recall.to("cuda" if torch.cuda.is_available() else "cpu")
-		_metrics.append(recall)
-
-		# f1 score
-		f1_score = F1Score(task='binary')
-		f1_score.name = "f1_score"
-		f1_score.to("cuda" if torch.cuda.is_available() else "cpu")
-		_metrics.append(f1_score)
-
-		# f2 score
-		f2_score = FBetaScore(task='binary', beta=float(2))
-		f2_score.name = "f2_score"
-		f2_score.to("cuda" if torch.cuda.is_available() else "cpu")
-		_metrics.append(f2_score)
-
-		# mcc
-		mcc = MatthewsCorrCoef(task='binary')
-		mcc.name = "mcc"
-		mcc.to("cuda" if torch.cuda.is_available() else "cpu")
-		_metrics.append(mcc)
+        
+		for key, value in torch_cfg["metrics"].items():
+			matric_func, matric_func_kwargs = general_utils.separate_kwargs(value)
+			metric_instance = general_utils.call_instance_of_function(
+				**general_utils.process_call_string(input_string=matric_func),
+            	**matric_func_kwargs,
+            ).to("cuda" if torch.cuda.is_available() else "cpu")
+			metric_instance.name = key
+			_metrics.append(metric_instance)
 
 		# define model metrics
+  
 		self.metrics = _metrics
-        
-    def compute_metrics(self,truth,pred):
-		for metric in self.metrics:
-			metric_name = f'train_{metric.name.lower()}'
-			computed_metric = metric(y_pred_flat, y_true_flat)
-			# log_dict[metric_name] = computed_metric
-			self._training_metrics['metrics'].setdefault(metric_name, 0.0)
-			self._training_metrics['metrics'][metric_name] += computed_metric
-        
  
 	def training_step(self, batch, batch_idx):
 		# get data from the batch
@@ -154,8 +118,7 @@ class BaseLightningModule(pl.LightningModule):
 		
 		# log the outputs
 		# self.callback_metrics = {**self.callback_metrics, **log_dict}
-        
-		compute_metrics(truth=y_true_flat,pred=y_pred_flat)
+		self.compute_metrics(y_true_flat,y_pred_flat)
         
 		# return the loss
 		self._training_loss = loss
@@ -163,8 +126,16 @@ class BaseLightningModule(pl.LightningModule):
 		self._trn_loss['steps'] += 1
 		return {'loss':loss}
 
-	def on_train_epoch_end(self):
 
+	def compute_metrics(self,truth,pred):
+		for metric in self.metrics:
+			metric_name = f'train_{metric.name.lower()}'
+			computed_metric = metric(pred, truth)
+			self._training_metrics['metrics'].setdefault(metric_name, 0.0)
+			self._training_metrics['metrics'][metric_name] += computed_metric
+    
+    
+	def on_train_epoch_end(self):
 		if self.loggers[0].experiment is not None:
 			self.loggers[0].experiment.log_metrics({"trn_loss": self._trn_loss['sum']/self._trn_loss['steps']}, step=self.current_epoch)
 		if self.loggers[-1].experiment is not None:
@@ -178,7 +149,7 @@ class BaseLightningModule(pl.LightningModule):
 			self.loggers[-1].experiment.log(item=self._trn_loss['sum']/self._trn_loss['steps'], identifier="training_loss", kind='metric', step=self.current_epoch, context=context)
 
 		for metric_name, metric_value in self._training_metrics['metrics'].items():
-				self.loggers[-1].experiment.log(item=metric_value/self._training_metrics['steps'], identifier=metric_name, kind='metric', step=self.current_epoch, context=context)
+				self.loggers[-1].experiment.log(item=metric_value/self._training_metrics['steps'], identifier=f"{metric_name}_epoch", kind='metric', step=self.current_epoch, context=context)
 			
 		self._training_metrics = {'steps' : 0, 'metrics' : {}}
 		self._trn_loss = {'sum': 0, 'steps': 0}
@@ -207,13 +178,7 @@ class BaseLightningModule(pl.LightningModule):
 		self._validation_metrics['steps'] += 1
 
 		# compute metrics
-		for metric in self.metrics:
-			metric_name = f'val_{metric.name.lower()}'
-			computed_metric = metric(y_pred_flat, y_true_flat)
-            
-			# log_dict[metric_name] = computed_metric
-			self._validation_metrics['metrics'].setdefault(metric_name, 0.0)
-			self._validation_metrics['metrics'][metric_name] += computed_metric
+		self.compute_metrics(y_true_flat,y_pred_flat)
 		
 		# log the outputs
 		# self.callback_metrics = {**self.callback_metrics, **log_dict}
@@ -245,7 +210,7 @@ class BaseLightningModule(pl.LightningModule):
 			self.loggers[-1].experiment.log(item=self._vld_loss['sum']/self._vld_loss['steps'], identifier="validation_loss", kind='metric', step=self.current_epoch, context=context)
 
 		for metric_name, metric_value in self._validation_metrics['metrics'].items():
-				self.loggers[-1].experiment.log(item=metric_value/self._validation_metrics['steps'], identifier=metric_name, kind='metric', step=self.current_epoch, context=context)
+				self.loggers[-1].experiment.log(item=metric_value/self._validation_metrics['steps'], identifier=f"{metric_name}_epoch", kind='metric', step=self.current_epoch, context=context)
 
 		self._validation_metrics = {'steps' : 0, 'metrics' : {}}
 		self._vld_loss = {'sum': 0, 'steps': 0}
