@@ -25,3 +25,4 @@ config
 ml4fires_old_3_10
 ML4F_venv
 MLFLOW
+config/credentials.toml
