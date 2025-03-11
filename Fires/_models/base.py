@@ -154,8 +154,7 @@ class BaseLightningModule(pl.LightningModule):
 		
 		# log the outputs
 		# self.callback_metrics = {**self.callback_metrics, **log_dict}
-        
-		compute_metrics(truth=y_true_flat,pred=y_pred_flat)
+		self.compute_metrics(y_true_flat,y_pred_flat)
         
 		# return the loss
 		self._training_loss = loss
@@ -163,8 +162,16 @@ class BaseLightningModule(pl.LightningModule):
 		self._trn_loss['steps'] += 1
 		return {'loss':loss}
 
+
+	def compute_metrics(self,truth,pred):
+		for metric in self.metrics:
+			metric_name = f'train_{metric.name.lower()}'
+			computed_metric = metric(pred, truth)
+			self._training_metrics['metrics'].setdefault(metric_name, 0.0)
+			self._training_metrics['metrics'][metric_name] += computed_metric
+    
+    
 	def on_train_epoch_end(self):
-		print(self._training_metrics['metrics'])
 		if self.loggers[0].experiment is not None:
 			self.loggers[0].experiment.log_metrics({"trn_loss": self._trn_loss['sum']/self._trn_loss['steps']}, step=self.current_epoch)
 		if self.loggers[-1].experiment is not None:
@@ -178,7 +185,7 @@ class BaseLightningModule(pl.LightningModule):
 			self.loggers[-1].experiment.log(item=self._trn_loss['sum']/self._trn_loss['steps'], identifier="training_loss", kind='metric', step=self.current_epoch, context=context)
 
 		for metric_name, metric_value in self._training_metrics['metrics'].items():
-				self.loggers[-1].experiment.log(item=metric_value/self._training_metrics['steps'], identifier=metric_name, kind='metric', step=self.current_epoch, context=context)
+				self.loggers[-1].experiment.log(item=metric_value/self._training_metrics['steps'], identifier=f"{metric_name}_epoch", kind='metric', step=self.current_epoch, context=context)
 			
 		self._training_metrics = {'steps' : 0, 'metrics' : {}}
 		self._trn_loss = {'sum': 0, 'steps': 0}
@@ -207,13 +214,7 @@ class BaseLightningModule(pl.LightningModule):
 		self._validation_metrics['steps'] += 1
 
 		# compute metrics
-		for metric in self.metrics:
-			metric_name = f'val_{metric.name.lower()}'
-			computed_metric = metric(y_pred_flat, y_true_flat)
-            
-			# log_dict[metric_name] = computed_metric
-			self._validation_metrics['metrics'].setdefault(metric_name, 0.0)
-			self._validation_metrics['metrics'][metric_name] += computed_metric
+		self.compute_metrics(y_true_flat,y_pred_flat)
 		
 		# log the outputs
 		# self.callback_metrics = {**self.callback_metrics, **log_dict}
@@ -245,7 +246,7 @@ class BaseLightningModule(pl.LightningModule):
 			self.loggers[-1].experiment.log(item=self._vld_loss['sum']/self._vld_loss['steps'], identifier="validation_loss", kind='metric', step=self.current_epoch, context=context)
 
 		for metric_name, metric_value in self._validation_metrics['metrics'].items():
-				self.loggers[-1].experiment.log(item=metric_value/self._validation_metrics['steps'], identifier=metric_name, kind='metric', step=self.current_epoch, context=context)
+				self.loggers[-1].experiment.log(item=metric_value/self._validation_metrics['steps'], identifier=f"{metric_name}_epoch", kind='metric', step=self.current_epoch, context=context)
 
 		self._validation_metrics = {'steps' : 0, 'metrics' : {}}
 		self._vld_loss = {'sum': 0, 'steps': 0}
