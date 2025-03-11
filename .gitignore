@@ -6,8 +6,6 @@
 *.txt
 *.zarr
 
-config/credentials.toml
-
 digital_twin_notebooks/img/*.png
 digital_twin_notebooks/*.onnx
 digital_twin_notebooks/inference_with_onnx.ipynb
@@ -21,9 +19,9 @@ data
 logs
 lightning_logs
 requirements_files
+config
 
 # environments
 ml4fires_old_3_10
 ML4F_venv
 MLFLOW
-config/credentials.toml
