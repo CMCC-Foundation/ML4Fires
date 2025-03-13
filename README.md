@@ -12,7 +12,7 @@
 
 <p align="justify"> Detecting and predicting wildfires is challenging and recent advances in Machine Learning (ML) provide cutting-edge modeling techniques to deal with detection and prediction tasks, offering also cost-effective and fast-computing solutions.</p>
 
-## Table of contents
+## Documentation table of contents
 
 1. [The Backbone Architecture](./docs/the_backbone_architecture.md)
 1. [Data](./docs/data.md)
@@ -22,22 +22,12 @@
 1. [Fires](./docs/fires.md)
 1. [Run the code on a LSF cluster (with GPUs)](./docs/run_on_lsf_cluster.md)
 
-## Contributors
-
-[CMCC - Institute for Earth System Predictions (IESP) - Advanced Scientific Computing (ASC) Division](https://www.cmcc.it)
-
-|      Contributor      |           Contact           |         Role        |
-|          :--          |             :--             |         :--         |
-|     Donatello Elia    |  <donatello.elia@cmcc.it>   |   Project Manager   |
-|     Emanuele Donno    |  <emanuele.donno@cmcc.it>   |   Main Contributor  |
-|     Davide Donno      |   <davide.donno@cmcc.it>    | Project Contributor |
-|   Gabriele Accarino   | <gabriele.accarino@cmcc.it> | Project Contributor |
-|   Giovanni Aloisio    | <giovanni.aloisio@cmcc.it>  |  Group Coordinator  |
-
 ## Acknowledgment
 
-<p align="justify"> This software product is developed in the context of Wildfires use case in the InterTwin Project: </p>
+<p align="justify"> This software is developed in the context of Wildfires use case in the InterTwin Project: </p>
 
 [![InterTwin](images/intertwin.png)](https://www.intertwin.eu/intertwin-use-case-a-digital-twin-for-projecting-wildfire-danger-due-to-climate-change)
+
+interTwin has received funding from Horizon Europe under grant agreement No 101058386.
 
 <!-- ## Future Investigations -->
