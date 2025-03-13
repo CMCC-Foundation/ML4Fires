@@ -95,20 +95,20 @@ class BaseLightningModule(pl.LightningModule):
 		for metric in self.metrics:
 			metric_name = f'{stage}_{metric.name.lower()}'
 			computed_metric = metric(pred, truth)
-		if stage.find("epoch") > -1:
-			if stage.find("train") > -1:
-				self._training_metrics_epoch['metrics'].setdefault(metric_name, 0.0)
-				self._training_metrics_epoch['metrics'][metric_name] = computed_metric
-			if stage.find("val") > -1:
-				self._validation_metrics_epoch['metrics'].setdefault(metric_name, 0.0)
-				self._validation_metrics_epoch['metrics'][metric_name] = computed_metric                
-		else:
-			if stage.find("train") > -1:
-				self._training_metrics['metrics'].setdefault(metric_name, 0.0)
-				self._training_metrics['metrics'][metric_name] += computed_metric
-			if stage.find("val") > -1:
-				self._validation_metrics['metrics'].setdefault(metric_name, 0.0)
-				self._validation_metrics['metrics'][metric_name] = computed_metric
+			if stage.find("epoch") > -1:
+				if stage.find("train") > -1:
+					self._training_metrics_epoch['metrics'].setdefault(metric_name, 0.0)
+					self._training_metrics_epoch['metrics'][metric_name] = computed_metric
+				if stage.find("val") > -1:
+					self._validation_metrics_epoch['metrics'].setdefault(metric_name, 0.0)
+					self._validation_metrics_epoch['metrics'][metric_name] = computed_metric                
+			else:
+				if stage.find("train") > -1:
+					self._training_metrics['metrics'].setdefault(metric_name, 0.0)
+					self._training_metrics['metrics'][metric_name] += computed_metric
+				if stage.find("val") > -1:
+					self._validation_metrics['metrics'].setdefault(metric_name, 0.0)
+					self._validation_metrics['metrics'][metric_name] = computed_metric
 
 	def on_train_epoch_start(self):
 		"""Initialize lists to store batch results for the epoch."""
