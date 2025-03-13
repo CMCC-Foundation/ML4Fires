@@ -35,7 +35,7 @@ from typing import Any, Dict, List, Optional
 from timm.layers import to_2tuple
 
 from Fires._utilities.decorators import export
-from Fires._utilities.general import general_utils
+import Fires._utilities.utils_general as general_utils
 
 from itwinai.loggers import ConsoleLogger, Prov4MLLogger, MLFlowLogger as IMLFlowLogger, Logger as BaseItwinaiLogger
 
@@ -68,14 +68,11 @@ class BaseLightningModule(pl.LightningModule):
 			Sets the model to evaluation mode before predict step.
 	"""
 	def __init__(self, *args: Any, **kwargs: Any) -> None:
+		torch_config = kwargs.pop("TORCH_CFG")
 		super().__init__(*args, **kwargs)
 		# self.callback_metrics:Dict[str | Any] = {}
-		self._trn_loss = {'sum': 0, 'steps': 0}
-		self._vld_loss = {'sum': 0, 'steps': 0}
-		self._training_metrics = {'steps' : 0, 'metrics' : {}}
-		self._validation_metrics = {'steps' : 0, 'metrics' : {}}
-	
-		self.setup_metrics(kwargs["TORCH_CFG"])
+
+		self.setup_metrics(torch_config)
   
 	def setup_metrics(self,torch_cfg):
 		_metrics = []
@@ -92,7 +89,36 @@ class BaseLightningModule(pl.LightningModule):
 		# define model metrics
   
 		self.metrics = _metrics
- 
+
+
+	def compute_metrics(self,truth,pred,stage=None):
+		for metric in self.metrics:
+			metric_name = f'{stage}_{metric.name.lower()}'
+			computed_metric = metric(pred, truth)
+			if stage.find("epoch") > -1:
+				if stage.find("train") > -1:
+					self._training_metrics_epoch['metrics'].setdefault(metric_name, 0.0)
+					self._training_metrics_epoch['metrics'][metric_name] = computed_metric
+				if stage.find("val") > -1:
+					self._validation_metrics_epoch['metrics'].setdefault(metric_name, 0.0)
+					self._validation_metrics_epoch['metrics'][metric_name] = computed_metric                
+			else:
+				if stage.find("train") > -1:
+					self._training_metrics['metrics'].setdefault(metric_name, 0.0)
+					self._training_metrics['metrics'][metric_name] += computed_metric
+				if stage.find("val") > -1:
+					self._validation_metrics['metrics'].setdefault(metric_name, 0.0)
+					self._validation_metrics['metrics'][metric_name] = computed_metric
+
+	def on_train_epoch_start(self):
+		"""Initialize lists to store batch results for the epoch."""
+		self._trn_loss = {'sum': 0, 'steps': 0}
+		self._training_metrics = {'steps' : 0, 'metrics' : {}}
+		self._training_metrics_epoch = {'metrics' : {}}
+		
+		self.training_step_scores = []
+        
+
 	def training_step(self, batch, batch_idx):
 		# get data from the batch
 		x, y = batch
@@ -118,21 +144,14 @@ class BaseLightningModule(pl.LightningModule):
 		
 		# log the outputs
 		# self.callback_metrics = {**self.callback_metrics, **log_dict}
-		self.compute_metrics(y_true_flat,y_pred_flat)
+		self.compute_metrics(y_true_flat,y_pred_flat,stage="train")
+		self.training_step_scores.append({"loss": loss, "truth": y_true_flat, "preds": y_pred_flat})
         
 		# return the loss
 		self._training_loss = loss
 		self._trn_loss['sum'] += loss
 		self._trn_loss['steps'] += 1
 		return {'loss':loss}
-
-
-	def compute_metrics(self,truth,pred):
-		for metric in self.metrics:
-			metric_name = f'train_{metric.name.lower()}'
-			computed_metric = metric(pred, truth)
-			self._training_metrics['metrics'].setdefault(metric_name, 0.0)
-			self._training_metrics['metrics'][metric_name] += computed_metric
     
     
 	def on_train_epoch_end(self):
@@ -149,13 +168,36 @@ class BaseLightningModule(pl.LightningModule):
 			self.loggers[-1].experiment.log(item=self._trn_loss['sum']/self._trn_loss['steps'], identifier="training_loss", kind='metric', step=self.current_epoch, context=context)
 
 		for metric_name, metric_value in self._training_metrics['metrics'].items():
-				self.loggers[-1].experiment.log(item=metric_value/self._training_metrics['steps'], identifier=f"{metric_name}_epoch", kind='metric', step=self.current_epoch, context=context)
-			
+				self.loggers[-1].experiment.log(item=metric_value/self._training_metrics['steps'], identifier=f"{metric_name}", kind='metric', step=self.current_epoch, context=context)
+		
+  		# Computing the metrics collectively at the end of the epoch
+		all_preds = torch.cat([x["preds"] for x in self.training_step_scores])
+		all_targets = torch.cat([x["truth"] for x in self.training_step_scores])
+		self.compute_metrics(all_preds,all_targets,stage="train_epoch")
+
+		# Log the epoch results
+		for metric_name, metric_value in self._training_metrics_epoch['metrics'].items():
+				self.loggers[-1].experiment.log(item=metric_value, identifier=f"{metric_name}", kind='metric', step=self.current_epoch, context=context)		
+
+                # Reset everything
+		self._training_metrics_epoch = {'steps' : 0, 'metrics' : {}}
 		self._training_metrics = {'steps' : 0, 'metrics' : {}}
 		self._trn_loss = {'sum': 0, 'steps': 0}
-
+        
 		return super().on_train_epoch_end()
-	
+    
+    
+	def on_validation_epoch_start(self):
+		"""Initialize lists to store batch results for the epoch."""
+		self._vld_loss = {'sum': 0, 'steps': 0}
+		self._validation_metrics = {'steps' : 0, 'metrics' : {}}
+		self._validation_metrics_epoch = {'metrics' : {}}
+		
+		self.validation_step_scores = []
+        
+		return super().on_validation_epoch_start()
+    
+    
 	def validation_step(self, batch, batch_idx):
 		# get data from the batch
 		x, y = batch
@@ -175,10 +217,12 @@ class BaseLightningModule(pl.LightningModule):
 		# flatten tensors
 		y_true_flat = y_true_bin.view(-1)
 		y_pred_flat = y_pred_bin.view(-1)
+        
 		self._validation_metrics['steps'] += 1
 
 		# compute metrics
-		self.compute_metrics(y_true_flat,y_pred_flat)
+		self.compute_metrics(y_true_flat,y_pred_flat,stage="val")
+		self.validation_step_scores.append({"loss": loss, "truth": y_true_flat, "preds": y_pred_flat})
 		
 		# log the outputs
 		# self.callback_metrics = {**self.callback_metrics, **log_dict}
@@ -189,11 +233,6 @@ class BaseLightningModule(pl.LightningModule):
 		self._vld_loss['steps'] += 1
 		return {'loss':loss}
 
-	def configure_optimizers(self):
-		optimizer = Adam(self.parameters(), lr=1e-3)
-		scheduler = StepLR(optimizer, step_size=1, gamma=0.96)
-		return [optimizer], [scheduler]
-	
 	def on_validation_epoch_end(self):
 
 		if self.loggers[0].experiment is not None:
@@ -210,12 +249,30 @@ class BaseLightningModule(pl.LightningModule):
 			self.loggers[-1].experiment.log(item=self._vld_loss['sum']/self._vld_loss['steps'], identifier="validation_loss", kind='metric', step=self.current_epoch, context=context)
 
 		for metric_name, metric_value in self._validation_metrics['metrics'].items():
-				self.loggers[-1].experiment.log(item=metric_value/self._validation_metrics['steps'], identifier=f"{metric_name}_epoch", kind='metric', step=self.current_epoch, context=context)
+				self.loggers[-1].experiment.log(item=metric_value/self._validation_metrics['steps'], identifier=f"{metric_name}", kind='metric', step=self.current_epoch, context=context)
 
+		# Computing the metrics collectively at the end of the epoch
+		all_preds = torch.cat([x["preds"] for x in self.validation_step_scores])
+		all_targets = torch.cat([x["truth"] for x in self.validation_step_scores])
+		self.compute_metrics(all_preds,all_targets,stage="val_epoch")
+
+		# Log the epoch results
+		for metric_name, metric_value in self._validation_metrics_epoch['metrics'].items():
+				self.loggers[-1].experiment.log(item=metric_value, identifier=f"{metric_name}", kind='metric', step=self.current_epoch, context=context)		
+
+        # Reset everything
+		self._validation_metrics_epoch = {'steps' : 0, 'metrics' : {}}
 		self._validation_metrics = {'steps' : 0, 'metrics' : {}}
 		self._vld_loss = {'sum': 0, 'steps': 0}
-
+        
 		return super().on_validation_epoch_end()
+
+
+	def configure_optimizers(self):
+		optimizer = Adam(self.parameters(), lr=1e-3)
+		scheduler = StepLR(optimizer, step_size=1, gamma=0.96)
+		return [optimizer], [scheduler]
+	
 	
 	def on_validation_model_eval(self) -> None:
 		self.eval()
