@@ -243,14 +243,20 @@ def get_lightning_trainer():
 
 
 @debug(log=_log)
-def main():
+def main(base_filter_dim:int):
 	"""
 	Main function to execute the model training pipeline.
 
 	This function orchestrates the entire training process by creating datasets, 
 	initializing the trainer and model, setting up data loaders, and starting the 
 	training process. It also logs the training progress and saves the final model 
-	to disk.
+	to disk and to MLFlow.
+
+	Parameters
+	----------
+	base_filter_dim : int
+		The base filter dimension for the UNet model, as specified by the user.
+
 	"""
 		
 	# create pytorch datasets for training and validation
@@ -271,6 +277,18 @@ def main():
 		# get global rank
 		global_rank = trainer.global_rank
 		print(f" | Global rank {global_rank}")
+
+		params = {
+			"batch_size": TORCH_CFG.trainer.batch_size, 
+			"epochs": TORCH_CFG.trainer.epochs, 
+			"optimizer": TORCH_CFG.trainer.optim,
+			"loss": TORCH_CFG.model.loss,
+			"drivers": CONFIG.data.features.drivers,
+			"targets": CONFIG.data.features.targets,
+			"seed": CONFIG.utils.seed,
+			"base_filter_dim": base_filter_dim,
+		}
+		trainer.loggers[-1].itwinai_logger.save_hyperparameters(params)
 
 		# fit the model
 		trainer.fit(
@@ -385,4 +403,4 @@ if __name__ == '__main__':
 	model = model_class(**model_config)
 	#print(f"Model: {model}")
 
-	main()
+	main(model_config["base_filter_dim"])
