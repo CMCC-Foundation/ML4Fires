@@ -77,14 +77,15 @@ class BaseLightningModule(pl.LightningModule):
 	def setup_metrics(self,torch_cfg):
 		_metrics = []
         
-		for key, value in torch_cfg["metrics"].items():
-			matric_func, matric_func_kwargs = general_utils.separate_kwargs(value)
-			metric_instance = general_utils.call_instance_of_function(
-				**general_utils.process_call_string(input_string=matric_func),
-            	**matric_func_kwargs,
-            ).to("cuda" if torch.cuda.is_available() else "cpu")
-			metric_instance.name = key
-			_metrics.append(metric_instance)
+		if "metrics" in torch_cfg:
+			for key, value in torch_cfg["metrics"].items():
+				matric_func, matric_func_kwargs = general_utils.separate_kwargs(value)
+				metric_instance = general_utils.call_instance_of_function(
+					**general_utils.process_call_string(input_string=matric_func),
+					**matric_func_kwargs,
+				).to("cuda" if torch.cuda.is_available() else "cpu")
+				metric_instance.name = key
+				_metrics.append(metric_instance)
 
 		# define model metrics
   
