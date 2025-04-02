@@ -119,6 +119,7 @@ class BaseLightningModule(pl.LightningModule):
 		
 		self.training_step_scores = []
         
+		return super().on_train_epoch_start()
 
 	def training_step(self, batch, batch_idx):
 		# get data from the batch
@@ -180,10 +181,11 @@ class BaseLightningModule(pl.LightningModule):
 		for metric_name, metric_value in self._training_metrics_epoch['metrics'].items():
 				self.loggers[-1].experiment.log(item=metric_value, identifier=f"{metric_name}", kind='metric', step=self.current_epoch, context=context)		
 
-                # Reset everything
-		self._training_metrics_epoch = {'steps' : 0, 'metrics' : {}}
-		self._training_metrics = {'steps' : 0, 'metrics' : {}}
-		self._trn_loss = {'sum': 0, 'steps': 0}
+		# Delete everything
+		del self._training_metrics_epoch
+		del self._training_metrics
+		del self._trn_loss
+		del self.training_step_scores
         
 		return super().on_train_epoch_end()
     
@@ -261,10 +263,11 @@ class BaseLightningModule(pl.LightningModule):
 		for metric_name, metric_value in self._validation_metrics_epoch['metrics'].items():
 				self.loggers[-1].experiment.log(item=metric_value, identifier=f"{metric_name}", kind='metric', step=self.current_epoch, context=context)		
 
-        # Reset everything
-		self._validation_metrics_epoch = {'steps' : 0, 'metrics' : {}}
-		self._validation_metrics = {'steps' : 0, 'metrics' : {}}
-		self._vld_loss = {'sum': 0, 'steps': 0}
+        # Delete everything 
+		del self._vld_loss
+		del self._validation_metrics
+		del self._validation_metrics_epoch
+		del self.validation_step_scores
         
 		return super().on_validation_epoch_end()
 
