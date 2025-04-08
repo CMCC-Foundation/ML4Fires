@@ -52,6 +52,7 @@ from Fires._macros.macros import (
 	RUN_DIR,
 	SCALER_DIR,
 	PROVENANCE_DIR,
+	MAX_HECTARES_100KM
 )
 import Fires._models
 from Fires._models.unet import Unet
@@ -65,7 +66,7 @@ from Fires._utilities.cli_args_parser import CLIParser
 from Fires._utilities.configuration import load_global_config
 from Fires._utilities.decorators import debug
 from Fires._utilities.logger import Logger as logger
-from Fires._utilities.metrics import TverskyLoss, FocalLoss
+from Fires._utilities.metrics import TverskyLoss, FocalLoss, WeightedBCE_L1Loss
 from Fires._utilities.utils_general import check_backend
 from Fires._utilities.utils_trainer import get_trainer_loggers, get_itwinai_loggers, get_callbacks 
 
@@ -117,6 +118,7 @@ def create_torch_datasets(data_source_path:str) -> Tuple[FireDataset, FireDatase
 	return trn_torch_ds, val_torch_ds, x_scaler
 
 
+
 @debug(log=_log)
 def setup_model() -> Optional[Unet | UnetPlusPlus]:
 	"""
@@ -134,8 +136,8 @@ def setup_model() -> Optional[Unet | UnetPlusPlus]:
 	"""
 	
 	# define model loss
-	model.loss = eval(TORCH_CFG.model.loss)   #torch.nn.modules.loss.BCELoss()
-	#model.loss = TverskyLoss(alpha=0.5, beta=0.5)
+	#model.loss = eval(TORCH_CFG.model.loss)   #torch.nn.modules.loss.BCELoss()
+	model.loss = WeightedBCE_L1Loss(weight_bce=0.7, weight_l1=0.3)
 	
 	_log.info(f" | Model: \n\n {model}")
 	
@@ -243,7 +245,7 @@ def main(base_filter_dim:int):
 			"batch_size": TORCH_CFG.trainer.batch_size, 
 			"epochs": TORCH_CFG.trainer.epochs, 
 			"optimizer": TORCH_CFG.trainer.optim,
-			"loss": TORCH_CFG.model.loss,
+			"loss": WeightedBCE_L1Loss(weight_bce=0.8, weight_l1=0.2),
 			"drivers": CONFIG.data.features.drivers,
 			"targets": CONFIG.data.features.targets,
 			"seed": CONFIG.utils.seed,
@@ -331,7 +333,7 @@ def check_cli_args():
 	cli_base_filter_dim = cli_args.base_filter_dim
 
 	model_config = {
-		'input_shape':(180, 360, 7),
+		'input_shape':(180, 360, len(drivers)),
 		'base_filter_dim':cli_base_filter_dim,
 		'activation':activation_fn
 	}
