@@ -92,10 +92,17 @@ class BaseLightningModule(pl.LightningModule):
 		self.metrics = _metrics
 
 
-	def compute_metrics(self,truth,pred,stage=None):
+	def compute_metrics(self, truth, pred, stage=None):
+		device = truth.device  # or use pred.device — they should match
+
 		for metric in self.metrics:
 			metric_name = f'{stage}_{metric.name.lower()}'
+
+			#🔥 Move metric to the same device as input
+			metric = metric.to(device)
+
 			computed_metric = metric(pred, truth)
+
 			if stage.find("epoch") > -1:
 				if stage.find("train") > -1:
 					self._training_metrics_epoch['metrics'].setdefault(metric_name, 0.0)
@@ -110,6 +117,7 @@ class BaseLightningModule(pl.LightningModule):
 				if stage.find("val") > -1:
 					self._validation_metrics['metrics'].setdefault(metric_name, 0.0)
 					self._validation_metrics['metrics'][metric_name] = computed_metric
+
 
 	def on_train_epoch_start(self):
 		"""Initialize lists to store batch results for the epoch."""
