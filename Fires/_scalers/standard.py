@@ -27,6 +27,10 @@ from typing import List
 
 from Fires._scalers.base import Scaler
 from Fires._utilities.decorators import export
+from Fires._macros.macros import (
+	CONFIG,
+	DRIVERS as drivers,
+)
 
 @export
 class StandardScaler(Scaler):
@@ -72,8 +76,8 @@ class StandardScaler(Scaler):
 		# self.coeff_ = torch.as_tensor(coeff.to_array().data, dtype=self.dtype).view(8, 1, 1)
 		# self.element_ = torch.as_tensor(element.to_array().data, dtype=self.dtype).view(8, 1, 1)
 		
-		self.coeff_ = torch.as_tensor(coeff.to_array().data, dtype=self.dtype).view(7, 1, 1)
-		self.element_ = torch.as_tensor(element.to_array().data, dtype=self.dtype).view(7, 1, 1)
+		self.coeff_ = torch.as_tensor(coeff.to_array().data, dtype=self.dtype).view(len(drivers), 1, 1)
+		self.element_ = torch.as_tensor(element.to_array().data, dtype=self.dtype).view(len(drivers), 1, 1)
 		
 	def transform(self, tensor: torch.Tensor):
 		scaled_tensor = tensor * self.coeff_ - self.element_
