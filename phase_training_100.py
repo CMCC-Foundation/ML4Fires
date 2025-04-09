@@ -137,7 +137,18 @@ def setup_model() -> Optional[Unet | UnetPlusPlus]:
 	
 	# define model loss
 	#model.loss = eval(TORCH_CFG.model.loss)   #torch.nn.modules.loss.BCELoss()
-	model.loss = WeightedBCE_L1Loss(weight_bce=0.7, weight_l1=0.3)
+	# model now hardcoded with the best loss function
+	LOSS_REGISTRY = {
+		"WeightedBCE_L1Loss": WeightedBCE_L1Loss,
+		"BCELoss": torch.nn.BCELoss,
+		"L1Loss": torch.nn.L1Loss
+	}
+
+	loss_cls = LOSS_REGISTRY[TORCH_CFG.model.loss]
+	loss_args = TORCH_CFG.model.loss_args or {}
+	model.loss = loss_cls(**loss_args)
+
+	#model.loss = WeightedBCE_L1Loss(weight_bce=0.3, weight_l1=0.7)
 	
 	_log.info(f" | Model: \n\n {model}")
 	
@@ -245,7 +256,8 @@ def main(base_filter_dim:int):
 			"batch_size": TORCH_CFG.trainer.batch_size, 
 			"epochs": TORCH_CFG.trainer.epochs, 
 			"optimizer": TORCH_CFG.trainer.optim,
-			"loss": WeightedBCE_L1Loss(weight_bce=0.8, weight_l1=0.2),
+			"loss":  TORCH_CFG.model.loss,
+			#"loss": WeightedBCE_L1Loss(weight_bce=0.8, weight_l1=0.2),
 			"drivers": CONFIG.data.features.drivers,
 			"targets": CONFIG.data.features.targets,
 			"seed": CONFIG.utils.seed,
