@@ -93,12 +93,12 @@ class BaseLightningModule(pl.LightningModule):
 
 
 	def compute_metrics(self, truth, pred, stage=None):
-		device = truth.device  # or use pred.device — they should match
+		device = truth.device  
 
 		for metric in self.metrics:
 			metric_name = f'{stage}_{metric.name.lower()}'
 
-			#🔥 Move metric to the same device as input
+			#Move metric to the same device as input
 			metric = metric.to(device)
 
 			computed_metric = metric(pred, truth)
