@@ -6,8 +6,8 @@ echo ""
 set -e
 
 BASE=2
-FROM=2
-TO=2 #7
+FROM=5
+TO=5 #7
 from_value="$FROM"
 to_value="$TO"
 

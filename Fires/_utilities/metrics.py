@@ -106,6 +106,22 @@ class FocalLoss(nn.Module):
 		else:
 			return F_loss
 
+        
+        
+		"""
+		Combines Binary Cross Entropy (BCE) and L1 loss functions with customizable weights.
+
+		This custom loss function allows weighted combination of BCE and L1 loss,
+		useful for tasks like wildfire prediction where both classification accuracy
+		and regression precision are important.
+
+		Parameters
+		----------
+		weight_bce : float, optional
+		Weight for the BCE loss component. Default is 0.7.
+		weight_l1 : float, optional
+		Weight for the L1 loss component. Default is 0.3.
+    """
 @export
 class WeightedBCE_L1Loss(nn.Module):
 	def __init__(self, weight_bce=0.8, weight_l1=0.2):
