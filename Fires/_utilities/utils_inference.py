@@ -50,13 +50,16 @@ def load_input_data(data_path, time_start, time_end):
 
     return test_data
 
-
+def get_scaler(run_name:str):
+    # define scaler
+    local_path = os.path.join(os.getcwd(), 'MLFLOW', f"{run_name}/scaler/scaler.dump")
+    return joblib.load(local_path)
+    
 @export
 @debug(log=_log)
 def create_data_loader(data_path, run_name):
-    # define scaler
-    local_path = os.path.join(os.getcwd(), 'MLFLOW', f"{run_name}/scaler/scaler.dump")
-    x_scaler = joblib.load(local_path)
+    # get scaler
+    x_scaler = get_scaler(run_name=run_name)
 
     # define torch dataset
     drivers, targets = DRIVERS, TARGETS
@@ -190,6 +193,58 @@ def process_and_plot_data(data, label, lats, lons, model_name):
 		avg_on_time = np.nanmean(data, axis=0)[0, ...]
 		std_on_time = np.nanstd(data, axis=0)[0, ...]
 		print(f"NOT DataArray - AVG: {avg_on_time.shape} STD: {std_on_time.shape}")
+
+	# Aggregate data
+	avg_descaled, avg_on_lats, _ = compute_aggregated_data(data=avg_on_time)
+	_, std_on_lats, _ = compute_aggregated_data(data=std_on_time)
+
+	# Compute upper and lower boundaries
+	upperbound, lowerbound = up_and_lower_bounds(avg_value=avg_on_lats, std_value=std_on_lats)
+
+	# Plot data
+	plot_dataset_map(
+		avg_target_data=avg_descaled,
+		avg_data_on_lats=avg_on_lats,
+		lowerbound_data=lowerbound,
+		upperbound_data=upperbound,
+		lats=lats,
+		lons=lons,
+		title=f'{label} ({model_name.upper()})',
+		cmap='nipy_spectral_r'
+	)
+    
+@export
+@debug(log=_log)
+def process_and_plot_cmip6infer(data: xr.Dataset, temporal_aggregate_scheme: list, label, lats, lons, model_name):
+	"""
+	Process the data and generate plots.
+
+	Parameters
+	----------
+	data : xarray.DataArray or np.ndarray
+		Data to process; can be an xarray.DataArray for real data or a numpy.ndarray for predictions.
+	label : str
+		Label to use in the plot title.
+	lats : np.ndarray
+		Array of latitudes.
+	lons : np.ndarray
+		Array of longitudes.
+	model_name : str
+		Name of the model, used in the plot title.
+
+	"""
+	
+	# Verify data type and compute mean and standard deviation along time axis
+	if isinstance(data, xr.DataArray):
+		if temporal_aggregate_scheme == ["average","average","average"]:
+			avg_on_time = data.mean(dim='time', skipna=True).data
+			std_on_time = data.std(dim='time', skipna=True).data
+			print(f"Is DataArray - AVG: {avg_on_time.shape} STD: {std_on_time.shape}")
+	else:
+		if temporal_aggregate_scheme == ["average","average","average"]:
+			avg_on_time = np.nanmean(data, axis=0)
+			std_on_time = np.nanstd(data, axis=0)
+			print(f"NOT DataArray - AVG: {avg_on_time.shape} STD: {std_on_time.shape}")
 
 	# Aggregate data
 	avg_descaled, avg_on_lats, _ = compute_aggregated_data(data=avg_on_time)
