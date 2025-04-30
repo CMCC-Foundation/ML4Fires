@@ -1,34 +1,35 @@
 [config]
-	cmip6_scenario="ssp126"
+	cmip6_scenario="ssp585"
+	base_dir="/home/jovyan/data/"
 [data]
 	[data.drivers]
 		[data.drivers.lai]
-			cmip6_path="/home/jovyan/data/CMIP6/ScenarioMIP/CMCC/CMCC-ESM2/[scenario]/r1i1p1f1/Eday/lai/gn/v20210126/"
+			cmip6_path="CMIP6/ScenarioMIP/CMCC/CMCC-ESM2/[scenario]/r1i1p1f1/Eday/lai/gn/v20210126/"
 			aggregation="median"
 			seafire_name="lai"
 			type="dynamic"
 		[data.drivers.tas]
-			cmip6_path="/home/jovyan/data/CMIP6/ScenarioMIP/CMCC/CMCC-ESM2/[scenario]/r1i1p1f1/day/tas/gn/v20210126/"
+			cmip6_path="CMIP6/ScenarioMIP/CMCC/CMCC-ESM2/[scenario]/r1i1p1f1/day/tas/gn/v20210126/"
 			aggregation="median"
 			seafire_name="lst_day"
 			type="dynamic"
 		[data.drivers.hur]
-			cmip6_path="/home/jovyan/data/CMIP6/ScenarioMIP/CMCC/CMCC-ESM2/[scenario]/r1i1p1f1/day/hur/gn/v20210126/"
+			cmip6_path="CMIP6/ScenarioMIP/CMCC/CMCC-ESM2/[scenario]/r1i1p1f1/day/hur/gn/v20210126/"
 			aggregation="median"
 			seafire_name="rel_hum"
 			type="dynamic"
 		[data.drivers.tasmin]
-			cmip6_path="/home/jovyan/data/CMIP6/ScenarioMIP/CMCC/CMCC-ESM2/[scenario]/r1i1p1f1/day/tasmin/gn/v20210126/"
+			cmip6_path="CMIP6/ScenarioMIP/CMCC/CMCC-ESM2/[scenario]/r1i1p1f1/day/tasmin/gn/v20210126/"
 			aggregation="median"
 			seafire_name="t2m_min"
 			type="dynamic"
 		[data.drivers.pr]
-			cmip6_path="/home/jovyan/data/CMIP6/ScenarioMIP/CMCC/CMCC-ESM2/[scenario]/r1i1p1f1/day/pr/gn/v20210126/"
+			cmip6_path="CMIP6/ScenarioMIP/CMCC/CMCC-ESM2/[scenario]/r1i1p1f1/day/pr/gn/v20210126/"
 			aggregation="median"
 			seafire_name="pr"
 			type="dynamic"
 		[data.drivers.sftlf]
-			cmip6_path="/home/jovyan/data/CMIP6/ScenarioMIP/CMCC/CMCC-ESM2/ssp126/r1i1p1f1/fx/sftlf/gn/v20210126/"
+			cmip6_path="CMIP6/ScenarioMIP/CMCC/CMCC-ESM2/ssp126/r1i1p1f1/fx/sftlf/gn/v20210126/"
 			aggregation="None"
 			seafire_name="lsm"
 			type="static"

@@ -215,7 +215,7 @@ def process_and_plot_data(data, label, lats, lons, model_name):
     
 @export
 @debug(log=_log)
-def process_and_plot_cmip6infer(data: xr.Dataset, temporal_aggregate_scheme: list, label, lats, lons, model_name):
+def process_and_plot_cmip6infer(data: xr.Dataset, temporal_aggregate_scheme: list|str, label, lats, lons, model_name):
 	"""
 	Process the data and generate plots.
 
@@ -236,15 +236,48 @@ def process_and_plot_cmip6infer(data: xr.Dataset, temporal_aggregate_scheme: lis
 	
 	# Verify data type and compute mean and standard deviation along time axis
 	if isinstance(data, xr.DataArray):
-		if temporal_aggregate_scheme == ["average","average","average"]:
+		if temporal_aggregate_scheme == "mean":
+            # In case when simply wants to compute the average on the whole dataset 
 			avg_on_time = data.mean(dim='time', skipna=True).data
 			std_on_time = data.std(dim='time', skipna=True).data
 			print(f"Is DataArray - AVG: {avg_on_time.shape} STD: {std_on_time.shape}")
+		else:
+            # Check that parameter temporal_aggregate_scheme is not an str and is not an empty list
+			assert isinstance(temporal_aggregate_scheme, list), "For multi-scale aggregate, a list of aggregation type is required."
+			assert len(temporal_aggregate_scheme) > 0, "For multi-scale aggregate, more than one aggregate methods should be provided."
+			years_in_ds = np.unique(data.time.dt.year)
+            # The first item in temporal_aggregate_scheme should not be a None or empty.
+			assert temporal_aggregate_scheme[0].lower() != "none", "None cannot be given as an aggregate method for monthly scale."
+			assert temporal_aggregate_scheme[0] != "", "'' cannot be given as an aggregate method."
+            # Get aggreagated on monthly scale for the years in the dataset.
+            # Default date is in start of the month.
+			monthly_aggregate = eval(f"data.resample(time='1M',skipna=True).{temporal_aggregate_scheme[0]}()")
+
+			# Check that a second entry is given for the yealy aggregate and is not a none or empty
+			assert temporal_aggregate_scheme[1].lower() != "none", "None cannot be given as an aggregate method for yearly scale."
+			assert len(temporal_aggregate_scheme) > 1, "There should be more than 1 aggregate method for yearly aggregation."
+            # Aggregate on the year
+			yearly_aggregate = eval(f"monthly_aggregate.resample(time='1Y',skipna=True).{temporal_aggregate_scheme[1]}()")
+            
+			if len(years_in_ds) > 1: # check if there are more than one year in the dataset - decadal scale prediction
+				# If there are more than on year, then there should be an aggregate method in the list which is not none or empty
+				assert len(temporal_aggregate_scheme) > 2 , "There should be more than aggregate method for multi-scale aggregation."
+				assert temporal_aggregate_scheme[2].lower() != "none", "None cannot be given as an aggregate method for decadal scale."
+				assert temporal_aggregate_scheme[2] != "", "'' cannot be given as an aggregate method for decadal scale."
+                # Do decadal aggregate
+				avg_on_time = eval(f"yearly_aggregate.{temporal_aggregate_scheme[2]}(dim='time',skipna=True)")
+				std_on_time = yearly_aggregate.std(dim='time', skipna=True).data
+			else:
+                # No decadal aggregate in case you only 
+				avg_on_time = yearly_aggregate 
+				std_on_time = yearly_aggregate.std(dim='time', skipna=True).data
 	else:
-		if temporal_aggregate_scheme == ["average","average","average"]:
+		if temporal_aggregate_scheme == ["mean","mean","mean"]:
 			avg_on_time = np.nanmean(data, axis=0)
 			std_on_time = np.nanstd(data, axis=0)
 			print(f"NOT DataArray - AVG: {avg_on_time.shape} STD: {std_on_time.shape}")
+		else:
+			raise Exception("Different averaging on different time scales on works if prediction is provided in xr.DataArray format.")
 
 	# Aggregate data
 	avg_descaled, avg_on_lats, _ = compute_aggregated_data(data=avg_on_time)
@@ -264,3 +297,8 @@ def process_and_plot_cmip6infer(data: xr.Dataset, temporal_aggregate_scheme: lis
 		title=f'{label} ({model_name.upper()})',
 		cmap='nipy_spectral_r'
 	)
+    
+def aggregate_var(dataset: xr.Dataset, method:str, dim:str='time'):
+    eval_str = f"dataset.{method}(dim='{dim}',skipna=True,keep_attrs=True)"
+    output = eval(eval_str)
+    return output
