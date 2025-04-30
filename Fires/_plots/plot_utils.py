@@ -327,7 +327,7 @@ def plot_dataset_map(
 	# plot data on the map
 	cmap = plt.get_cmap(cmap)
 	cmap.set_under((0, 0, 0, 0))
-	h = ax1.pcolormesh(lons, lats, avg_target_data, transform=datacrs, cmap=cmap, zorder=3, alpha=0.5)
+	h = ax1.pcolormesh(lons, lats, avg_target_data, transform=datacrs, cmap=cmap, zorder=3, alpha=0.5, vmin=0, vmax=8000)
 	
 	# highlight pixel where the maximum value of burned areas has been found and put a circle around it
 	ax1 = highlight_ba(ax=ax1, y=max_val_latitude, x=max_val_longitude, color=color)

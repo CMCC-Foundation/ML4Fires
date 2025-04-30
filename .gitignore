@@ -5,6 +5,7 @@
 *.pyc
 *.txt
 *.zarr
+!config/cmip6_inference.toml
 
 digital_twin_notebooks/img/*.png
 digital_twin_notebooks/*.onnx
