@@ -4,6 +4,8 @@ import os
 import joblib
 import torch
 import pydot
+import datetime
+from cftime import num2date, date2num
 
 from Fires._datasets.torch_dataset import FireDataset
 from Fires._macros.macros import DRIVERS, TARGETS, MAX_HECTARES_100KM, LOGS_DIR, CONFIG
@@ -207,6 +209,8 @@ def process_and_plot_data(data, label, lats, lons, model_name):
 		avg_data_on_lats=avg_on_lats,
 		lowerbound_data=lowerbound,
 		upperbound_data=upperbound,
+		scale_min=scale_min,
+		scale_max=scale_max,
 		lats=lats,
 		lons=lons,
 		title=f'{label} ({model_name.upper()})',
@@ -215,7 +219,14 @@ def process_and_plot_data(data, label, lats, lons, model_name):
     
 @export
 @debug(log=_log)
-def process_and_plot_cmip6infer(data: xr.Dataset, temporal_aggregate_scheme: list|str, label, lats, lons, model_name):
+def process_and_plot_cmip6infer(data: xr.Dataset,
+                                temporal_aggregate_scheme: list|str,
+                                label,
+                                lats,
+                                lons,
+                                model_name,
+                                scale_min: int=None,
+                                scale_max: int=None):
 	"""
 	Process the data and generate plots.
 
@@ -292,6 +303,8 @@ def process_and_plot_cmip6infer(data: xr.Dataset, temporal_aggregate_scheme: lis
 		avg_data_on_lats=avg_on_lats,
 		lowerbound_data=lowerbound,
 		upperbound_data=upperbound,
+        scale_max=scale_max,
+        scale_min=scale_min,
 		lats=lats,
 		lons=lons,
 		title=f'{label} ({model_name.upper()})',
@@ -302,3 +315,129 @@ def aggregate_var(dataset: xr.Dataset, method:str, dim:str='time'):
     eval_str = f"dataset.{method}(dim='{dim}',skipna=True,keep_attrs=True)"
     output = eval(eval_str)
     return output
+
+
+def _get_list_of_dates(year_range):
+    n_prior_days = 8
+    str_dates = [f'{year_range.value[0]}-01-08',f'{year_range.value[1]}-12-24'] #[start_date, end_date] yyyy-mm-dd
+    np_dates = [np.datetime64(f"{str_date}T12:00:00.00") for str_date in str_dates]
+    date = np_dates[0]
+    while date < np_dates[1]:
+        date += np.timedelta64(n_prior_days, "D")
+        np_dates.append(date)
+    date_range_np = [[np_date - np.timedelta64(n_prior_days-1, "D"), np_date] for np_date in np_dates]
+    return date_range_np
+
+
+def _get_cft_times_list(year_range):
+    dates_range_np = _get_list_of_dates(year_range=year_range)
+    
+    dates_range_cfttime = []
+    for single_date_range in dates_range_np:
+        py_date = []
+        for single_np_date in single_date_range:
+            if single_np_date.astype(datetime.datetime).month != 2 and single_np_date.astype(datetime.datetime).day != 29:
+                py_date.append(single_np_date.astype('datetime64[ms]').astype(object))
+            else:
+                single_np_date -= np.timedelta64(1, "D")
+                py_date.append(single_np_date.astype('datetime64[ms]').astype(object))
+        units = "days since 0000-01-01"
+        # calendar_type = "standard" if calendar.isleap(int(str(single_date_range[0])[0:4])) else "noleap"
+        calendar_type = "noleap"
+        numeric_time = date2num(py_date, units, calendar_type, has_year_zero=True)
+        dates_range_cfttime.append(num2date(numeric_time, units, calendar_type, has_year_zero=True))
+    
+    return dates_range_cfttime
+
+
+def _get_file_list(scenario, config, year_range):
+    import os
+    dates_range_np = _get_list_of_dates(year_range=year_range)
+    
+    cmip6_var_filename = {}
+    for var_key, var_value in config.data.drivers.items():
+        cmip6_var_filename[var_key] = []
+        if var_value.type == "dynamic":
+            path_to_files = os.path.join(config.config.base_dir,var_value.cmip6_path.replace("[scenario]", scenario.value))
+            list_of_files = [file for file in os.listdir(path_to_files) if file.endswith(".nc")]
+            for file in list_of_files:
+                date = file.split("_")[-1].split(".")[0].split("-")
+                start_date = np.datetime64(f"{date[0][0:4]}-{date[0][4:6]}-{date[0][6:8]}")
+                end_date = np.datetime64(f"{date[1][0:4]}-{date[1][4:6]}-{date[1][6:8]}")
+                for date_range in dates_range_np:
+                    if min(date_range) >= start_date and max(date_range)<=end_date and f"{path_to_files}{file}" not in cmip6_var_filename[var_key]:
+                        cmip6_var_filename[var_key].append(f"{path_to_files}{file}")
+        else:
+            path_to_file = os.path.join(config.config.base_dir,var_value.cmip6_path.replace("[scenario]", scenario.value))
+            file = [file for file in os.listdir(path_to_file) if file.endswith(".nc")]
+            cmip6_var_filename[var_key] = f"{path_to_file}/{file[0]}"
+    
+    print("Loading the following CMIP6 data files...")
+    for key,value in cmip6_var_filename.items():
+        print(f"{key}: {value}")
+    
+    return cmip6_var_filename, dates_range_np
+            
+def _read_and_aggregate_cmip6(seafire_ds, scenario, config, year_range):
+    
+    cmip6_var_filename, dates_range_np = _get_file_list(scenario=scenario, config=config,year_range=year_range)
+    dates_range_cfttime = _get_cft_times_list(year_range=year_range)
+    var_ds_list = []
+    for var_name, var_file in cmip6_var_filename.items():
+        print(f"Readin and aggregating variables {var_name} with method {config.data.drivers[var_name].aggregation}...")
+        if var_name != "sftlf":
+            ds_var = xr.open_mfdataset(var_file)[var_name].sel(time=slice(str(year_range.value[0]),str(year_range.value[1])))
+            ds_var_time_slices = []
+            for slice_idx, single_range_cfttime in enumerate(dates_range_cfttime):
+                var_time_slice = ds_var.sel(time=slice(single_range_cfttime[0],single_range_cfttime[1]))
+                if var_name == "pr":
+                    var_time_slice = var_time_slice*3600*24 # Convering flux to total precipitation
+                agg_var = aggregate_var(dataset=var_time_slice,method=config.data.drivers[var_name].aggregation,dim='time')
+                ds_var_time_slices.append(agg_var.expand_dims({"time":[dates_range_np[slice_idx][-1]]}))
+            ds_var = xr.concat(ds_var_time_slices, dim="time")
+            ds_var = ds_var.assign_coords({"lon": ((ds_var.lon + 180) % 360) - 180}).sortby("lon") # translating the longitude values        
+        else:
+            ds_var = xr.open_dataset(var_file)[var_name]/100 # divide by 100 to get the same units as training dataset
+        var_ds_list.append(ds_var)
+        
+    ds_var = xr.merge(var_ds_list)
+    ds_var = ds_var.isel(plev=0) # This is selected for the variable which also dependso on the pressure - this selects the sea level pressure
+    print("Translating longitude values...")
+    print("Renaming dimension to interpolate...")
+    ds_var = ds_var.rename({"lon":"longitude", "lat":"latitude"}) # renaming longitude and latitude for regridding
+    print("Re-gridding the data to the grid of seafire datacube")
+    ds_var = ds_var.interp_like(seafire_ds[["longitude","latitude"]])
+    ds_array = ds_var.to_array().transpose("time", "variable", "latitude", "longitude").values
+    
+    return ds_array, ds_var.time.values
+
+def get_cmip6_inference(seafire_ds, run_name, scenario, year_range, config, model):
+    
+    print(f"Reading CMIP6 data for scenario {scenario.value} for year range {year_range.value[0]}-{year_range.value[1]}")
+    ds_array, np_dates = _read_and_aggregate_cmip6(seafire_ds=seafire_ds,scenario=scenario, config=config, year_range=year_range)
+    print(f"Dimensions of the input: ", ds_array.shape)
+                                                               
+    scaler = get_scaler(run_name=run_name)
+    transformed_ds = scaler.transform(torch.as_tensor(ds_array))
+    transformed_ds = transformed_ds.float()
+    transformed_ds = torch.nan_to_num(transformed_ds,nan=0)
+    
+    print("Passing the processed CMIP6 data to the ML model for inference...")
+    prediction_cpu = []
+    with torch.no_grad():
+        for idx in range(transformed_ds.shape[0]):
+            prediction = model(transformed_ds[idx].unsqueeze(0).to('cuda:0'))
+            prediction_cpu.append(prediction.cpu().detach().numpy())
+    predictions = np.vstack(prediction_cpu).squeeze()
+    
+    print("Creating predicton dataset...")
+    ds_predictions = xr.Dataset(data_vars={"global_burned_areas":(("time","latitude","longitude"),predictions)},
+                            coords={"time":("time", np_dates),
+                                    "longitude":("longitude", seafire_ds.longitude.values),
+                                    "latitude":("latitude", seafire_ds.latitude.values)},
+                           attrs={"Details": f"CMIP6 prediction for the scenario {scenario.value} from {year_range.value[0]} to {year_range.value[0]}. Prediction is made for the InterTwin Project.",
+                                  "Processing": "No information",
+                                 "Source": "CMCC Foundation."})
+    ds_predictions = ds_predictions.sortby(variables="time")    
+    
+    return ds_predictions
