@@ -172,3 +172,57 @@ This file configures the PyTorch Lightning training, model setup, and optimizer 
     The model architecture is based on UNet++, but you can replace it easily in model.unetpp.cls.
 
     Optimizer, scheduler, and checkpoint settings are also modular.
+
+
+
+### train.toml
+
+This file controls the experiment directory structure and output management for different models.
+
+#### [run]
+
+| **Key**        | **Description**                                                                               |
+| -------------- | --------------------------------------------------------------------------------------------- |
+| `curr_run_dir` | Lambda function to create the **current run directory** by combining base path and timestamp. |
+
+#### [run.dir]
+
+| **Key**       | **Description**                                                         |
+| ------------- | ----------------------------------------------------------------------- |
+| `transformer` | Directory for experiments using the **ViT model** (Vision Transformer). |
+| `unetpp`      | Directory for experiments using the **UNet++ model**.                   |
+| `unet`        | Directory for experiments using the **UNet model**.                     |
+
+ Notes:
+
+    This configuration helps organize training outputs and keep results separated per model type.
+
+    By adjusting these directories, users can easily manage experiments for different model architectures.
+
+
+    
+### Description of the flow:
+
+#### Configuration Files Block:
+
+    configuration.toml → Data paths, variables, preprocessing config.
+
+    models.toml → TensorFlow-based model settings.
+
+    torch.toml → PyTorch model, loss, optimizer, trainer config.
+
+    train.toml → Run directories, experiment naming.
+
+#### Pipeline Flow Block:
+
+    Data Preparation → Reads and preprocesses data.
+
+    Model Setup → Loads model architecture and weights.
+
+    Trainer Setup → Configures optimizer, scheduler, distributed training.
+
+    Training Execution → Runs the model training.
+
+    Evaluation & Metrics → Calculates and logs metrics.
+
+    Baseline Comparison → Compares model with persistence/climatology.
