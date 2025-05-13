@@ -135,9 +135,24 @@ def setup_model() -> Optional[Unet | UnetPlusPlus]:
 		An instance of the Unet class configured for training.
 	"""
 	
-	# define model loss
-	#model.loss = eval(TORCH_CFG.model.loss)   #torch.nn.modules.loss.BCELoss()
-	# model now hardcoded with the best loss function
+	"""
+	Defines and configures the loss function for the model.
+
+	This block sets up the loss function by retrieving it from a predefined 
+	registry of loss functions. It supports multiple loss types like 
+	WeightedBCE_L1Loss, BCELoss, and L1Loss. The specific loss function and 
+	its arguments are taken from the configuration file.
+
+	The selected loss function is then instantiated and assigned to the 
+	model's `loss` attribute, preparing the model for training.
+
+	Notes
+	-----
+	- The model's loss is now explicitly chosen from the registry.
+	- This design allows flexibility and easy switching between different 
+	loss functions from the configuration.
+
+	"""
 	LOSS_REGISTRY = {
 		"WeightedBCE_L1Loss": WeightedBCE_L1Loss,
 		"BCELoss": torch.nn.BCELoss,
