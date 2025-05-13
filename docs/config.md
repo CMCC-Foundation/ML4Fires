@@ -1,4 +1,5 @@
 ## configuration.toml 
+This configuration file defines the essential settings for wildfire prediction, such as features, data paths, and experiment settings.
 | **Key**        | **Description**                                                                                                          |
 | -------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | `drivers`      | List of **input features** for the model (e.g., LAI, temperature, humidity). Users can **add or remove variables here**. |
