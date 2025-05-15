@@ -311,8 +311,8 @@ def process_and_plot_cmip6infer(data: xr.Dataset,
 		cmap='nipy_spectral_r'
 	)
     
-def aggregate_var(dataset: xr.Dataset, method:str, dim:str='time'):
-    eval_str = f"dataset.{method}(dim='{dim}',skipna=True,keep_attrs=True)"
+def aggregate_var(dataarray: xr.DataArray, method:str, dim:str='time'):
+    eval_str = f"dataarray.{method}(dim='{dim}',skipna=True,keep_attrs=True)"
     output = eval(eval_str)
     return output
 
@@ -320,12 +320,15 @@ def aggregate_var(dataset: xr.Dataset, method:str, dim:str='time'):
 def _get_list_of_dates(year_range):
     n_prior_days = 8
     str_dates = [f'{year_range.value[0]}-01-08',f'{year_range.value[1]}-12-24'] #[start_date, end_date] yyyy-mm-dd
+
     np_dates = [np.datetime64(f"{str_date}T12:00:00.00") for str_date in str_dates]
+    np_all_dates = [np_dates[0]]
     date = np_dates[0]
     while date < np_dates[1]:
         date += np.timedelta64(n_prior_days, "D")
-        np_dates.append(date)
-    date_range_np = [[np_date - np.timedelta64(n_prior_days-1, "D"), np_date] for np_date in np_dates]
+        np_all_dates.append(date)
+    date_range_np = [[np_date - np.timedelta64(n_prior_days-1, "D"), np_date] for np_date in np_all_dates]
+    
     return date_range_np
 
 
@@ -358,19 +361,22 @@ def _get_file_list(scenario, config, year_range):
     for var_key, var_value in config.data.drivers.items():
         cmip6_var_filename[var_key] = []
         if var_value.type == "dynamic":
-            path_to_files = os.path.join(config.config.base_dir,var_value.cmip6_path.replace("[scenario]", scenario.value))
+            if "[scenario]" in var_value.cmip6_path:
+                path_to_files = os.path.join(config.config.base_dir,var_value.cmip6_path.replace("[scenario]", scenario.value))
+            else:
+                path_to_files = os.path.join(config.config.base_dir,var_value.cmip6_path)
             list_of_files = [file for file in os.listdir(path_to_files) if file.endswith(".nc")]
             for file in list_of_files:
                 date = file.split("_")[-1].split(".")[0].split("-")
                 start_date = np.datetime64(f"{date[0][0:4]}-{date[0][4:6]}-{date[0][6:8]}")
                 end_date = np.datetime64(f"{date[1][0:4]}-{date[1][4:6]}-{date[1][6:8]}")
                 for date_range in dates_range_np:
-                    if min(date_range) >= start_date and max(date_range)<=end_date and f"{path_to_files}{file}" not in cmip6_var_filename[var_key]:
-                        cmip6_var_filename[var_key].append(f"{path_to_files}{file}")
+                    if min(date_range) >= start_date and max(date_range)<=end_date and os.path.join(path_to_files,file) not in cmip6_var_filename[var_key]:
+                        cmip6_var_filename[var_key].append(os.path.join(path_to_files,file))
         else:
             path_to_file = os.path.join(config.config.base_dir,var_value.cmip6_path.replace("[scenario]", scenario.value))
             file = [file for file in os.listdir(path_to_file) if file.endswith(".nc")]
-            cmip6_var_filename[var_key] = f"{path_to_file}/{file[0]}"
+            cmip6_var_filename[var_key] = os.path.join(path_to_file,file[0])
     
     print("Loading the following CMIP6 data files...")
     for key,value in cmip6_var_filename.items():
@@ -378,43 +384,45 @@ def _get_file_list(scenario, config, year_range):
     
     return cmip6_var_filename, dates_range_np
             
-def _read_and_aggregate_cmip6(seafire_ds, scenario, config, year_range):
+def _read_and_aggregate_cmip6_data(seafire_ds, scenario, config, year_range):
     
     cmip6_var_filename, dates_range_np = _get_file_list(scenario=scenario, config=config,year_range=year_range)
     dates_range_cfttime = _get_cft_times_list(year_range=year_range)
+    
     var_ds_list = []
     for var_name, var_file in cmip6_var_filename.items():
-        print(f"Readin and aggregating variables {var_name} with method {config.data.drivers[var_name].aggregation}...")
-        if var_name != "sftlf":
-            ds_var = xr.open_mfdataset(var_file)[var_name].sel(time=slice(str(year_range.value[0]),str(year_range.value[1])))
-            ds_var_time_slices = []
-            for slice_idx, single_range_cfttime in enumerate(dates_range_cfttime):
-                var_time_slice = ds_var.sel(time=slice(single_range_cfttime[0],single_range_cfttime[1]))
-                if var_name == "pr":
-                    var_time_slice = var_time_slice*3600*24 # Convering flux to total precipitation
-                agg_var = aggregate_var(dataset=var_time_slice,method=config.data.drivers[var_name].aggregation,dim='time')
-                ds_var_time_slices.append(agg_var.expand_dims({"time":[dates_range_np[slice_idx][-1]]}))
-            ds_var = xr.concat(ds_var_time_slices, dim="time")
-            ds_var = ds_var.assign_coords({"lon": ((ds_var.lon + 180) % 360) - 180}).sortby("lon") # translating the longitude values        
+        print(f"Reading variable {var_name} and aggregating with method {config.data.drivers[var_name].aggregation}...")
+        if config.data.drivers[var_name].aggregation.lower() != "none":
+                ds_var = xr.open_mfdataset(var_file)[var_name]
+                ds_var_time_slices = []
+                for single_range_cfttime in dates_range_cfttime:
+                    var_time_slice = ds_var.sel(time=slice(single_range_cfttime[0],single_range_cfttime[1]))
+                    ds_var_time_slices.append(var_time_slice)
         else:
             ds_var = xr.open_dataset(var_file)[var_name]/100 # divide by 100 to get the same units as training dataset
+        if config.data.drivers[var_name].aggregation.lower() != "none":
+            for slice_idx, single_time_slice in enumerate(ds_var_time_slices):
+                if var_name == "pr":
+                    single_time_slice = single_time_slice*3600*24 # Convering flux to total precipitation
+                ds_var_time_slices[slice_idx] = aggregate_var(dataarray=single_time_slice,method=config.data.drivers[var_name].aggregation,dim='time')
+                ds_var_time_slices[slice_idx] = ds_var_time_slices[slice_idx].expand_dims({"time":[dates_range_np[slice_idx][-1]]})
+
+            ds_var = xr.concat(ds_var_time_slices, dim="time")
+        ds_var = ds_var.assign_coords({"lon": ((ds_var.lon + 180) % 360) - 180}).sortby("lon") # translating the longitude values
+        ds_var = ds_var.rename({"lon":"longitude", "lat":"latitude"}) # renaming longitude and latitude for regridding
+        ds_var = ds_var.interp_like(seafire_ds[["longitude","latitude"]])
         var_ds_list.append(ds_var)
-        
-    ds_var = xr.merge(var_ds_list)
-    ds_var = ds_var.isel(plev=0) # This is selected for the variable which also dependso on the pressure - this selects the sea level pressure
-    print("Translating longitude values...")
-    print("Renaming dimension to interpolate...")
-    ds_var = ds_var.rename({"lon":"longitude", "lat":"latitude"}) # renaming longitude and latitude for regridding
-    print("Re-gridding the data to the grid of seafire datacube")
-    ds_var = ds_var.interp_like(seafire_ds[["longitude","latitude"]])
-    ds_array = ds_var.to_array().transpose("time", "variable", "latitude", "longitude").values
+
+    merged_ds_var = xr.merge(var_ds_list)
+    merged_ds_var = merged_ds_var.isel(plev=0) # This is selected for the variable which also dependso on the pressure - this selects the sea level pressure
     
-    return ds_array, ds_var.time.values
+    ds_array = merged_ds_var.to_array().transpose("time", "variable", "latitude", "longitude").values
+    return ds_array, merged_ds_var.time.values
 
 def get_cmip6_inference(seafire_ds, run_name, scenario, year_range, config, model):
     
     print(f"Reading CMIP6 data for scenario {scenario.value} for year range {year_range.value[0]}-{year_range.value[1]}")
-    ds_array, np_dates = _read_and_aggregate_cmip6(seafire_ds=seafire_ds,scenario=scenario, config=config, year_range=year_range)
+    ds_array, np_dates = _read_and_aggregate_cmip6_data(seafire_ds=seafire_ds,scenario=scenario, config=config, year_range=year_range)
     print(f"Dimensions of the input: ", ds_array.shape)
                                                                
     scaler = get_scaler(run_name=run_name)
