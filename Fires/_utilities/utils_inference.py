@@ -254,29 +254,24 @@ def process_and_plot_cmip6infer(data: xr.Dataset,
 			print(f"Is DataArray - AVG: {avg_on_time.shape} STD: {std_on_time.shape}")
 		else:
             # Check that parameter temporal_aggregate_scheme is not an str and is not an empty list
-			assert isinstance(temporal_aggregate_scheme, list), "For multi-scale aggregate, a list of aggregation type is required."
+			assert isinstance(temporal_aggregate_scheme, dict), "For multi-scale aggregate, a dictionary with keys 'monthly,  'year' and 'decadal' is required."
 			assert len(temporal_aggregate_scheme) > 0, "For multi-scale aggregate, more than one aggregate methods should be provided."
 			years_in_ds = np.unique(data.time.dt.year)
-            # The first item in temporal_aggregate_scheme should not be a None or empty.
-			assert temporal_aggregate_scheme[0].lower() != "none", "None cannot be given as an aggregate method for monthly scale."
-			assert temporal_aggregate_scheme[0] != "", "'' cannot be given as an aggregate method."
+            
+            # Monthly aggregate
+            
             # Get aggreagated on monthly scale for the years in the dataset.
             # Default date is in start of the month.
-			monthly_aggregate = eval(f"data.resample(time='1M',skipna=True).{temporal_aggregate_scheme[0]}()")
-
-			# Check that a second entry is given for the yealy aggregate and is not a none or empty
-			assert temporal_aggregate_scheme[1].lower() != "none", "None cannot be given as an aggregate method for yearly scale."
-			assert len(temporal_aggregate_scheme) > 1, "There should be more than 1 aggregate method for yearly aggregation."
+			monthly_aggregate = eval(f"data.resample(time='{temporal_aggregate_scheme['monthly'][1]}',skipna=True).{temporal_aggregate_scheme['monthly'][0]}()")
+            
+            # Aggregate over the year
             # Aggregate on the year
-			yearly_aggregate = eval(f"monthly_aggregate.resample(time='1Y',skipna=True).{temporal_aggregate_scheme[1]}()")
+			yearly_aggregate = eval(f"monthly_aggregate.resample(time='1Y',skipna=True).{temporal_aggregate_scheme['yearly']}()")
             
 			if len(years_in_ds) > 1: # check if there are more than one year in the dataset - decadal scale prediction
 				# If there are more than on year, then there should be an aggregate method in the list which is not none or empty
-				assert len(temporal_aggregate_scheme) > 2 , "There should be more than aggregate method for multi-scale aggregation."
-				assert temporal_aggregate_scheme[2].lower() != "none", "None cannot be given as an aggregate method for decadal scale."
-				assert temporal_aggregate_scheme[2] != "", "'' cannot be given as an aggregate method for decadal scale."
                 # Do decadal aggregate
-				avg_on_time = eval(f"yearly_aggregate.{temporal_aggregate_scheme[2]}(dim='time',skipna=True)")
+				avg_on_time = eval(f"yearly_aggregate.{temporal_aggregate_scheme['decadal']}(dim='time',skipna=True)")
 				std_on_time = yearly_aggregate.std(dim='time', skipna=True).data
 			else:
                 # No decadal aggregate in case you only 
