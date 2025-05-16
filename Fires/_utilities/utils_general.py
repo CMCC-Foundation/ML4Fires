@@ -78,3 +78,12 @@ def _process_kwargs(kwargs):
             processed_kwargs[key] = value
 
     return processed_kwargs
+
+def parse_and_load_module(input):
+    func, func_kwargs =separate_kwargs(input=input)
+    function_ins = call_instance_of_function(
+					**process_call_string(input_string=func),
+					**func_kwargs,
+				)
+    
+    return function_ins
