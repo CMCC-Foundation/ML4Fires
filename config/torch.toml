@@ -10,7 +10,7 @@ strategy = "DDPStrategy()"
 	[model.loss]
 	#target = "torch.nn::L1Loss"
 	#target = "torch.nn::BCELoss"
-	target = "Fires._utilies.metrics::WeightedBCE_L1Loss"
+	target = "Fires._utilities.metrics::WeightedBCE_L1Loss"
 	weight_bce = 0.3
 	weight_l1 = 0.7
 
