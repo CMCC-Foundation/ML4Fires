@@ -66,7 +66,6 @@ from Fires._utilities.cli_args_parser import CLIParser
 from Fires._utilities.configuration import load_global_config
 from Fires._utilities.decorators import debug
 from Fires._utilities.logger import Logger as logger
-from Fires._utilities.metrics import TverskyLoss, FocalLoss, WeightedBCE_L1Loss
 from Fires._utilities.utils_general import check_backend, parse_and_load_module
 from Fires._utilities.utils_trainer import get_trainer_loggers, get_itwinai_loggers, get_callbacks 
 
@@ -153,18 +152,8 @@ def setup_model() -> Optional[Unet | UnetPlusPlus]:
 	loss functions from the configuration.
 
 	"""
-	# LOSS_REGISTRY = {
-	# 	"WeightedBCE_L1Loss": WeightedBCE_L1Loss,
-	# 	"BCELoss": torch.nn.BCELoss,
-	# 	"L1Loss": torch.nn.L1Loss
-	# }
-
-	# loss_cls = LOSS_REGISTRY[TORCH_CFG.model.loss]
-	# loss_args = TORCH_CFG.model.loss_args or {}
 	model.loss = parse_and_load_module(TORCH_CFG.model.loss)
 
-	#model.loss = WeightedBCE_L1Loss(weight_bce=0.3, weight_l1=0.7)
-	
 	_log.info(f" | Model: \n\n {model}")
 	
 	return model
