@@ -4,6 +4,9 @@ import os
 import joblib
 import torch
 import pydot
+import matplotlib.pyplot as plt
+import cartopy.crs as ccrs
+import cartopy.feature as cfeature
 
 from Fires._datasets.torch_dataset import FireDataset
 from Fires._macros.macros import DRIVERS, TARGETS, MAX_HECTARES_100KM, LOGS_DIR, CONFIG
@@ -209,3 +212,98 @@ def process_and_plot_data(data, label, lats, lons, model_name):
 		title=f'{label} ({model_name.upper()})',
 		cmap='nipy_spectral_r'
 	)
+    
+
+@export
+@debug(log=_log)
+def process_and_plot_data_all(data, label, lats, lons, model_name):
+	"""
+	Process the data and generate plots with the average of 20 years.
+
+	Parameters
+	----------
+	data : xarray.DataArray or np.ndarray
+		Data to process; can be an xarray.DataArray for real data or a numpy.ndarray for predictions.
+	label : str
+		Label to use in the plot title.
+	lats : np.ndarray
+		Array of latitudes.
+	lons : np.ndarray
+		Array of longitudes.
+	model_name : str
+		Name of the model, used in the plot title.
+	"""
+
+	if isinstance(data, xr.DataArray):
+		avg_on_time = data.mean(dim='time', skipna=True).data
+		std_on_time = data.std(dim='time', skipna=True).data
+	else:
+		avg_on_time = np.nanmean(data, axis=0)[0, ...]
+		std_on_time = np.nanstd(data, axis=0)[0, ...]
+
+	# Aggregate data
+	avg_descaled, avg_on_lats, _ = compute_aggregated_data(data=avg_on_time)
+	_, std_on_lats, _ = compute_aggregated_data(data=std_on_time)
+
+	# Compute upper and lower boundaries
+	upperbound, lowerbound = up_and_lower_bounds(avg_value=avg_on_lats, std_value=std_on_lats)
+
+	# Plot data
+	plot_dataset_map(
+		avg_target_data=avg_descaled,
+		avg_data_on_lats=avg_on_lats,
+		lowerbound_data=lowerbound,
+		upperbound_data=upperbound,
+		lats=lats,
+		lons=lons,
+		title=f'{label} ({model_name.upper()})',
+		cmap='nipy_spectral_r'
+	)
+
+    
+@export
+@debug(log=_log)
+def process_and_plot_data_all_sum(data, label, lats, lons, model_name):
+    """
+    Process the data and generate plots (sum of all the 20 years).
+
+    Parameters
+    ----------
+    data : xarray.DataArray or np.ndarray
+        Data to process.
+    label : str
+        Plot title label.
+    lats : np.ndarray
+        Latitudes.
+    lons : np.ndarray
+        Longitudes.
+    model_name : str
+        Model name for the plot title.
+    """
+
+    if isinstance(data, xr.DataArray):
+        sum_on_time = data.sum(dim='time', skipna=True).data
+        std_on_time = data.std(dim='time', skipna=True).data
+    else:
+        sum_on_time = np.nansum(data, axis=0)[0, ...]
+        std_on_time = np.nanstd(data, axis=0)[0, ...]
+
+    # Aggregate data (sum instead of mean)
+    sum_descaled, sum_on_lats, _ = compute_aggregated_data(data=sum_on_time)
+    _, std_on_lats, _ = compute_aggregated_data(data=std_on_time)
+
+    # Compute upper and lower boundaries
+    upperbound, lowerbound = up_and_lower_bounds(avg_value=sum_on_lats, std_value=std_on_lats)
+
+    # Plot
+    plot_dataset_map(
+        avg_target_data=sum_descaled,
+        avg_data_on_lats=sum_on_lats,
+        lowerbound_data=lowerbound,
+        upperbound_data=upperbound,
+        lats=lats,
+        lons=lons,
+        title=f'{label} ({model_name.upper()})',
+        cmap='nipy_spectral_r'
+    )
+

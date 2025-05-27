@@ -66,8 +66,7 @@ from Fires._utilities.cli_args_parser import CLIParser
 from Fires._utilities.configuration import load_global_config
 from Fires._utilities.decorators import debug
 from Fires._utilities.logger import Logger as logger
-from Fires._utilities.metrics import TverskyLoss, FocalLoss, WeightedBCE_L1Loss
-from Fires._utilities.utils_general import check_backend
+from Fires._utilities.utils_general import check_backend, parse_and_load_module
 from Fires._utilities.utils_trainer import get_trainer_loggers, get_itwinai_loggers, get_callbacks 
 
 # define logger
@@ -135,21 +134,26 @@ def setup_model() -> Optional[Unet | UnetPlusPlus]:
 		An instance of the Unet class configured for training.
 	"""
 	
-	# define model loss
-	#model.loss = eval(TORCH_CFG.model.loss)   #torch.nn.modules.loss.BCELoss()
-	# model now hardcoded with the best loss function
-	LOSS_REGISTRY = {
-		"WeightedBCE_L1Loss": WeightedBCE_L1Loss,
-		"BCELoss": torch.nn.BCELoss,
-		"L1Loss": torch.nn.L1Loss
-	}
+	"""
+	Defines and configures the loss function for the model.
 
-	loss_cls = LOSS_REGISTRY[TORCH_CFG.model.loss]
-	loss_args = TORCH_CFG.model.loss_args or {}
-	model.loss = loss_cls(**loss_args)
+	This block sets up the loss function by retrieving it from a predefined 
+	registry of loss functions. It supports multiple loss types like 
+	WeightedBCE_L1Loss, BCELoss, and L1Loss. The specific loss function and 
+	its arguments are taken from the configuration file.
 
-	#model.loss = WeightedBCE_L1Loss(weight_bce=0.3, weight_l1=0.7)
-	
+	The selected loss function is then instantiated and assigned to the 
+	model's `loss` attribute, preparing the model for training.
+
+	Notes
+	-----
+	- The model's loss is now explicitly chosen from the registry.
+	- This design allows flexibility and easy switching between different 
+	loss functions from the configuration.
+
+	"""
+	model.loss = parse_and_load_module(TORCH_CFG.model.loss)
+
 	_log.info(f" | Model: \n\n {model}")
 	
 	return model

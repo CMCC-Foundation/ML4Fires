@@ -21,6 +21,7 @@
 1. [Library Structure](./docs/library_structure.md)
 1. [Fires](./docs/fires.md)
 1. [Run the code on a LSF cluster (with GPUs)](./docs/run_on_lsf_cluster.md)
+1. [Configuration folder](./docs/config.md)
 
 ## Acknowledgment
 
