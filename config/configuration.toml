@@ -43,8 +43,8 @@ seed = 346
 # ------------------------------------------------------------------
 
 [cmip6]
-#rse = "VEGA-DCACHE"
-rse = ""
+rse = "VEGA-DCACHE"
+#rse = ""
 scope = "abennasser"
 model = "CMCC-ESM2"
 base_dir = "/home/jovyan/data/"  # Used only for local
