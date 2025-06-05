@@ -1,7 +1,7 @@
 [data]
 
 	[data.features]
-	drivers = ['lai', 'lst_day', 'rel_hum', 'sst', 't2m_min', 'tp', 'lsm']
+	drivers = ['lai', 'lst_day', 'rel_hum', 'sst', 't2m_min', 'tp', 'lsm','hur']
 	targets = ['fcci_ba']
 	landsea_mask = ['lsm']
 	
@@ -19,13 +19,13 @@
 [dir]
 LOGS_DIR = "os.path.join(CURR_DIR, 'logs')"
 EXPS_DIR = "os.path.join(CURR_DIR, 'experiments')"
-DATA_DIR = "/ceph/hpc/home/ciangottinid/ML4Fires_demo" # "os.path.join(CURR_DIR, 'data')"
+DATA_DIR = "/home/jovyan/work/ML4Fires_demo" # "os.path.join(CURR_DIR, 'data')"
 SCALER_DIR = "os.path.join(DATA_DIR, 'scaler')"
 
 [mlflow]
 TRACKING_INSECURE_TLS = 'true'
 TRACKING_URI = "https://mlflow.intertwin.fedcloud.eu/"
-EXPERIMENT_NAME = "ML4Fires_Experiment"
+EXPERIMENT_NAME = "ML4Fires_Experiment_pourya"
 
 [toml]
 tflow_fname = "tflow.toml"
@@ -37,3 +37,51 @@ seed = 346
 
 	[utils.datetime]
 	today = "str(dt.now()).split('.')[0].replace('-', '').replace(':', '').replace(' ', '_')"
+    
+# ------------------------------------------------------------------
+# CMIP6 data configuration: 
+# ------------------------------------------------------------------
+
+[cmip6]
+#rse = "VEGA-DCACHE"
+rse = ""
+scope = "abennasser"
+model = "CMCC-ESM2"
+base_dir = "/home/jovyan/data/"  # Used only for local
+
+
+
+[cmip6.drivers]
+
+[cmip6.drivers.lai]
+type = "dynamic"
+cmip6_path = "lai/[scenario]"
+
+[cmip6.drivers.lst_day]
+type = "dynamic"
+cmip6_path = "lst_day/[scenario]"
+
+[cmip6.drivers.rel_hum]
+type = "dynamic"
+cmip6_path = "rel_hum/[scenario]"
+
+[cmip6.drivers.sst]
+type = "dynamic"
+cmip6_path = "sst/[scenario]"
+
+[cmip6.drivers.t2m_min]
+type = "dynamic"
+cmip6_path = "t2m_min/[scenario]"
+
+[cmip6.drivers.tp]
+type = "dynamic"
+cmip6_path = "tp/[scenario]"
+
+[cmip6.drivers.hur]
+type = "dynamic"
+cmip6_path = "hur/[scenario]"
+
+#[cmip6.drivers.lsm]
+#type = "static"
+#cmip6_path = "lsm"
+

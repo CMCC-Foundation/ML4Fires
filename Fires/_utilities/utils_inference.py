@@ -6,13 +6,24 @@ import torch
 import pydot
 import datetime
 from cftime import num2date, date2num
-
+import toml
 from Fires._datasets.torch_dataset import FireDataset
 from Fires._macros.macros import DRIVERS, TARGETS, MAX_HECTARES_100KM, LOGS_DIR, CONFIG
 from Fires._plots.plot_utils import plot_dataset_map
 from Fires._scalers.standard import StandardScaler
 from Fires._utilities.logger import Logger as logger
 from Fires._utilities.decorators import debug, export
+import munch
+from types import SimpleNamespace
+
+os.environ['RUCIO_CONFIG'] = '/home/jovyan/work/ML4Fires/rucio.cfg'
+
+
+from typing import Any
+from rucio.client.client import Client
+from types import SimpleNamespace
+#from rucio.client.uploadclient import UploadClient
+rucio = Client()
 
 # define logger
 _log = logger(log_dir=LOGS_DIR).get_logger("Inference Utilities")
@@ -348,36 +359,145 @@ def _get_cft_times_list(year_range):
     return dates_range_cfttime
 
 
+
+
+
 def _get_file_list(scenario, config, year_range):
-    import os
-    dates_range_np = _get_list_of_dates(year_range=year_range)
     
+    dates_range_np = make_8day_windows(year_range)
     cmip6_var_filename = {}
+
     for var_key, var_value in config.data.drivers.items():
         cmip6_var_filename[var_key] = []
         if var_value.type == "dynamic":
-            if "[scenario]" in var_value.cmip6_path:
-                path_to_files = os.path.join(config.config.base_dir,var_value.cmip6_path.replace("[scenario]", scenario.value))
-            else:
-                path_to_files = os.path.join(config.config.base_dir,var_value.cmip6_path)
+            cmip6_path = var_value.cmip6_path.replace("[scenario]", scenario)
+            path_to_files = os.path.join(config.base_dir, cmip6_path)
             list_of_files = [file for file in os.listdir(path_to_files) if file.endswith(".nc")]
             for file in list_of_files:
                 date = file.split("_")[-1].split(".")[0].split("-")
-                start_date = np.datetime64(f"{date[0][0:4]}-{date[0][4:6]}-{date[0][6:8]}")
-                end_date = np.datetime64(f"{date[1][0:4]}-{date[1][4:6]}-{date[1][6:8]}")
+                start_date = np.datetime64(f"{date[0][:4]}-{date[0][4:6]}-{date[0][6:]}")
+                end_date = np.datetime64(f"{date[1][:4]}-{date[1][4:6]}-{date[1][6:]}")
                 for date_range in dates_range_np:
-                    if min(date_range) >= start_date and max(date_range)<=end_date and os.path.join(path_to_files,file) not in cmip6_var_filename[var_key]:
-                        cmip6_var_filename[var_key].append(os.path.join(path_to_files,file))
+                    if min(date_range) >= start_date and max(date_range) <= end_date:
+                        full_path = os.path.join(path_to_files, file)
+                        if full_path not in cmip6_var_filename[var_key]:
+                            cmip6_var_filename[var_key].append(full_path)
         else:
-            path_to_file = os.path.join(config.config.base_dir,var_value.cmip6_path.replace("[scenario]", scenario.value))
-            file = [file for file in os.listdir(path_to_file) if file.endswith(".nc")]
-            cmip6_var_filename[var_key] = os.path.join(path_to_file,file[0])
-    
-    print("Loading the following CMIP6 data files...")
-    for key,value in cmip6_var_filename.items():
+            path_to_file = os.path.join(config.base_dir, var_value.cmip6_path.replace("[scenario]", scenario))
+            file = [f for f in os.listdir(path_to_file) if f.endswith(".nc")]
+            cmip6_var_filename[var_key] = [os.path.join(path_to_file, file[0])]
+
+    print("Loading the following CMIP6 data files from LOCAL:")
+    for key, value in cmip6_var_filename.items():
         print(f"{key}: {value}")
-    
+
     return cmip6_var_filename, dates_range_np
+
+
+
+def make_8day_windows(year_range: tuple[int, int]) -> np.ndarray:
+    start = np.datetime64(f"{year_range[0]}-01-01")
+    end   = np.datetime64(f"{year_range[1]}-12-31")
+    windows = []
+    current = start
+    one_day = np.timedelta64(1, "D")
+    eight_days = np.timedelta64(8, "D")
+
+    while current <= end:
+        window_end = min(current + eight_days - one_day, end)
+        windows.append((current, window_end))
+        current = current + eight_days
+
+    return np.array(windows, dtype="datetime64[ns]")
+
+
+def get_cmip6_files_rucio(scope, rse, model_name, scenario, year_range, drivers):
+    rucio = Client()
+    windows = make_8day_windows(year_range)
+    cmip6_var_files: dict[str, list[str]] = {}
+
+    for var, cfg in drivers.items():
+        cmip6_var_files[var] = []
+        pattern = f"{var}_*_{model_name}_{scenario}_*.nc" if scenario else f"{var}_*_{model_name}_*.nc"
+        dids = list(rucio.list_dids(scope=scope, filters={"name": pattern}, did_type="file"))
+
+        reps = rucio.list_replicas(
+            dids=[{"scope": scope, "name": d} for d in dids],
+            schemes=["file"],
+            rse_expression=rse
+        )
+
+        paths = [
+            rep["rses"][rse][0].replace("file://localhost", "")
+            for rep in reps if rse in rep["rses"]
+        ]
+
+        if cfg.type == "dynamic":
+            for p in sorted(paths):
+                fn = os.path.basename(p)
+                datestr = fn.rsplit("_", 1)[-1].removesuffix(".nc")
+                start_s, end_s = datestr.split("-")
+                start = np.datetime64(f"{start_s[:4]}-{start_s[4:6]}-{start_s[6:]}")
+                end   = np.datetime64(f"{end_s[:4]}-{end_s[4:6]}-{end_s[6:]}")
+                if any((w[0] >= start and w[1] <= end) for w in windows):
+                    cmip6_var_files[var].append(p)
+        else:
+            if paths:
+                cmip6_var_files[var] = [paths[0]]
+            else:
+                raise FileNotFoundError(f"No static file found for variable '{var}' with pattern {pattern}")
+
+    print("Loading the following CMIP6 data files from RUCIO:")
+    for var, files in cmip6_var_files.items():
+        print(f"{var}: {files}")
+
+    return cmip6_var_files, windows
+
+
+
+
+
+def load_cmip6_files_from_config(scenario: str, year_range: tuple[int, int]):
+    # Load both configs
+    server_config = munch.munchify(toml.load("/home/jovyan/work/ML4Fires/config/configuration.toml"))
+    local_config = munch.munchify(toml.load("/home/jovyan/work/ML4Fires/config/cmip6_inference.toml"))
+
+    # Check if we're using server or local
+    rse = server_config.cmip6.get("rse", "")
+
+    if rse == "":
+        # Use local config from cmip6_inference.toml
+        base_dir = local_config.config.get("base_dir", "")
+        drivers_cfg = {}
+        for var, info in local_config.data.drivers.items():
+            drivers_cfg[var] = SimpleNamespace(
+                type=info["type"],
+                cmip6_path=info["cmip6_path"]
+            )
+
+        config = SimpleNamespace(
+            base_dir=base_dir,
+            data=SimpleNamespace(drivers=drivers_cfg)
+        )
+
+        return _get_file_list(scenario, config, year_range)
+
+    else:
+        # Use Rucio logic from configuration.toml
+        scope = server_config.cmip6.get("scope", "")
+        model = server_config.cmip6.get("model", "")
+        base_dir = server_config.cmip6.get("base_dir", "")
+        drivers_cfg = {}
+        for var, info in server_config.cmip6.drivers.items():
+            drivers_cfg[var] = SimpleNamespace(
+                type=info["type"],
+                cmip6_path=info["cmip6_path"]
+            )
+
+        return get_cmip6_files_rucio(scope, rse, model, scenario, year_range, drivers_cfg)
+
+
+
             
 def _read_and_aggregate_cmip6_data(seafire_ds, scenario, config, year_range):
     
