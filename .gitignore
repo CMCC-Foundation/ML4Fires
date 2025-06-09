@@ -5,6 +5,7 @@
 *.pyc
 *.txt
 *.zarr
+*.zip
 
 digital_twin_notebooks/img/*.png
 digital_twin_notebooks/*.onnx
