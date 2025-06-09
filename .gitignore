@@ -21,7 +21,7 @@ logs
 lightning_logs
 requirements_files
 config
-ML4Fires_copy/
+ML4Fires_copy
 
 # environments
 ml4fires_old_3_10
