@@ -1,35 +1,35 @@
 [config]
-	base_dir="/home/jovyan/data/"
+	base_dir="/dcache/sling.si/projects/intertwin/cmip6_scenarios/"
+    cmip6_scenario="ssp126"
 [data]
 	[data.drivers]
 		[data.drivers.lai]
-			cmip6_path="CMIP6/ScenarioMIP/CMCC/CMCC-ESM2/[scenario]/r1i1p1f1/Eday/lai/gn/v20210126/"
+			cmip6_path="lai/[scenario]"
 			aggregation="median"
 			seafire_name="lai"
 			type="dynamic"
-		[data.drivers.tas]
-			cmip6_path="CMIP6/ScenarioMIP/CMCC/CMCC-ESM2/[scenario]/r1i1p1f1/day/tas/gn/v20210126/"
+		[data.drivers.tasmax]
+			cmip6_path="tasmax/[scenario]"
 			aggregation="median"
 			seafire_name="lst_day"
 			type="dynamic"
 		[data.drivers.hur]
-			cmip6_path="CMIP6/ScenarioMIP/CMCC/CMCC-ESM2/[scenario]/r1i1p1f1/day/hur/gn/v20210126/"
+			cmip6_path="hur/[scenario]"
 			aggregation="median"
 			seafire_name="rel_hum"
 			type="dynamic"
 		[data.drivers.tasmin]
-			cmip6_path="CMIP6/ScenarioMIP/CMCC/CMCC-ESM2/[scenario]/r1i1p1f1/day/tasmin/gn/v20210126/"
+			cmip6_path="tasmin/[scenario]"
 			aggregation="median"
 			seafire_name="t2m_min"
 			type="dynamic"
 		[data.drivers.pr]
-			cmip6_path="CMIP6/ScenarioMIP/CMCC/CMCC-ESM2/[scenario]/r1i1p1f1/day/pr/gn/v20210126/"
-			aggregation="median"
+			cmip6_path="pr/[scenario]"
+			aggregation="sum"
 			seafire_name="pr"
 			type="dynamic"
 		[data.drivers.sftlf]
-			cmip6_path="CMIP6/ScenarioMIP/CMCC/CMCC-ESM2/ssp126/r1i1p1f1/fx/sftlf/gn/v20210126/"
+			cmip6_path="sftlf/"
 			aggregation="None"
 			seafire_name="lsm"
 			type="static"
-
