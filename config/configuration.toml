@@ -43,45 +43,13 @@ seed = 346
 # ------------------------------------------------------------------
 
 [cmip6]
-#rse = "VEGA-DCACHE"
-rse = ""
+rse = "VEGA-DCACHE"
+#rse = ""
 scope = "abennasser"
 model = "CMCC-ESM2"
 base_dir = "/dcache/sling.si/projects/intertwin/cmip6_scenarios/"  # Used only for local
 
 
-
-[cmip6.drivers]
-
-[cmip6.drivers.lai]
-type = "dynamic"
-cmip6_path = "lai/[scenario]"
-
-[cmip6.drivers.lst_day]
-type = "dynamic"
-cmip6_path = "lst_day/[scenario]"
-
-[cmip6.drivers.rel_hum]
-type = "dynamic"
-cmip6_path = "rel_hum/[scenario]"
-
-[cmip6.drivers.sst]
-type = "dynamic"
-cmip6_path = "sst/[scenario]"
-
-[cmip6.drivers.t2m_min]
-type = "dynamic"
-cmip6_path = "t2m_min/[scenario]"
-
-[cmip6.drivers.tp]
-type = "dynamic"
-cmip6_path = "tp/[scenario]"
-
-[cmip6.drivers.hur]
-type = "dynamic"
-cmip6_path = "hur/[scenario]"
-
-#[cmip6.drivers.lsm]
-#type = "static"
-#cmip6_path = "lsm"
-
+[paths]
+server_config = "/ceph/hpc/home/ciangottinid/ML4Fires/config/configuration.toml"
+local_config = "/ceph/hpc/home/ciangottinid/ML4Fires/config/cmip6_inference.toml"

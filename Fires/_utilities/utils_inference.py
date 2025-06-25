@@ -17,7 +17,7 @@ from Fires._utilities.decorators import debug, export
 import munch
 
 
-os.environ['RUCIO_CONFIG'] = '/ceph/hpc/home/ciangottinid/ML4Fires/rucio.cfg'
+#os.environ['RUCIO_CONFIG'] = '/ceph/hpc/home/ciangottinid/ML4Fires/rucio.cfg'
 
 import toml
 import munch            
@@ -230,96 +230,129 @@ def process_and_plot_data(data, label, lats, lons, model_name):
 		title=f'{label} ({model_name.upper()})',
 		cmap='nipy_spectral_r'
 	)
-    
+
 @export
 @debug(log=_log)
 def process_and_plot_cmip6infer(data: xr.Dataset,
-                                temporal_aggregate_scheme: list|str,
+                                temporal_aggregate_scheme: list | str,
                                 label,
                                 lats,
                                 lons,
                                 model_name,
-                                scale_min: int=None,
-                                scale_max: int=None):
-	"""
-	Process the data and generate plots.
+                                scale_min: int = None,
+                                scale_max: int = None,
+                                lat_min: float = -60):
+    """
+    Process the data and generate plots, excluding latitudes below lat_min.
 
-	Parameters
-	----------
-	data : xarray.DataArray or np.ndarray
-		Data to process; can be an xarray.DataArray for real data or a numpy.ndarray for predictions.
-	label : str
-		Label to use in the plot title.
-	lats : np.ndarray
-		Array of latitudes.
-	lons : np.ndarray
-		Array of longitudes.
-	model_name : str
-		Name of the model, used in the plot title.
+    Parameters
+    ----------
+    data : xarray.DataArray or np.ndarray
+        Data to process.
+    temporal_aggregate_scheme : list | str
+        Aggregation strategy.
+    label : str
+        Label for the plot title.
+    lats : np.ndarray
+        Latitude array.
+    lons : np.ndarray
+        Longitude array.
+    model_name : str
+        Name of the model for the title.
+    scale_min : int
+        Plot color scale minimum.
+    scale_max : int
+        Plot color scale maximum.
+    lat_min : float
+        Minimum latitude to include (default -60 to remove South Pole).
+    """
 
-	"""
-	
-	# Verify data type and compute mean and standard deviation along time axis
-	if isinstance(data, xr.DataArray):
-		if temporal_aggregate_scheme == "mean":
-            # In case when simply wants to compute the average on the whole dataset 
-			avg_on_time = data.mean(dim='time', skipna=True).data
-			std_on_time = data.std(dim='time', skipna=True).data
-			print(f"Is DataArray - AVG: {avg_on_time.shape} STD: {std_on_time.shape}")
-		else:
-            # Check that parameter temporal_aggregate_scheme is not an str and is not an empty list
-			assert isinstance(temporal_aggregate_scheme, dict), "For multi-scale aggregate, a dictionary with keys 'monthly,  'year' and 'decadal' is required."
-			assert len(temporal_aggregate_scheme) > 0, "For multi-scale aggregate, more than one aggregate methods should be provided."
-			years_in_ds = np.unique(data.time.dt.year)
-            
+  
+    # Temporal aggregation
+    if isinstance(data, xr.DataArray):
+        if temporal_aggregate_scheme == "mean":
+            avg_on_time = data.mean(dim='time', skipna=True).data
+            std_on_time = data.std(dim='time', skipna=True).data
+            print(f"Is DataArray - AVG: {avg_on_time.shape} STD: {std_on_time.shape}")
+        else:
+            assert isinstance(temporal_aggregate_scheme, dict), "For multi-scale aggregate, a dictionary with keys 'monthly', 'yearly', and 'decadal' is required."
+            assert len(temporal_aggregate_scheme) > 0, "Provide at least one aggregate method."
+
+            years_in_ds = np.unique(data.time.dt.year)
+
             # Monthly aggregate
-            
-            # Get aggreagated on monthly scale for the years in the dataset.
-            # Default date is in start of the month.
-			monthly_aggregate = eval(f"data.resample(time='{temporal_aggregate_scheme['monthly'][1]}',skipna=True).{temporal_aggregate_scheme['monthly'][0]}()")
-            
-            # Aggregate over the year
-            # Aggregate on the year
-			yearly_aggregate = eval(f"monthly_aggregate.resample(time='1Y',skipna=True).{temporal_aggregate_scheme['yearly']}()")
-            
-			if len(years_in_ds) > 1: # check if there are more than one year in the dataset - decadal scale prediction
-				# If there are more than on year, then there should be an aggregate method in the list which is not none or empty
-                # Do decadal aggregate
-				avg_on_time = eval(f"yearly_aggregate.{temporal_aggregate_scheme['decadal']}(dim='time',skipna=True)")
-				std_on_time = yearly_aggregate.std(dim='time', skipna=True).data
-			else:
-                # No decadal aggregate in case you only 
-				avg_on_time = yearly_aggregate 
-				std_on_time = yearly_aggregate.std(dim='time', skipna=True).data
-	else:
-		if temporal_aggregate_scheme == ["mean","mean","mean"]:
-			avg_on_time = np.nanmean(data, axis=0)
-			std_on_time = np.nanstd(data, axis=0)
-			print(f"NOT DataArray - AVG: {avg_on_time.shape} STD: {std_on_time.shape}")
-		else:
-			raise Exception("Different averaging on different time scales on works if prediction is provided in xr.DataArray format.")
+            monthly_aggregate = eval(
+                f"data.resample(time='{temporal_aggregate_scheme['monthly'][1]}', skipna=True).{temporal_aggregate_scheme['monthly'][0]}()"
+            )
 
-	# Aggregate data
-	avg_descaled, avg_on_lats, _ = compute_aggregated_data(data=avg_on_time)
-	_, std_on_lats, _ = compute_aggregated_data(data=std_on_time)
+            # Yearly aggregate
+            yearly_aggregate = eval(
+                f"monthly_aggregate.resample(time='1Y', skipna=True).{temporal_aggregate_scheme['yearly']}()"
+            )
 
-	# Compute upper and lower boundaries
-	upperbound, lowerbound = up_and_lower_bounds(avg_value=avg_on_lats, std_value=std_on_lats)
+            if len(years_in_ds) > 1:
+                avg_on_time = eval(
+                    f"yearly_aggregate.{temporal_aggregate_scheme['decadal']}(dim='time', skipna=True)"
+                )
+                std_on_time = yearly_aggregate.std(dim='time', skipna=True).data
+            else:
+                avg_on_time = yearly_aggregate
+                std_on_time = yearly_aggregate.std(dim='time', skipna=True).data
+    else:
+        if temporal_aggregate_scheme == ["mean", "mean", "mean"]:
+            avg_on_time = np.nanmean(data, axis=0)
+            std_on_time = np.nanstd(data, axis=0)
+            print(f"NOT DataArray - AVG: {avg_on_time.shape} STD: {std_on_time.shape}")
+        else:
+            raise Exception("Different averaging works only if predictions are in xr.DataArray format.")
 
-	# Plot data
-	plot_dataset_map(
-		avg_target_data=avg_descaled,
-		avg_data_on_lats=avg_on_lats,
-		lowerbound_data=lowerbound,
-		upperbound_data=upperbound,
+   
+    # Spatial aggregation
+    avg_descaled, avg_on_lats, _ = compute_aggregated_data(data=avg_on_time)
+    _, std_on_lats, _ = compute_aggregated_data(data=std_on_time)
+
+    # Compute upper and lower bounds
+    upperbound, lowerbound = up_and_lower_bounds(avg_value=avg_on_lats, std_value=std_on_lats)
+
+    
+    # Latitude filtering
+    lat_mask = lats >= lat_min
+    #print(f"Filtering latitudes below {lat_min} degrees.")
+
+    lats = lats[lat_mask]
+
+    # Helper function to apply the latitude mask safely
+    def apply_lat_mask(arr):
+        if arr.ndim == 2:
+            return arr[lat_mask, :]
+        elif arr.ndim == 1:
+            return arr[lat_mask]
+        else:
+            raise ValueError(f"Unexpected array dimension: {arr.ndim}")
+
+    avg_on_lats = apply_lat_mask(avg_on_lats)
+    upperbound = apply_lat_mask(upperbound)
+    lowerbound = apply_lat_mask(lowerbound)
+    avg_descaled = apply_lat_mask(avg_descaled)
+
+    
+    # Plot
+    plot_dataset_map(
+        avg_target_data=avg_descaled,
+        avg_data_on_lats=avg_on_lats,
+        lowerbound_data=lowerbound,
+        upperbound_data=upperbound,
         scale_max=scale_max,
         scale_min=scale_min,
-		lats=lats,
-		lons=lons,
-		title=f'{label} ({model_name.upper()})',
-		cmap='nipy_spectral_r'
-	)
-    
+        lats=lats,
+        lons=lons,
+        title=f'{label} ({model_name.upper()})',
+        cmap='nipy_spectral_r'
+    )
+
+
+
+
 def aggregate_var(dataarray: xr.DataArray, method:str, dim:str='time'):
     eval_str = f"dataarray.{method}(dim='{dim}',skipna=True,keep_attrs=True)"
     output = eval(eval_str)
@@ -496,10 +529,15 @@ def get_cmip6_files_rucio(scope, rse, model_name, scenario, year_range, drivers)
 
 
 
-def load_cmip6_files_from_config(scenario: str, year_range: tuple[int, int]):
+def load_cmip6_files_from_config(
+    scenario: str,
+    year_range: tuple[int, int],
+    server_config_path: str,
+    local_config_path: str
+):
     # Load configs
-    server_config = munch.munchify(toml.load("/ceph/hpc/home/ciangottinid/ML4Fires/config/configuration.toml"))
-    local_config = munch.munchify(toml.load("/ceph/hpc/home/ciangottinid/ML4Fires/config/cmip6_inference.toml"))
+    server_config = munch.munchify(toml.load(server_config_path))
+    local_config = munch.munchify(toml.load(local_config_path))
 
     # Decide mode
     rse = server_config.cmip6.get("rse", "")
@@ -523,9 +561,8 @@ def load_cmip6_files_from_config(scenario: str, year_range: tuple[int, int]):
         )
         return _get_file_list(scenario, config, year_range)
     else:
-        # Rucio mode (but using drivers from local config!)
+        # Rucio mode
         return get_cmip6_files_rucio(scope, rse, model, scenario, year_range, drivers_cfg)
-
 
 
 def _read_and_aggregate_cmip6_data(seafire_ds, scenario, config, year_range):
@@ -709,19 +746,24 @@ def _read_and_aggregate_rucio_cmip6(files_dict, local_config, seafire_ds):
 
 
 
-def get_cmip6_inference(seafire_ds, run_name, scenario, year_range, model):
-
-
+def get_cmip6_inference(
+    seafire_ds,
+    run_name,
+    scenario,
+    year_range,
+    model,
+    server_config_path: str,
+    local_config_path: str
+):
     # Load configs
-    server_cfg = munch.munchify(toml.load("/ceph/hpc/home/ciangottinid/ML4Fires/config/configuration.toml"))
-    local_cfg  = munch.munchify(toml.load("/ceph/hpc/home/ciangottinid/ML4Fires/config/cmip6_inference.toml"))
+    server_cfg = munch.munchify(toml.load(server_config_path))
+    local_cfg = munch.munchify(toml.load(local_config_path))
     rse = server_cfg.cmip6.get("rse", "")
 
     print(f"📘 Running inference for scenario: {scenario}, years: {year_range[0]}–{year_range[1]}")
 
     if rse == "":
-        # ── Local Zarr/NetCDF files branch ──
-        # Build a minimal config object for the local reader
+        # ── Local mode ──
         drivers = {
             var: SimpleNamespace(
                 type=info.type,
@@ -735,7 +777,6 @@ def get_cmip6_inference(seafire_ds, run_name, scenario, year_range, model):
             data=SimpleNamespace(drivers=drivers)
         )
 
-        # Read + aggregate locally (returns data array and matching time vector)
         ds_array, time_vec = _read_and_aggregate_cmip6_data(
             seafire_ds=seafire_ds,
             scenario=scenario,
@@ -743,10 +784,12 @@ def get_cmip6_inference(seafire_ds, run_name, scenario, year_range, model):
             year_range=year_range
         )
     else:
-        # ── Rucio branch ──
+        # ── Rucio mode ──
         files_dict, _ = load_cmip6_files_from_config(
             scenario=scenario,
-            year_range=year_range
+            year_range=year_range,
+            server_config_path=server_config_path,
+            local_config_path=local_config_path
         )
         ds_array, time_vec = _read_and_aggregate_rucio_cmip6(
             files_dict, local_cfg, seafire_ds
@@ -754,14 +797,13 @@ def get_cmip6_inference(seafire_ds, run_name, scenario, year_range, model):
 
     print("🧮 Input shape:", ds_array.shape)
 
-    # ── Scale & run through the model ──
+    # ── Run the model ──
     scaler = get_scaler(run_name=run_name)
     X = torch.tensor(ds_array)
     X = scaler.transform(X).float()
     X = torch.nan_to_num(X, nan=0)
 
     print("⚙️  Running model inference...")
-    print("Passing the processed CMIP6 data to the ML model for inference...")
     preds = []
     with torch.no_grad():
         for t in range(X.shape[0]):
@@ -769,7 +811,6 @@ def get_cmip6_inference(seafire_ds, run_name, scenario, year_range, model):
             preds.append(out.cpu().numpy())
     predictions = np.vstack(preds).squeeze()
 
-    # ── Build the xarray.Dataset of predictions ──
     print("📦 Building prediction dataset...")
     ds_pred = xr.Dataset(
         data_vars={
@@ -788,6 +829,4 @@ def get_cmip6_inference(seafire_ds, run_name, scenario, year_range, model):
     ).sortby("time")
 
     return ds_pred
-
-
 
