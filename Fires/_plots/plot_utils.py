@@ -355,46 +355,46 @@ def plot_dataset_map(
 	_log.info(f"{fn_name} | Drew tropics and equator")
 
 	# add subplot
-	divider = make_axes_locatable(ax1)
-	ax2 = divider.append_axes("right", size="10%", pad=0.5, axes_class=plt.Axes)
-	_log.info(f"{fn_name} | Added divider between the main plot and the subplot")
+	# divider = make_axes_locatable(ax1)
+	# ax2 = divider.append_axes("right", size="10%", pad=0.5, axes_class=plt.Axes)
+	# _log.info(f"{fn_name} | Added divider between the main plot and the subplot")
 
 	# plot data
-	ax2.plot(avg_data_on_lats, lats, color='red', linewidth=1)
-	ax2.plot(upperbound_data, lats, alpha=0.3, color='black', linewidth=0.5)
-	ax2.plot(lowerbound_data, lats, alpha=0.3, color='black', linewidth=0.5)
-	_log.info(f"{fn_name} | Plotted fires distribution along latitudes")
+	# ax2.plot(avg_data_on_lats, lats, color='red', linewidth=1)
+	# ax2.plot(upperbound_data, lats, alpha=0.3, color='black', linewidth=0.5)
+	# ax2.plot(lowerbound_data, lats, alpha=0.3, color='black', linewidth=0.5)
+	# _log.info(f"{fn_name} | Plotted fires distribution along latitudes")
 	
 	# fill space between lines
-	ax2.fill_betweenx(y=lats, x1=avg_data_on_lats, x2=upperbound_data, color='gray', alpha=0.15)
-	ax2.fill_betweenx(y=lats, x1=avg_data_on_lats, x2=lowerbound_data, color='gray', alpha=0.15)
+	# ax2.fill_betweenx(y=lats, x1=avg_data_on_lats, x2=upperbound_data, color='gray', alpha=0.15)
+	# ax2.fill_betweenx(y=lats, x1=avg_data_on_lats, x2=lowerbound_data, color='gray', alpha=0.15)
 	
 	# define latitudes for tropics (in degrees) and equator
-	ax2 = draw_tropics_and_equator(ax=ax2)
+	# ax2 = draw_tropics_and_equator(ax=ax2)
 	
 	# plot max position
-	ax2.axhline(max_val_latitude, color=color, linewidth=3)
+	# ax2.axhline(max_val_latitude, color=color, linewidth=3)
 	
 	# plot min position
-	ax2.axhline(min_val_latitude, color='green', linewidth=3)
+	# ax2.axhline(min_val_latitude, color='green', linewidth=3)s
 	
 	# set x label	
-	ax2.set_xlabel(' Mean ', fontweight='bold', size=50, labelpad=50)
+	# ax2.set_xlabel(' Mean ', fontweight='bold', size=50, labelpad=50)
 	
 	# create list of max values
-	ax2_vals = np.around([np.nanmin(lowerbound_data, axis=0), np.nanmax(avg_data_on_lats, axis=0), np.nanmax(upperbound_data, axis=0)], 2)
+	# ax2_vals = np.around([np.nanmin(lowerbound_data, axis=0), np.nanmax(avg_data_on_lats, axis=0), np.nanmax(upperbound_data, axis=0)], 2)
 	
 	# plot axes tick lines§
-	for tick in ax2_vals:
-		ax2.axvline(x=tick, color='blue', alpha=1, linewidth=1, linestyle=':')
-		ax2.text(round(tick), -.005, f'{round(tick)}', color='blue', fontweight='bold', size=50, transform=ax2.get_xaxis_transform(), ha='center', va='top')
+	# for tick in ax2_vals:
+	# 	ax2.axvline(x=tick, color='blue', alpha=1, linewidth=1, linestyle=':')
+	# 	ax2.text(round(tick), -.005, f'{round(tick)}', color='blue', fontweight='bold', size=50, transform=ax2.get_xaxis_transform(), ha='center', va='top')
 
-	ax2.text(0, -.005, '0', color='black', fontweight='bold', size=50, transform=ax2.get_xaxis_transform(), ha='center', va='top') 
+	# ax2.text(0, -.005, '0', color='black', fontweight='bold', size=50, transform=ax2.get_xaxis_transform(), ha='center', va='top') 
 	
-	ax2.set_xticks([])
-	ax2.set_yticks([])
-	ax2.set_ylim(bottom=-90, top=90)
-	ax2.margins(y=0)
+	# ax2.set_xticks([])
+	# ax2.set_yticks([])
+	# ax2.set_ylim(bottom=-90, top=90)
+	# ax2.margins(y=0)
 	# ax2.autoscale_view(scaley=True)
 		
 	# add colorbar plot
