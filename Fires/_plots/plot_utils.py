@@ -355,7 +355,7 @@ def plot_dataset_map(
 	_log.info(f"{fn_name} | Drew tropics and equator")
 
 	# add subplot
-	# divider = make_axes_locatable(ax1)
+	divider = make_axes_locatable(ax1)
 	# ax2 = divider.append_axes("right", size="10%", pad=0.5, axes_class=plt.Axes)
 	# _log.info(f"{fn_name} | Added divider between the main plot and the subplot")
 

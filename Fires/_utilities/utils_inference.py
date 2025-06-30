@@ -167,7 +167,13 @@ def up_and_lower_bounds(avg_value, std_value):
 
 @export
 @debug(log=_log)
-def process_and_plot_data(data, label, lats, lons, model_name):
+def process_and_plot_data(data,
+                          label,
+                          lats,
+                          lons,
+                          model_name,
+                          scale_min: int=None,
+                          scale_max: int=None):
 	"""
 	Process the data and generate plots.
 
@@ -209,8 +215,8 @@ def process_and_plot_data(data, label, lats, lons, model_name):
 		avg_data_on_lats=avg_on_lats,
 		lowerbound_data=lowerbound,
 		upperbound_data=upperbound,
-		scale_min=scale_min,
-		scale_max=scale_max,
+		scale_min=scale_min if scale_min else np.nanmin(avg_descaled),
+		scale_max=scale_max if scale_max else np.nanmax(avg_descaled),
 		lats=lats,
 		lons=lons,
 		title=f'{label} ({model_name.upper()})',
