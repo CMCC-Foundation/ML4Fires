@@ -232,7 +232,8 @@ def process_and_plot_cmip6infer(data: xr.Dataset,
                                 lons,
                                 model_name,
                                 scale_min: int=None,
-                                scale_max: int=None):
+                                scale_max: int=None,
+                                sea_poles_mask: xr.DataArray=None):
 	"""
 	Process the data and generate plots.
 
@@ -276,17 +277,47 @@ def process_and_plot_cmip6infer(data: xr.Dataset,
 			avg_on_time = avg_on_time.values
 			std_on_time = yearly_aggregate.std(dim='time', skipna=True).values
 		else:
-			# No decadal aggregate in case you only 
-			avg_on_time = yearly_aggregate.values
-			std_on_time = yearly_aggregate.std(dim='time', skipna=True).values
+            # Check that parameter temporal_aggregate_scheme is not an str and is not an empty list
+			assert isinstance(temporal_aggregate_scheme, dict), "For multi-scale aggregate, a dictionary with keys 'monthly,  'year' and 'decadal' is required."
+			assert len(temporal_aggregate_scheme) > 0, "For multi-scale aggregate, more than one aggregate methods should be provided."
+			years_in_ds = np.unique(data.time.dt.year)
+            
+            # Monthly aggregate
+            
+            # Get aggreagated on monthly scale for the years in the dataset.
+            # Default date is in start of the month.
+			monthly_aggregate = eval(f"data.resample(time='{temporal_aggregate_scheme['monthly'][1]}',skipna=True).{temporal_aggregate_scheme['monthly'][0]}()")
+            
+            # Aggregate over the year
+            # Aggregate on the year
+			yearly_aggregate = eval(f"monthly_aggregate.resample(time='1Y',skipna=True).{temporal_aggregate_scheme['yearly']}()")
+            
+			if len(years_in_ds) > 1: # check if there are more than one year in the dataset - decadal scale prediction
+				# If there are more than on year, then there should be an aggregate method in the list which is not none or empty
+                # Do decadal aggregate
+				avg_on_time = eval(f"yearly_aggregate.{temporal_aggregate_scheme['decadal']}(dim='time',skipna=True)")
+				std_on_time = yearly_aggregate.std(dim='time', skipna=True).data
+			else:
+                # No decadal aggregate in case you only 
+				avg_on_time = yearly_aggregate 
+				std_on_time = yearly_aggregate.std(dim='time', skipna=True).data
+	else:
+		avg_on_time = np.nanmean(data, axis=0)
+		std_on_time = np.nanstd(data, axis=0)
+		print(f"NOT DataArray - AVG: {avg_on_time.shape} STD: {std_on_time.shape}")
 
 	# Aggregate data
 	avg_descaled, avg_on_lats, _ = compute_aggregated_data(data=avg_on_time)
 	_, std_on_lats, _ = compute_aggregated_data(data=std_on_time)
 
+	if isinstance(sea_poles_mask,xr.DataArray):
+		sea_poles_idxs = np.where(~(sea_poles_mask == 0))
+		lat_lon_idx_pairs = list(zip(sea_poles_idxs[0], sea_poles_idxs[1]))
+		for pair_x, pair_y in lat_lon_idx_pairs:
+			avg_descaled[pair_x, pair_y] = 0
 	# Compute upper and lower boundaries
 	upperbound, lowerbound = up_and_lower_bounds(avg_value=avg_on_lats, std_value=std_on_lats)
-
+    
 	# Plot data
 	plot_dataset_map(
 		avg_target_data=avg_descaled,
