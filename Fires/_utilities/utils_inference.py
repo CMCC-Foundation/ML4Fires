@@ -232,7 +232,8 @@ def process_and_plot_cmip6infer(data: xr.Dataset,
                                 lons,
                                 model_name,
                                 scale_min: int=None,
-                                scale_max: int=None):
+                                scale_max: int=None,
+                                sea_poles_mask: xr.DataArray=None):
 	"""
 	Process the data and generate plots.
 
@@ -284,20 +285,22 @@ def process_and_plot_cmip6infer(data: xr.Dataset,
 				avg_on_time = yearly_aggregate 
 				std_on_time = yearly_aggregate.std(dim='time', skipna=True).data
 	else:
-		if temporal_aggregate_scheme == ["mean","mean","mean"]:
-			avg_on_time = np.nanmean(data, axis=0)
-			std_on_time = np.nanstd(data, axis=0)
-			print(f"NOT DataArray - AVG: {avg_on_time.shape} STD: {std_on_time.shape}")
-		else:
-			raise Exception("Different averaging on different time scales on works if prediction is provided in xr.DataArray format.")
+		avg_on_time = np.nanmean(data, axis=0)
+		std_on_time = np.nanstd(data, axis=0)
+		print(f"NOT DataArray - AVG: {avg_on_time.shape} STD: {std_on_time.shape}")
 
 	# Aggregate data
 	avg_descaled, avg_on_lats, _ = compute_aggregated_data(data=avg_on_time)
 	_, std_on_lats, _ = compute_aggregated_data(data=std_on_time)
 
+	if isinstance(sea_poles_mask,xr.DataArray):
+		sea_poles_idxs = np.where(~(sea_poles_mask == 0))
+		lat_lon_idx_pairs = list(zip(sea_poles_idxs[0], sea_poles_idxs[1]))
+		for pair_x, pair_y in lat_lon_idx_pairs:
+			avg_descaled[pair_x, pair_y] = 0
 	# Compute upper and lower boundaries
 	upperbound, lowerbound = up_and_lower_bounds(avg_value=avg_on_lats, std_value=std_on_lats)
-
+    
 	# Plot data
 	plot_dataset_map(
 		avg_target_data=avg_descaled,
