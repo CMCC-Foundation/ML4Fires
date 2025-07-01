@@ -254,11 +254,28 @@ def process_and_plot_cmip6infer(data: xr.Dataset,
 	
 	# Verify data type and compute mean and standard deviation along time axis
 	if isinstance(data, xr.DataArray):
-		if temporal_aggregate_scheme == "mean":
-            # In case when simply wants to compute the average on the whole dataset 
-			avg_on_time = data.mean(dim='time', skipna=True).data
-			std_on_time = data.std(dim='time', skipna=True).data
-			print(f"Is DataArray - AVG: {avg_on_time.shape} STD: {std_on_time.shape}")
+		print("Data type xr.DataArray...")
+		# Check that parameter temporal_aggregate_scheme is not an str and is not an empty list
+		assert isinstance(temporal_aggregate_scheme, dict), "For multi-scale aggregate, a dictionary with keys 'monthly,  'year' and 'decadal' is required."
+		assert len(temporal_aggregate_scheme) > 0, "For multi-scale aggregate, more than one aggregate methods should be provided."
+		years_in_ds = np.unique(data.time.dt.year)
+
+        # Monthly aggregate
+
+        # Get aggreagated on monthly scale for the years in the dataset.
+        # Default date is in start of the month.
+		monthly_aggregate = eval(f"data.resample(time='{temporal_aggregate_scheme['monthly'][1]}',skipna=True).{temporal_aggregate_scheme['monthly'][0]}()")
+
+        # Aggregate over the year
+        # Aggregate on the year
+		yearly_aggregate = eval(f"monthly_aggregate.resample(time='1Y',skipna=True).{temporal_aggregate_scheme['yearly']}()")
+
+		if len(years_in_ds) > 1: # check if there are more than one year in the dataset - decadal scale prediction
+			# If there are more than on year, then there should be an aggregate method in the list which is not none or empty
+			# Do decadal aggregate
+			avg_on_time = eval(f"yearly_aggregate.{temporal_aggregate_scheme['decadal']}(dim='time',skipna=True)")
+			avg_on_time = avg_on_time.values
+			std_on_time = yearly_aggregate.std(dim='time', skipna=True).values
 		else:
             # Check that parameter temporal_aggregate_scheme is not an str and is not an empty list
 			assert isinstance(temporal_aggregate_scheme, dict), "For multi-scale aggregate, a dictionary with keys 'monthly,  'year' and 'decadal' is required."
@@ -412,8 +429,10 @@ def _read_and_aggregate_cmip6_data(seafire_ds, scenario, config, year_range):
                 ds_var_time_slices[slice_idx] = ds_var_time_slices[slice_idx].expand_dims({"time":[dates_range_np[slice_idx][-1]]})
 
             ds_var = xr.concat(ds_var_time_slices, dim="time")
+        print("Renaming variables for interpolation....")
         ds_var = ds_var.assign_coords({"lon": ((ds_var.lon + 180) % 360) - 180}).sortby("lon") # translating the longitude values
         ds_var = ds_var.rename({"lon":"longitude", "lat":"latitude"}) # renaming longitude and latitude for regridding
+        print("Interpolating on the grid....")
         ds_var = ds_var.interp_like(seafire_ds[["longitude","latitude"]])
         var_ds_list.append(ds_var)
 
