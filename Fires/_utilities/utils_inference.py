@@ -16,7 +16,6 @@ from Fires._utilities.logger import Logger as logger
 from Fires._utilities.decorators import debug, export
 import munch
 
-
 #os.environ['RUCIO_CONFIG'] = '/ceph/hpc/home/ciangottinid/ML4Fires/rucio.cfg'
 
 import toml
@@ -351,8 +350,6 @@ def process_and_plot_cmip6infer(data: xr.Dataset,
     )
 
 
-
-
 def aggregate_var(dataarray: xr.DataArray, method:str, dim:str='time'):
     eval_str = f"dataarray.{method}(dim='{dim}',skipna=True,keep_attrs=True)"
     output = eval(eval_str)
@@ -372,10 +369,6 @@ def _get_list_of_dates(year_range):
     date_range_np = [[np_date - np.timedelta64(n_prior_days-1, "D"), np_date] for np_date in np_all_dates]
     
     return date_range_np
-
-
-
-
 
 
 def _get_cft_times_list(year_range):
@@ -399,19 +392,16 @@ def _get_cft_times_list(year_range):
     return dates_range_cfttime
 
 
-
-
-
-def _get_file_list(scenario, config, year_range):
+def _get_file_list_directly(scenario, infer_config, year_range):
     
     dates_range_np = make_8day_windows(year_range)
     cmip6_var_filename = {}
 
-    for var_key, var_value in config.data.drivers.items():
+    for var_key, var_value in infer_config.data.drivers.items():
         cmip6_var_filename[var_key] = []
         if var_value.type == "dynamic":
             cmip6_path = var_value.cmip6_path.replace("[scenario]", scenario)
-            path_to_files = os.path.join(config.base_dir, cmip6_path)
+            path_to_files = os.path.join(infer_config.base_dir, cmip6_path)
             list_of_files = [file for file in os.listdir(path_to_files) if file.endswith(".nc")]
             for file in list_of_files:
                 date = file.split("_")[-1].split(".")[0].split("-")
@@ -423,7 +413,7 @@ def _get_file_list(scenario, config, year_range):
                         if full_path not in cmip6_var_filename[var_key]:
                             cmip6_var_filename[var_key].append(full_path)
         else:
-            path_to_file = os.path.join(config.base_dir, var_value.cmip6_path.replace("[scenario]", scenario))
+            path_to_file = os.path.join(infer_config.base_dir, var_value.cmip6_path.replace("[scenario]", scenario))
             file = [f for f in os.listdir(path_to_file) if f.endswith(".nc")]
             cmip6_var_filename[var_key] = [os.path.join(path_to_file, file[0])]
 
@@ -451,14 +441,19 @@ def make_8day_windows(year_range: tuple[int, int]) -> np.ndarray:
     return np.array(windows, dtype="datetime64[ns]")
 
 
-
-
-def get_cmip6_files_rucio(scope, rse, model_name, scenario, year_range, drivers):
+def _get_cmip6_files_rucio(scope,
+                          rse,
+                          model_name,
+                          scenario,
+                          year_range,
+                          infer_config):
+    
     """
     Returns:
-      - cmip6_var_files: dict[var_name, list[file_paths]]
+      - cmip6_var_filename: dict[var_name, list[file_paths]]
       - np_dates:       list of numpy.datetime64 stamps (one per 8-day window)
     """
+    
     # 1) build the 8-day windows
     windows = make_8day_windows(year_range)      # array of shape (N,2)
     # 2) our “time” stamps are simply the window-end dates:
@@ -466,12 +461,12 @@ def get_cmip6_files_rucio(scope, rse, model_name, scenario, year_range, drivers)
 
     # 3) now, exactly as before, discover your file paths via Rucio…
     rucio = Client()
-    cmip6_var_files: dict[str, list[str]] = {}
+    cmip6_var_filename: dict[str, list[str]] = {}
 
-    for var, cfg in drivers.items():
-        cmip6_var_files[var] = []
+    for var, cfg in infer_config.data.drivers.items():
+        cmip6_var_filename[var] = []
         pattern = (
-            f"{var}_*_{model_name}_{scenario}_*.nc"
+            f"{var}_day_{model_name}_{scenario}_*.nc"
             if scenario else
             f"{var}_*_{model_name}_*.nc"
         )
@@ -492,7 +487,11 @@ def get_cmip6_files_rucio(scope, rse, model_name, scenario, year_range, drivers)
             for rep in reps
             if rse in rep["rses"]
         ]
-
+        
+        assert paths, "No files were found for the query to RUCIO"
+        
+        # TODO: Finish this code do it in a nicer way
+        
         if cfg.type == "dynamic":
             # only keep those files that cover *any* of our windows
             for p in sorted(paths):
@@ -503,88 +502,64 @@ def get_cmip6_files_rucio(scope, rse, model_name, scenario, year_range, drivers)
                 end   = np.datetime64(f"{end_s[:4]}-{end_s[4:6]}-{end_s[6:]}")
                 # if this file fully covers at least one 8-day window, keep it
                 if any((w[0] >= start and w[1] <= end) for w in windows):
-                    cmip6_var_files[var].append(p)
-
+                    cmip6_var_filename[var].append(p)
         else:
             # static driver → only need the first match
             if paths:
-                cmip6_var_files[var] = [paths[0]]
+                cmip6_var_filename[var] = [paths[0]]
             else:
                 raise FileNotFoundError(
                     f"No static file for '{var}' (pattern {pattern})"
                 )
 
     print("Loading the following CMIP6 data files from RUCIO:")
-    for var, flist in cmip6_var_files.items():
+    for var, flist in cmip6_var_filename.items():
         print(f"  {var}: {flist}")
 
     # **Key change**: return np_dates (1-D list of window ends), not the (N,2) windows
-    return cmip6_var_files, np_dates
+    return cmip6_var_filename, np_dates
 
 
+# def _get_file_list_rucio(
+#     scenario: str,
+#     year_range: tuple[int, int],
+#     infer_config
+# ):
+
+#     base_dir = infer_config.config.base_dir
+#     drivers_cfg = infer_config.data.drivers
+
+#     return _get_cmip6_files_rucio(scope=CONFIG.rucio.scope,
+#                                  rse=CONFIG.rucio.rse,
+#                                  model_name=CONFIG.rucio.model,
+#                                  scenario=scenario,
+#                                  year_range=year_range,
+#                                  infer_config=infer_config)
 
 
-
-
-
-
-
-def load_cmip6_files_from_config(
-    scenario: str,
-    year_range: tuple[int, int],
-    server_config_path: str,
-    local_config_path: str
-):
-    # Load configs
-    server_config = munch.munchify(toml.load(server_config_path))
-    local_config = munch.munchify(toml.load(local_config_path))
-
-    # Decide mode
-    rse = server_config.cmip6.get("rse", "")
-    model = server_config.cmip6.get("model", "")
-    scope = server_config.cmip6.get("scope", "")
-    base_dir = server_config.cmip6.get("base_dir", "")
-
-    # ✅ Always pull drivers from local_config
-    drivers_cfg = {}
-    for var, info in local_config.data.drivers.items():
-        drivers_cfg[var] = SimpleNamespace(
-            type=info["type"],
-            cmip6_path=info["cmip6_path"]
-        )
-
-    if rse == "":
-        # Local mode
-        config = SimpleNamespace(
-            base_dir=local_config.config.get("base_dir", base_dir),
-            data=SimpleNamespace(drivers=drivers_cfg)
-        )
-        return _get_file_list(scenario, config, year_range)
-    else:
-        # Rucio mode
-        return get_cmip6_files_rucio(scope, rse, model, scenario, year_range, drivers_cfg)
-
-
-def _read_and_aggregate_cmip6_data(seafire_ds, scenario, config, year_range):
+def _read_and_aggregate_cmip6_data(seafire_ds, scenario, infer_config, year_range):
   
-    
+    if CONFIG.rucio.rse:
+        cmip6_var_filename, dates_range_np = _get_cmip6_files_rucio(scope=CONFIG.rucio.scope,
+                                                                    rse=CONFIG.rucio.rse,
+                                                                    model_name=CONFIG.rucio.model,
+                                                                    scenario=scenario,
+                                                                    year_range=year_range,
+                                                                    infer_config=infer_config)
+    else:
+        cmip6_var_filename, dates_range_np = _get_file_list_directly(scenario=scenario,
+                                                                     infer_config=infer_config,
+                                                                     year_range=year_range)
 
-    # Build our 8-day windows
-    dates_range_np    = make_8day_windows(year_range)
-    dates_range_cftime = _get_cft_times_list(year_range)
+    dates_range_cftime = _get_cft_times_list(year_range=year_range)
 
     var_ds_list = []
-    for var_name, var_cfg in config.data.drivers.items():
-        print(f"Reading variable {var_name} and aggregating with method {config.data.drivers[var_name].aggregation}...")
-        # Expand [scenario] placeholder
+    for var_name, var_cfg in infer_config.data.drivers.items():
+        print(f"Reading variable {var_name} and aggregating with method {infer_config.data.drivers[var_name].aggregation}...")
         cmip6_path = var_cfg.cmip6_path.replace("[scenario]", scenario) 
-        full_dir = os.path.join(config.base_dir, cmip6_path)
-        files = sorted(f for f in os.listdir(full_dir) if f.endswith(".nc"))
-        files = [os.path.join(full_dir, f) for f in files]
-
-        if not files:
-            continue
-
+        full_dir = os.path.join(infer_config.base_dir, cmip6_path)
+        files = sorted(cmip6_var_filename[var_name])
+        assert files, f"There were no files found for {var_name}. Please double check configuration."
         agg_method = var_cfg.aggregation.lower()
         if agg_method != "none":
             # Open all files along time
@@ -614,16 +589,11 @@ def _read_and_aggregate_cmip6_data(seafire_ds, scenario, config, year_range):
                 )
                 slices.append(agg_da)
 
-            if not slices:
-                continue
-
             ds_var = xr.concat(slices, dim="time")
-            # Remove duplicates
-            _, idx_unique = np.unique(ds_var.time.values, return_index=True)
-            ds_var = ds_var.isel(time=idx_unique)
 
         else:
             # Static file
+            # Changing the 'unit' for the land sea mask 
             ds_var = xr.open_dataset(files[0])[var_name] / 100.0
 
         # Regrid & rename
@@ -637,9 +607,7 @@ def _read_and_aggregate_cmip6_data(seafire_ds, scenario, config, year_range):
 
         var_ds_list.append(ds_var)
 
-    if not var_ds_list:
-        raise ValueError("No local variables found or processed.")
-
+    assert var_ds_list, "No local variables found or processed."
     merged = xr.merge(var_ds_list)
     if "plev" in merged.dims:
         merged = merged.isel(plev=0)
@@ -653,97 +621,94 @@ def _read_and_aggregate_cmip6_data(seafire_ds, scenario, config, year_range):
 
 
 
-def _read_and_aggregate_rucio_cmip6(files_dict, local_config, seafire_ds):
+# def _read_and_aggregate_rucio_cmip6(files_dict, local_config, seafire_ds):
     
+#     def extract_years_from_filenames(filenames):
+#         years = []
+#         for fn in filenames:
+#             try:
+#                 part = fn.rsplit("_", 1)[-1].replace(".nc", "")
+#                 start, end = part.split("-")
+#                 years += [int(start[:4]), int(end[:4])]
+#             except:
+#                 continue
+#         if not years:
+#             raise ValueError("Cannot parse years from filenames.")
+#         return min(years), max(years)
 
-    def extract_years_from_filenames(filenames):
-        years = []
-        for fn in filenames:
-            try:
-                part = fn.rsplit("_", 1)[-1].replace(".nc", "")
-                start, end = part.split("-")
-                years += [int(start[:4]), int(end[:4])]
-            except:
-                continue
-        if not years:
-            raise ValueError("Cannot parse years from filenames.")
-        return min(years), max(years)
+#     # 1) Infer date range
+#     all_files = [f for flist in files_dict.values() for f in flist]
+#     min_year, max_year = extract_years_from_filenames(all_files)
 
-    # 1) Infer date range
-    all_files = [f for flist in files_dict.values() for f in flist]
-    min_year, max_year = extract_years_from_filenames(all_files)
+#     # 2) Build windows
+#     windows_np = make_8day_windows((min_year, max_year))
+#     windows_cftime = _get_cft_times_list((min_year, max_year))
 
-    # 2) Build windows
-    windows_np = make_8day_windows((min_year, max_year))
-    windows_cftime = _get_cft_times_list((min_year, max_year))
+#     drivers_cfg = local_config.data.drivers
+#     var_ds_list = []
 
-    drivers_cfg = local_config.data.drivers
-    var_ds_list = []
+#     for var_name, file_list in files_dict.items():
+#         if not file_list:
+#             continue
 
-    for var_name, file_list in files_dict.items():
-        if not file_list:
-            continue
+#         agg_method = drivers_cfg[var_name].aggregation.lower()
 
-        agg_method = drivers_cfg[var_name].aggregation.lower()
+#         if agg_method != "none":
+#             ds = xr.open_mfdataset(file_list, combine="by_coords")[var_name]
+#             slices = []
+#             for idx, win in enumerate(windows_cftime):
+#                 chunk = ds.sel(time=slice(win[0], win[1]))
+#                 if chunk.time.size == 0:
+#                     continue
+#                 if var_name == "pr":
+#                     chunk *= 3600 * 24
 
-        if agg_method != "none":
-            ds = xr.open_mfdataset(file_list, combine="by_coords")[var_name]
-            slices = []
-            for idx, win in enumerate(windows_cftime):
-                chunk = ds.sel(time=slice(win[0], win[1]))
-                if chunk.time.size == 0:
-                    continue
-                if var_name == "pr":
-                    chunk *= 3600 * 24
+#                 agg = aggregate_var(chunk, method=agg_method, dim="time")
+#                 stamp = np.datetime64(windows_np[idx][1])
 
-                agg = aggregate_var(chunk, method=agg_method, dim="time")
-                stamp = np.datetime64(windows_np[idx][1])
+#                 # build 1-element time‐indexed DataArray
+#                 agg_da = xr.DataArray(
+#                     data=agg.values[np.newaxis, ...],
+#                     dims=("time",) + agg.dims,
+#                     coords={"time": [stamp], **{d: agg.coords[d] for d in agg.dims}},
+#                     name=var_name
+#                 )
+#                 slices.append(agg_da)
 
-                # build 1-element time‐indexed DataArray
-                agg_da = xr.DataArray(
-                    data=agg.values[np.newaxis, ...],
-                    dims=("time",) + agg.dims,
-                    coords={"time": [stamp], **{d: agg.coords[d] for d in agg.dims}},
-                    name=var_name
-                )
-                slices.append(agg_da)
+#             if not slices:
+#                 continue
 
-            if not slices:
-                continue
+#             ds_var = xr.concat(slices, dim="time")
+#             # remove any duplicate times
+#             _, uniq = np.unique(ds_var.time.values, return_index=True)
+#             ds_var = ds_var.isel(time=uniq)
 
-            ds_var = xr.concat(slices, dim="time")
-            # remove any duplicate times
-            _, uniq = np.unique(ds_var.time.values, return_index=True)
-            ds_var = ds_var.isel(time=uniq)
+#         else:
+#             ds_var = xr.open_dataset(file_list[0])[var_name] / 100.0
 
-        else:
-            ds_var = xr.open_dataset(file_list[0])[var_name] / 100.0
+#         # regrid & rename
+#         ds_var = (
+#             ds_var
+#             .assign_coords(lon=((ds_var.lon + 180) % 360) - 180)
+#             .sortby("lon")
+#             .rename(lon="longitude", lat="latitude")
+#             .interp_like(seafire_ds[["longitude", "latitude"]])
+#         )
+#         var_ds_list.append(ds_var)
 
-        # regrid & rename
-        ds_var = (
-            ds_var
-            .assign_coords(lon=((ds_var.lon + 180) % 360) - 180)
-            .sortby("lon")
-            .rename(lon="longitude", lat="latitude")
-            .interp_like(seafire_ds[["longitude", "latitude"]])
-        )
-        var_ds_list.append(ds_var)
+#     if not var_ds_list:
+#         raise ValueError("No valid variables to process.")
 
-    if not var_ds_list:
-        raise ValueError("No valid variables to process.")
+#     merged = xr.merge(var_ds_list)
+#     if "plev" in merged.dims:
+#         merged = merged.isel(plev=0)
 
-    merged = xr.merge(var_ds_list)
-    if "plev" in merged.dims:
-        merged = merged.isel(plev=0)
+#     # **Here** we extract the time vector that actually matches merged.time
+#     merged = merged.sortby("time")
+#     time_vec = merged.time.values  # 1D array of length nt
 
-    # **Here** we extract the time vector that actually matches merged.time
-    merged = merged.sortby("time")
-    time_vec = merged.time.values  # 1D array of length nt
-
-    data = merged.to_array().transpose("time", "variable", "latitude", "longitude").values
-    return data, time_vec
-
-
+#     data = merged.to_array().transpose("time", "variable", "latitude", "longitude").values
+#     return data, time_vec
 
 
 def get_cmip6_inference(
@@ -752,48 +717,21 @@ def get_cmip6_inference(
     scenario,
     year_range,
     model,
-    server_config_path: str,
-    local_config_path: str
+    infer_config
 ):
     # Load configs
-    server_cfg = munch.munchify(toml.load(server_config_path))
-    local_cfg = munch.munchify(toml.load(local_config_path))
-    rse = server_cfg.cmip6.get("rse", "")
+    # server_cfg = munch.munchify(toml.load(server_config_path))
+    # local_cfg = munch.munchify(toml.load(local_config_path))
+    # rse = CONFIG.rucio.get("rse", "")
 
     print(f"📘 Running inference for scenario: {scenario}, years: {year_range[0]}–{year_range[1]}")
 
-    if rse == "":
-        # ── Local mode ──
-        drivers = {
-            var: SimpleNamespace(
-                type=info.type,
-                cmip6_path=info.cmip6_path,
-                aggregation=info.aggregation,
-            )
-            for var, info in local_cfg.data.drivers.items()
-        }
-        local_config = SimpleNamespace(
-            base_dir=local_cfg.config.base_dir,
-            data=SimpleNamespace(drivers=drivers)
-        )
-
-        ds_array, time_vec = _read_and_aggregate_cmip6_data(
-            seafire_ds=seafire_ds,
-            scenario=scenario,
-            config=local_config,
-            year_range=year_range
-        )
-    else:
-        # ── Rucio mode ──
-        files_dict, _ = load_cmip6_files_from_config(
-            scenario=scenario,
-            year_range=year_range,
-            server_config_path=server_config_path,
-            local_config_path=local_config_path
-        )
-        ds_array, time_vec = _read_and_aggregate_rucio_cmip6(
-            files_dict, local_cfg, seafire_ds
-        )
+    ds_array, time_vec = _read_and_aggregate_cmip6_data(
+        seafire_ds=seafire_ds,
+        scenario=scenario,
+        infer_config=infer_config,
+        year_range=year_range
+    )
 
     print("🧮 Input shape:", ds_array.shape)
 

@@ -1,5 +1,4 @@
 [data]
-
 	[data.features]
 	drivers = ['lai', 'lst_day', 'rel_hum', 'sst', 't2m_min', 'tp', 'lsm']
 	targets = ['fcci_ba']
@@ -34,22 +33,16 @@ credentials_fname = "credentials.toml"
 
 [utils]
 seed = 346	
-
 	[utils.datetime]
 	today = "str(dt.now()).split('.')[0].replace('-', '').replace(':', '').replace(' ', '_')"
-    
+
+
 # ------------------------------------------------------------------
 # CMIP6 data configuration: 
 # ------------------------------------------------------------------
 
-[cmip6]
-rse = "VEGA-DCACHE"
-#rse = ""
+[rucio]
+rse = "VEGA-DCACHE" # Leave blank to read files from local folders
 scope = "abennasser"
 model = "CMCC-ESM2"
 base_dir = "/dcache/sling.si/projects/intertwin/cmip6_scenarios/"  # Used only for local
-
-
-[paths]
-server_config = "/ceph/hpc/home/ciangottinid/ML4Fires/config/configuration.toml"
-local_config = "/ceph/hpc/home/ciangottinid/ML4Fires/config/cmip6_inference.toml"
