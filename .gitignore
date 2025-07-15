@@ -5,14 +5,15 @@
 *.pyc
 *.txt
 *.zarr
-!config/cmip6_inference.toml
 
+# Files
 digital_twin_notebooks/img/*.png
 digital_twin_notebooks/*.onnx
 digital_twin_notebooks/inference_with_onnx.ipynb
 digital_twin_notebooks/model_conversion_pytorch_to_onnx.ipynb
 transfer.sh
 .ipynb_checkpoints
+config/credentials.toml
 
 # folders
 experiments
@@ -20,10 +21,13 @@ data
 logs
 lightning_logs
 requirements_files
-config
+config/*
 
 # environments
 ml4fires_old_3_10
 ML4F_venv
 MLFLOW
-config/credentials.toml
+
+# Exception
+!rucio.cfg
+!cmip6_inference.toml
