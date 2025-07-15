@@ -22,10 +22,7 @@ import toml
 import munch            
 from types import SimpleNamespace
 from typing import Any
-from rucio.client.client import Client
 from types import SimpleNamespace
-#from rucio.client.uploadclient import UploadClient
-rucio = Client()
 
 # define logger
 _log = logger(log_dir=LOGS_DIR).get_logger("Inference Utilities")
@@ -358,7 +355,7 @@ def aggregate_var(dataarray: xr.DataArray, method:str, dim:str='time'):
 
 def _get_list_of_dates(year_range):
     n_prior_days = 8
-    str_dates = [f'{year_range[0]}-01-08', f'{year_range[1]}-12-24']  # ✅ fixed here
+    str_dates = [f'{year_range.value[0]}-01-08', f'{year_range.value[1]}-12-24']  # ✅ fixed here
 
     np_dates = [np.datetime64(f"{str_date}T12:00:00.00") for str_date in str_dates]
     np_all_dates = [np_dates[0]]
@@ -400,8 +397,8 @@ def _get_file_list_directly(scenario, infer_config, year_range):
     for var_key, var_value in infer_config.data.drivers.items():
         cmip6_var_filename[var_key] = []
         if var_value.type == "dynamic":
-            cmip6_path = var_value.cmip6_path.replace("[scenario]", scenario)
-            path_to_files = os.path.join(infer_config.base_dir, cmip6_path)
+            cmip6_path = var_value.cmip6_path.replace("[scenario]", scenario.value)
+            path_to_files = os.path.join(infer_config.config.base_dir, cmip6_path)
             list_of_files = [file for file in os.listdir(path_to_files) if file.endswith(".nc")]
             for file in list_of_files:
                 date = file.split("_")[-1].split(".")[0].split("-")
@@ -413,7 +410,7 @@ def _get_file_list_directly(scenario, infer_config, year_range):
                         if full_path not in cmip6_var_filename[var_key]:
                             cmip6_var_filename[var_key].append(full_path)
         else:
-            path_to_file = os.path.join(infer_config.base_dir, var_value.cmip6_path.replace("[scenario]", scenario))
+            path_to_file = os.path.join(infer_config.config.base_dir, var_value.cmip6_path.replace("[scenario]", scenario.value))
             file = [f for f in os.listdir(path_to_file) if f.endswith(".nc")]
             cmip6_var_filename[var_key] = [os.path.join(path_to_file, file[0])]
 
@@ -426,8 +423,8 @@ def _get_file_list_directly(scenario, infer_config, year_range):
 
 
 def make_8day_windows(year_range: tuple[int, int]) -> np.ndarray:
-    start = np.datetime64(f"{year_range[0]}-01-01")
-    end   = np.datetime64(f"{year_range[1]}-12-31")
+    start = np.datetime64(f"{year_range.value[0]}-01-01")
+    end   = np.datetime64(f"{year_range.value[1]}-12-31")
     windows = []
     current = start
     one_day = np.timedelta64(1, "D")
@@ -466,8 +463,8 @@ def _get_cmip6_files_rucio(scope,
     for var, cfg in infer_config.data.drivers.items():
         cmip6_var_filename[var] = []
         pattern = (
-            f"{var}_day_{model_name}_{scenario}_*.nc"
-            if scenario else
+            f"{var}_day_{model_name}_{scenario.value}_*.nc"
+            if scenario else # TODO: Fix this!
             f"{var}_*_{model_name}_*.nc"
         )
         # list DIDs matching your pattern
@@ -540,6 +537,12 @@ def _get_cmip6_files_rucio(scope,
 def _read_and_aggregate_cmip6_data(seafire_ds, scenario, infer_config, year_range):
   
     if CONFIG.rucio.rse:
+        try:
+            #from rucio.client.uploadclient import UploadClient
+            from rucio.client.client import Client
+            rucio = Client()
+        except:
+            raise Exception("Rucio client could not be found. Make sure Rucio library is installed.")
         cmip6_var_filename, dates_range_np = _get_cmip6_files_rucio(scope=CONFIG.rucio.scope,
                                                                     rse=CONFIG.rucio.rse,
                                                                     model_name=CONFIG.rucio.model,
@@ -556,8 +559,8 @@ def _read_and_aggregate_cmip6_data(seafire_ds, scenario, infer_config, year_rang
     var_ds_list = []
     for var_name, var_cfg in infer_config.data.drivers.items():
         print(f"Reading variable {var_name} and aggregating with method {infer_config.data.drivers[var_name].aggregation}...")
-        cmip6_path = var_cfg.cmip6_path.replace("[scenario]", scenario) 
-        full_dir = os.path.join(infer_config.base_dir, cmip6_path)
+        cmip6_path = var_cfg.cmip6_path.replace("[scenario]", scenario.value) 
+        full_dir = os.path.join(infer_config.config.base_dir, cmip6_path)
         files = sorted(cmip6_var_filename[var_name])
         assert files, f"There were no files found for {var_name}. Please double check configuration."
         agg_method = var_cfg.aggregation.lower()
@@ -724,7 +727,7 @@ def get_cmip6_inference(
     # local_cfg = munch.munchify(toml.load(local_config_path))
     # rse = CONFIG.rucio.get("rse", "")
 
-    print(f"📘 Running inference for scenario: {scenario}, years: {year_range[0]}–{year_range[1]}")
+    print(f"📘 Running inference for scenario: {scenario.value}, years: {year_range.value[0]}–{year_range.value[1]}")
 
     ds_array, time_vec = _read_and_aggregate_cmip6_data(
         seafire_ds=seafire_ds,
@@ -760,7 +763,7 @@ def get_cmip6_inference(
             "longitude": seafire_ds.longitude,
         },
         attrs={
-            "Details": f"Inference for {scenario}, {year_range[0]}–{year_range[1]}",
+            "Details": f"Inference for {scenario.value}, {year_range.value[0]}–{year_range.value[1]}",
             "Source": "CMCC Foundation",
             "Processed_by": "ML4Fires",
         },
