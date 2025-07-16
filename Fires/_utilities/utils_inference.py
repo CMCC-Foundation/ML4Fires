@@ -235,7 +235,7 @@ def process_and_plot_cmip6infer(data: xr.Dataset,
                                 scale_max: int=None,
                                 sea_poles_mask: xr.DataArray=None):
 	"""
-	Process the data and generate plots.
+	Process the data and generate plots for CMIP6 data.
 
 	Parameters
 	----------
@@ -251,7 +251,8 @@ def process_and_plot_cmip6infer(data: xr.Dataset,
 		Name of the model, used in the plot title.
 
 	"""
-	
+	# TODO: Alot of redundant code here. CLEAN UP!
+ 
 	# Verify data type and compute mean and standard deviation along time axis
 	if isinstance(data, xr.DataArray):
 		print("Data type xr.DataArray...")
@@ -442,6 +443,16 @@ def _read_and_aggregate_cmip6_data(seafire_ds, scenario, config, year_range):
     ds_array = merged_ds_var.to_array().transpose("time", "variable", "latitude", "longitude").values
     return ds_array, merged_ds_var.time.values
 
+def do_inference(dataset: xr.Dataset,
+                 model):
+    prediction_cpu = []
+    with torch.no_grad():
+        for idx in range(dataset.shape[0]):
+            prediction = model(dataset[idx].unsqueeze(0).to('cuda:0'))
+            prediction_cpu.append(prediction.cpu().detach().numpy())
+    return np.vstack(prediction_cpu).squeeze()
+    
+    
 def get_cmip6_inference(seafire_ds, run_name, scenario, year_range, config, model):
     
     print(f"Reading CMIP6 data for scenario {scenario.value} for year range {year_range.value[0]}-{year_range.value[1]}")
@@ -453,13 +464,9 @@ def get_cmip6_inference(seafire_ds, run_name, scenario, year_range, config, mode
     transformed_ds = transformed_ds.float()
     transformed_ds = torch.nan_to_num(transformed_ds,nan=0)
     
-    print("Passing the processed CMIP6 data to the ML model for inference...")
-    prediction_cpu = []
-    with torch.no_grad():
-        for idx in range(transformed_ds.shape[0]):
-            prediction = model(transformed_ds[idx].unsqueeze(0).to('cuda:0'))
-            prediction_cpu.append(prediction.cpu().detach().numpy())
-    predictions = np.vstack(prediction_cpu).squeeze()
+    print("Passing the processed CMIP6 data to the ML model for inference...")    
+    predictions = do_inference(dataset=transformed_ds,
+                               model=model)
     
     print("Creating predicton dataset...")
     ds_predictions = xr.Dataset(data_vars={"global_burned_areas":(("time","latitude","longitude"),predictions)},

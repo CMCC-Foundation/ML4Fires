@@ -16,7 +16,7 @@ transfer.sh
 
 # folders
 experiments
-data
+
 logs
 lightning_logs
 requirements_files
