@@ -43,6 +43,6 @@ seed = 346
 
 [rucio]
 rse = "VEGA-DCACHE" # Leave blank to read files from local folders
-scope = "abennasser"
-model = "CMCC-ESM2"
+scope = "CMIP6"
+dataset = "ScenarioMIP"
 base_dir = "/dcache/sling.si/projects/intertwin/cmip6_scenarios/"  # Used only for local

@@ -389,7 +389,7 @@ def _get_cft_times_list(year_range):
     return dates_range_cfttime
 
 
-def _get_file_list_directly(scenario, infer_config, year_range):
+def _get_file_list_directly(scenario, climate_model, infer_config, year_range):
     
     dates_range_np = make_8day_windows(year_range)
     cmip6_var_filename = {}
@@ -440,8 +440,9 @@ def make_8day_windows(year_range: tuple[int, int]) -> np.ndarray:
 
 def _get_cmip6_files_rucio(scope,
                           rse,
-                          model_name,
+                          dataset,
                           scenario,
+                          climate_model,
                           year_range,
                           infer_config):
     
@@ -457,33 +458,25 @@ def _get_cmip6_files_rucio(scope,
     np_dates = [w[1] for w in windows]          # list of length N
 
     # 3) now, exactly as before, discover your file paths via Rucio…
+    from rucio.client.client import Client
     rucio = Client()
     cmip6_var_filename: dict[str, list[str]] = {}
 
     for var, cfg in infer_config.data.drivers.items():
         cmip6_var_filename[var] = []
-        pattern = (
-            f"{var}_day_{model_name}_{scenario.value}_*.nc"
-            if scenario else # TODO: Fix this!
-            f"{var}_*_{model_name}_*.nc"
-        )
-        # list DIDs matching your pattern
-        dids = list(rucio.list_dids(scope=scope,
-                                    filters={"name": pattern},
-                                    did_type="file"))
-        # find replicas at your chosen RSE
-        reps = rucio.list_replicas(
-            dids=[{"scope": scope, "name": d} for d in dids],
-            schemes=["file"],
+        replicas = rucio.list_replicas(
+            dids=[{"scope": scope, "name": dataset}],
+            schemes=["https"],
             rse_expression=rse
         )
-        # extract local paths
-        paths = [
-            rep["rses"][rse][0]
-            .replace("file://localhost", "")
-            for rep in reps
-            if rse in rep["rses"]
-        ]
+
+        # find replicas at your chosen RSE
+        paths = []
+        for replica in replicas:
+            if (var in replica["name"] and climate_model in replica["name"] and scenario.value in replica["name"]) and rse in replica["rses"]:
+                lfilepath=replica["rses"][rse][0]
+                filepath = lfilepath.replace('file://localhost', '')
+                paths.append(filepath)
         
         assert paths, "No files were found for the query to RUCIO"
         
@@ -534,7 +527,7 @@ def _get_cmip6_files_rucio(scope,
 #                                  infer_config=infer_config)
 
 
-def _read_and_aggregate_cmip6_data(seafire_ds, scenario, infer_config, year_range):
+def _read_and_aggregate_cmip6_data(seafire_ds, scenario, climate_model, infer_config, year_range):
   
     if CONFIG.rucio.rse:
         try:
@@ -545,12 +538,14 @@ def _read_and_aggregate_cmip6_data(seafire_ds, scenario, infer_config, year_rang
             raise Exception("Rucio client could not be found. Make sure Rucio library is installed.")
         cmip6_var_filename, dates_range_np = _get_cmip6_files_rucio(scope=CONFIG.rucio.scope,
                                                                     rse=CONFIG.rucio.rse,
-                                                                    model_name=CONFIG.rucio.model,
+                                                                    dataset=CONFIG.rucio.dataset,
                                                                     scenario=scenario,
+                                                                    climate_model=climate_model,
                                                                     year_range=year_range,
                                                                     infer_config=infer_config)
     else:
         cmip6_var_filename, dates_range_np = _get_file_list_directly(scenario=scenario,
+                                                                     climate_model=climate_model,
                                                                      infer_config=infer_config,
                                                                      year_range=year_range)
 
@@ -718,6 +713,7 @@ def get_cmip6_inference(
     seafire_ds,
     run_name,
     scenario,
+    climate_model,
     year_range,
     model,
     infer_config
@@ -732,6 +728,7 @@ def get_cmip6_inference(
     ds_array, time_vec = _read_and_aggregate_cmip6_data(
         seafire_ds=seafire_ds,
         scenario=scenario,
+        climate_model=climate_model,
         infer_config=infer_config,
         year_range=year_range
     )
