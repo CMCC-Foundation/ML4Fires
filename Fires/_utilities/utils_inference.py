@@ -455,7 +455,7 @@ def _get_cmip6_files_rucio(scope,
     # 1) build the 8-day windows
     windows = make_8day_windows(year_range)      # array of shape (N,2)
     # 2) our “time” stamps are simply the window-end dates:
-    np_dates = [w[1] for w in windows]          # list of length N
+    # np_dates = [w[1] for w in windows]          # list of length N
 
     # 3) now, exactly as before, discover your file paths via Rucio…
     from rucio.client.client import Client
@@ -466,14 +466,14 @@ def _get_cmip6_files_rucio(scope,
         cmip6_var_filename[var] = []
         replicas = rucio.list_replicas(
             dids=[{"scope": scope, "name": dataset}],
-            schemes=["https"],
+            schemes=["file"],
             rse_expression=rse
         )
 
         # find replicas at your chosen RSE
         paths = []
         for replica in replicas:
-            if (var in replica["name"] and climate_model in replica["name"] and scenario.value in replica["name"]) and rse in replica["rses"]:
+            if (var in replica["name"] and climate_model.value in replica["name"] and scenario.value in replica["name"]) and rse in replica["rses"]:
                 lfilepath=replica["rses"][rse][0]
                 filepath = lfilepath.replace('file://localhost', '')
                 paths.append(filepath)
@@ -507,7 +507,7 @@ def _get_cmip6_files_rucio(scope,
         print(f"  {var}: {flist}")
 
     # **Key change**: return np_dates (1-D list of window ends), not the (N,2) windows
-    return cmip6_var_filename, np_dates
+    return cmip6_var_filename, windows
 
 
 # def _get_file_list_rucio(
@@ -550,7 +550,6 @@ def _read_and_aggregate_cmip6_data(seafire_ds, scenario, climate_model, infer_co
                                                                      year_range=year_range)
 
     dates_range_cftime = _get_cft_times_list(year_range=year_range)
-
     var_ds_list = []
     for var_name, var_cfg in infer_config.data.drivers.items():
         print(f"Reading variable {var_name} and aggregating with method {infer_config.data.drivers[var_name].aggregation}...")
@@ -577,7 +576,7 @@ def _read_and_aggregate_cmip6_data(seafire_ds, scenario, climate_model, infer_co
 
                 agg = aggregate_var(chunk, method=agg_method, dim="time")
                 stamp = np.datetime64(dates_range_np[idx][1])
-
+                
                 # Build a 1-element DataArray
                 agg_da = xr.DataArray(
                     data=agg.values[np.newaxis, ...],
