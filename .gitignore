@@ -5,6 +5,7 @@
 *.pyc
 *.txt
 *.zarr
+rucio_oauth.token
 
 # Files
 digital_twin_notebooks/img/*.png
