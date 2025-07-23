@@ -20,9 +20,7 @@ import munch
 
 import toml
 import munch            
-from types import SimpleNamespace
 from typing import Any
-from types import SimpleNamespace
 
 # define logger
 _log = logger(log_dir=LOGS_DIR).get_logger("Inference Utilities")
