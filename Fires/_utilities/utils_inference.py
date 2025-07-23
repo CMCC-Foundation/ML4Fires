@@ -7,16 +7,13 @@ import pydot
 import datetime
 import re
 from cftime import num2date, date2num
-import toml
 from Fires._datasets.torch_dataset import FireDataset
 from Fires._macros.macros import DRIVERS, TARGETS, MAX_HECTARES_100KM, LOGS_DIR, CONFIG
 from Fires._plots.plot_utils import plot_dataset_map
 from Fires._scalers.standard import StandardScaler
 from Fires._utilities.logger import Logger as logger
 from Fires._utilities.decorators import debug, export
-import munch
 
-#os.environ['RUCIO_CONFIG'] = '/ceph/hpc/home/ciangottinid/ML4Fires/rucio.cfg'
 
 import toml
 import munch            
@@ -29,10 +26,7 @@ _log = logger(log_dir=LOGS_DIR).get_logger("Inference Utilities")
 @export
 @debug(log=_log)
 def get_prov_image(run_name):
-	#prov_doc = os.path.join(os.getcwd(), 'MLFLOW', f"{run_name}/provgraph_{CONFIG.mlflow.EXPERIMENT_NAME}.dot")
-	#prov_img = os.path.join(os.getcwd(), 'MLFLOW', f"{run_name}/provgraph_{CONFIG.mlflow.EXPERIMENT_NAME}.png")
-	#(graph,) = pydot.graph_from_dot_file(prov_doc)
-	#graph.write_png(prov_img)
+
 	prov_img = os.path.join(os.getcwd(), 'MLFLOW', f"{run_name}/provgraph_{CONFIG.mlflow.EXPERIMENT_NAME}.svg")
 	return prov_img
 
@@ -243,7 +237,7 @@ def process_and_plot_cmip6infer(data: xr.Dataset,
                                 scale_max: int=None,
                                 sea_poles_mask: xr.DataArray=None):
 	"""
-	Process the data and generate plots.
+	Process the data and generate plots for the inference from the cmip6 dataset.
 
 	Parameters
 	----------
@@ -257,6 +251,12 @@ def process_and_plot_cmip6infer(data: xr.Dataset,
 		Array of longitudes.
 	model_name : str
 		Name of the model, used in the plot title.
+    scale_min : int
+        The minimum of the scale used for the plotting.
+    scale_max: int
+        The maximum of the scale used for the plotting.
+    sea_poles_mask: xr.DataArray=None
+        xr.DataArray object to mask the poles and sea in the final map.
 
 	"""
 	
@@ -285,30 +285,9 @@ def process_and_plot_cmip6infer(data: xr.Dataset,
 			avg_on_time = avg_on_time.values
 			std_on_time = yearly_aggregate.std(dim='time', skipna=True).values
 		else:
-            # Check that parameter temporal_aggregate_scheme is not an str and is not an empty list
-			assert isinstance(temporal_aggregate_scheme, dict), "For multi-scale aggregate, a dictionary with keys 'monthly,  'year' and 'decadal' is required."
-			assert len(temporal_aggregate_scheme) > 0, "For multi-scale aggregate, more than one aggregate methods should be provided."
-			years_in_ds = np.unique(data.time.dt.year)
-            
-            # Monthly aggregate
-            
-            # Get aggreagated on monthly scale for the years in the dataset.
-            # Default date is in start of the month.
-			monthly_aggregate = eval(f"data.resample(time='{temporal_aggregate_scheme['monthly'][1]}',skipna=True).{temporal_aggregate_scheme['monthly'][0]}()")
-            
-            # Aggregate over the year
-            # Aggregate on the year
-			yearly_aggregate = eval(f"monthly_aggregate.resample(time='1Y',skipna=True).{temporal_aggregate_scheme['yearly']}()")
-            
-			if len(years_in_ds) > 1: # check if there are more than one year in the dataset - decadal scale prediction
-				# If there are more than on year, then there should be an aggregate method in the list which is not none or empty
-                # Do decadal aggregate
-				avg_on_time = eval(f"yearly_aggregate.{temporal_aggregate_scheme['decadal']}(dim='time',skipna=True)")
-				std_on_time = yearly_aggregate.std(dim='time', skipna=True).data
-			else:
-                # No decadal aggregate in case you only 
-				avg_on_time = yearly_aggregate 
-				std_on_time = yearly_aggregate.std(dim='time', skipna=True).data
+            # No decadal aggregate in case you only 
+			avg_on_time = yearly_aggregate 
+			std_on_time = yearly_aggregate.std(dim='time', skipna=True).data
 	else:
 		avg_on_time = np.nanmean(data, axis=0)
 		std_on_time = np.nanstd(data, axis=0)
@@ -375,7 +354,6 @@ def _get_cft_times_list(year_range):
                 single_np_date -= np.timedelta64(1, "D")
                 py_date.append(single_np_date.astype('datetime64[ms]').astype(object))
         units = "days since 0000-01-01"
-        # calendar_type = "standard" if calendar.isleap(int(str(single_date_range[0])[0:4])) else "noleap"
         calendar_type = "noleap"
         numeric_time = date2num(py_date, units, calendar_type, has_year_zero=True)
         dates_range_cfttime.append(num2date(numeric_time, units, calendar_type, has_year_zero=True))
@@ -504,23 +482,6 @@ def _get_cmip6_files_rucio(scope,
     return cmip6_var_filename, windows
 
 
-# def _get_file_list_rucio(
-#     scenario: str,
-#     year_range: tuple[int, int],
-#     infer_config
-# ):
-
-#     base_dir = infer_config.config.base_dir
-#     drivers_cfg = infer_config.data.drivers
-
-#     return _get_cmip6_files_rucio(scope=CONFIG.rucio.scope,
-#                                  rse=CONFIG.rucio.rse,
-#                                  model_name=CONFIG.rucio.model,
-#                                  scenario=scenario,
-#                                  year_range=year_range,
-#                                  infer_config=infer_config)
-
-
 def _read_and_aggregate_cmip6_data(seafire_ds, scenario, climate_model, infer_config, year_range):
   
     if CONFIG.rucio.rse:
@@ -610,98 +571,6 @@ def _read_and_aggregate_cmip6_data(seafire_ds, scenario, climate_model, infer_co
    
     return data, time_vec
 
-
-
-# def _read_and_aggregate_rucio_cmip6(files_dict, local_config, seafire_ds):
-    
-#     def extract_years_from_filenames(filenames):
-#         years = []
-#         for fn in filenames:
-#             try:
-#                 part = fn.rsplit("_", 1)[-1].replace(".nc", "")
-#                 start, end = part.split("-")
-#                 years += [int(start[:4]), int(end[:4])]
-#             except:
-#                 continue
-#         if not years:
-#             raise ValueError("Cannot parse years from filenames.")
-#         return min(years), max(years)
-
-#     # 1) Infer date range
-#     all_files = [f for flist in files_dict.values() for f in flist]
-#     min_year, max_year = extract_years_from_filenames(all_files)
-
-#     # 2) Build windows
-#     windows_np = make_8day_windows((min_year, max_year))
-#     windows_cftime = _get_cft_times_list((min_year, max_year))
-
-#     drivers_cfg = local_config.data.drivers
-#     var_ds_list = []
-
-#     for var_name, file_list in files_dict.items():
-#         if not file_list:
-#             continue
-
-#         agg_method = drivers_cfg[var_name].aggregation.lower()
-
-#         if agg_method != "none":
-#             ds = xr.open_mfdataset(file_list, combine="by_coords")[var_name]
-#             slices = []
-#             for idx, win in enumerate(windows_cftime):
-#                 chunk = ds.sel(time=slice(win[0], win[1]))
-#                 if chunk.time.size == 0:
-#                     continue
-#                 if var_name == "pr":
-#                     chunk *= 3600 * 24
-
-#                 agg = aggregate_var(chunk, method=agg_method, dim="time")
-#                 stamp = np.datetime64(windows_np[idx][1])
-
-#                 # build 1-element time‐indexed DataArray
-#                 agg_da = xr.DataArray(
-#                     data=agg.values[np.newaxis, ...],
-#                     dims=("time",) + agg.dims,
-#                     coords={"time": [stamp], **{d: agg.coords[d] for d in agg.dims}},
-#                     name=var_name
-#                 )
-#                 slices.append(agg_da)
-
-#             if not slices:
-#                 continue
-
-#             ds_var = xr.concat(slices, dim="time")
-#             # remove any duplicate times
-#             _, uniq = np.unique(ds_var.time.values, return_index=True)
-#             ds_var = ds_var.isel(time=uniq)
-
-#         else:
-#             ds_var = xr.open_dataset(file_list[0])[var_name] / 100.0
-
-#         # regrid & rename
-#         ds_var = (
-#             ds_var
-#             .assign_coords(lon=((ds_var.lon + 180) % 360) - 180)
-#             .sortby("lon")
-#             .rename(lon="longitude", lat="latitude")
-#             .interp_like(seafire_ds[["longitude", "latitude"]])
-#         )
-#         var_ds_list.append(ds_var)
-
-#     if not var_ds_list:
-#         raise ValueError("No valid variables to process.")
-
-#     merged = xr.merge(var_ds_list)
-#     if "plev" in merged.dims:
-#         merged = merged.isel(plev=0)
-
-#     # **Here** we extract the time vector that actually matches merged.time
-#     merged = merged.sortby("time")
-#     time_vec = merged.time.values  # 1D array of length nt
-
-#     data = merged.to_array().transpose("time", "variable", "latitude", "longitude").values
-#     return data, time_vec
-
-
 def get_cmip6_inference(
     seafire_ds,
     run_name,
@@ -711,11 +580,7 @@ def get_cmip6_inference(
     model,
     infer_config
 ):
-    # Load configs
-    # server_cfg = munch.munchify(toml.load(server_config_path))
-    # local_cfg = munch.munchify(toml.load(local_config_path))
-    # rse = CONFIG.rucio.get("rse", "")
-
+ 
     print(f"📘 Running inference for scenario: {scenario.value}, years: {year_range.value[0]}–{year_range.value[1]}")
 
     ds_array, time_vec = _read_and_aggregate_cmip6_data(
