@@ -1,5 +1,4 @@
 [data]
-
 	[data.features]
 	drivers = ['lai', 'lst_day', 'rel_hum', 'sst', 't2m_min', 'tp', 'lsm']
 	targets = ['fcci_ba']
@@ -25,7 +24,7 @@ SCALER_DIR = "os.path.join(DATA_DIR, 'scaler')"
 [mlflow]
 TRACKING_INSECURE_TLS = 'true'
 TRACKING_URI = "https://mlflow.intertwin.fedcloud.eu/"
-EXPERIMENT_NAME = "ML4Fires_Experiment"
+EXPERIMENT_NAME = "ML4Fires_Experiment_Pourya"
 
 [toml]
 tflow_fname = "tflow.toml"
@@ -34,6 +33,16 @@ credentials_fname = "credentials.toml"
 
 [utils]
 seed = 346	
-
 	[utils.datetime]
 	today = "str(dt.now()).split('.')[0].replace('-', '').replace(':', '').replace(' ', '_')"
+
+
+# ------------------------------------------------------------------
+# CMIP6 data configuration: 
+# ------------------------------------------------------------------
+
+[rucio]
+rse = "VEGA-DCACHE" # Leave blank to read files from local folders
+scope = "CMIP6"
+dataset = "ScenarioMIP"
+base_dir = "/dcache/sling.si/projects/intertwin/cmip6_scenarios/"  # Used only for local
