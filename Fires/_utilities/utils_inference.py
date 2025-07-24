@@ -209,3 +209,131 @@ def process_and_plot_data(data, label, lats, lons, model_name):
 		title=f'{label} ({model_name.upper()})',
 		cmap='nipy_spectral_r'
 	)
+    
+
+@export
+@debug(log=_log)
+def process_and_plot_data_all(data, label, lats, lons, model_name):
+	"""
+	Process the data and generate plots with the average of 20 years.
+
+	Parameters
+	----------
+	data : xarray.DataArray or np.ndarray
+		Data to process; can be an xarray.DataArray for real data or a numpy.ndarray for predictions.
+	label : str
+		Label to use in the plot title.
+	lats : np.ndarray
+		Array of latitudes.
+	lons : np.ndarray
+		Array of longitudes.
+	model_name : str
+		Name of the model, used in the plot title.
+	"""
+
+	if isinstance(data, xr.DataArray):
+		avg_on_time = data.mean(dim='time', skipna=True).data
+		std_on_time = data.std(dim='time', skipna=True).data
+	else:
+		avg_on_time = np.nanmean(data, axis=0)[0, ...]
+		std_on_time = np.nanstd(data, axis=0)[0, ...]
+
+	# Aggregate data
+	avg_descaled, avg_on_lats, _ = compute_aggregated_data(data=avg_on_time)
+	_, std_on_lats, _ = compute_aggregated_data(data=std_on_time)
+
+	# Compute upper and lower boundaries
+	upperbound, lowerbound = up_and_lower_bounds(avg_value=avg_on_lats, std_value=std_on_lats)
+
+	# Plot data
+	plot_dataset_map(
+		avg_target_data=avg_descaled,
+		avg_data_on_lats=avg_on_lats,
+		lowerbound_data=lowerbound,
+		upperbound_data=upperbound,
+		lats=lats,
+		lons=lons,
+		title=f'{label} ({model_name.upper()})',
+		cmap='nipy_spectral_r'
+	)
+
+    
+@export
+@debug(log=_log)
+def process_and_plot_data_all_sum(data, label, lats, lons, model_name):
+    """
+    Process the data and generate plots (sum of all the 20 years).
+
+    Parameters
+    ----------
+    data : xarray.DataArray or np.ndarray
+        Data to process.
+    label : str
+        Plot title label.
+    lats : np.ndarray
+        Latitudes.
+    lons : np.ndarray
+        Longitudes.
+    model_name : str
+        Model name for the plot title.
+    """
+
+    if isinstance(data, xr.DataArray):
+        sum_on_time = data.sum(dim='time', skipna=True).data
+        std_on_time = data.std(dim='time', skipna=True).data
+    else:
+        sum_on_time = np.nansum(data, axis=0)[0, ...]
+        std_on_time = np.nanstd(data, axis=0)[0, ...]
+
+    # Aggregate data (sum instead of mean)
+    sum_descaled, sum_on_lats, _ = compute_aggregated_data(data=sum_on_time)
+    _, std_on_lats, _ = compute_aggregated_data(data=std_on_time)
+
+    # Compute upper and lower boundaries
+    upperbound, lowerbound = up_and_lower_bounds(avg_value=sum_on_lats, std_value=std_on_lats)
+
+    # Plot
+    plot_dataset_map(
+        avg_target_data=sum_descaled,
+        avg_data_on_lats=sum_on_lats,
+        lowerbound_data=lowerbound,
+        upperbound_data=upperbound,
+        lats=lats,
+        lons=lons,
+        title=f'{label} ({model_name.upper()})',
+        cmap='nipy_spectral_r'
+    )
+
+
+    
+    
+# input_tensor and preds_tensor are already:
+# - dtype=torch.float32
+# - shaped (time, lat, lon)
+# - NaNs already masked out using nan_mask
+# If you skipped singleton dimension on preds_tensor, both should now be shape (T, H, W)
+
+def compute_aggregated_mape_smape(input_tensor, preds_tensor):
+    """
+    Compute aggregated MAPE and sMAPE after summing over time (per-pixel totals).
+    Args:
+        input_tensor: torch.Tensor of shape (T, lat, lon)
+        preds_tensor: torch.Tensor of shape (T, lat, lon)
+    Returns:
+        mape, smape: float
+    """
+    eps = 1e-6  # small constant to avoid division by zero
+
+    # Aggregate predictions and inputs over time (axis=0)
+    agg_input = input_tensor.sum(dim=0)   # shape: (lat, lon)
+    agg_preds = preds_tensor.sum(dim=0)   # shape: (lat, lon)
+
+    # Compute Mean Absolute Percentage Error (MAPE)
+    mape = torch.mean(torch.abs((agg_input - agg_preds) / (agg_input + eps))) * 100
+
+    # Compute Symmetric MAPE (sMAPE)
+    smape = 100 * torch.mean(
+        2 * torch.abs(agg_preds - agg_input) / (torch.abs(agg_input) + torch.abs(agg_preds) + eps)
+    )
+
+    return mape.item(), smape.item()

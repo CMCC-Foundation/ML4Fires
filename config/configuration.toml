@@ -1,7 +1,7 @@
 [data]
 
 	[data.features]
-	drivers = ['lai', 'lst_day', 'rel_hum', 't2m_min', 'tp', 'lsm']
+	drivers = ['lai', 'rel_hum', 't2m_min', 'tp', 'lsm']
 	targets = ['fcci_ba']
 	landsea_mask = ['lsm']
 	
