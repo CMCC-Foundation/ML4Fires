@@ -307,3 +307,36 @@ def process_and_plot_data_all_sum(data, label, lats, lons, model_name):
         cmap='nipy_spectral_r'
     )
 
+
+    
+    
+# input_tensor and preds_tensor are already:
+# - dtype=torch.float32
+# - shaped (time, lat, lon)
+# - NaNs already masked out using nan_mask
+# If you skipped singleton dimension on preds_tensor, both should now be shape (T, H, W)
+
+def compute_aggregated_mape_smape(input_tensor, preds_tensor):
+    """
+    Compute aggregated MAPE and sMAPE after summing over time (per-pixel totals).
+    Args:
+        input_tensor: torch.Tensor of shape (T, lat, lon)
+        preds_tensor: torch.Tensor of shape (T, lat, lon)
+    Returns:
+        mape, smape: float
+    """
+    eps = 1e-6  # small constant to avoid division by zero
+
+    # Aggregate predictions and inputs over time (axis=0)
+    agg_input = input_tensor.sum(dim=0)   # shape: (lat, lon)
+    agg_preds = preds_tensor.sum(dim=0)   # shape: (lat, lon)
+
+    # Compute Mean Absolute Percentage Error (MAPE)
+    mape = torch.mean(torch.abs((agg_input - agg_preds) / (agg_input + eps))) * 100
+
+    # Compute Symmetric MAPE (sMAPE)
+    smape = 100 * torch.mean(
+        2 * torch.abs(agg_preds - agg_input) / (torch.abs(agg_input) + torch.abs(agg_preds) + eps)
+    )
+
+    return mape.item(), smape.item()
