@@ -5,14 +5,19 @@ import joblib
 import torch
 import pydot
 import datetime
+import re
 from cftime import num2date, date2num
-
 from Fires._datasets.torch_dataset import FireDataset
 from Fires._macros.macros import DRIVERS, TARGETS, MAX_HECTARES_100KM, LOGS_DIR, CONFIG
 from Fires._plots.plot_utils import plot_dataset_map
 from Fires._scalers.standard import StandardScaler
 from Fires._utilities.logger import Logger as logger
 from Fires._utilities.decorators import debug, export
+
+
+import toml
+import munch            
+from typing import Any
 
 # define logger
 _log = logger(log_dir=LOGS_DIR).get_logger("Inference Utilities")
@@ -21,10 +26,7 @@ _log = logger(log_dir=LOGS_DIR).get_logger("Inference Utilities")
 @export
 @debug(log=_log)
 def get_prov_image(run_name):
-	#prov_doc = os.path.join(os.getcwd(), 'MLFLOW', f"{run_name}/provgraph_{CONFIG.mlflow.EXPERIMENT_NAME}.dot")
-	#prov_img = os.path.join(os.getcwd(), 'MLFLOW', f"{run_name}/provgraph_{CONFIG.mlflow.EXPERIMENT_NAME}.png")
-	#(graph,) = pydot.graph_from_dot_file(prov_doc)
-	#graph.write_png(prov_img)
+
 	prov_img = os.path.join(os.getcwd(), 'MLFLOW', f"{run_name}/provgraph_{CONFIG.mlflow.EXPERIMENT_NAME}.svg")
 	return prov_img
 
@@ -222,7 +224,7 @@ def process_and_plot_data(data,
 		title=f'{label} ({model_name.upper()})',
 		cmap='nipy_spectral_r'
 	)
-    
+
 @export
 @debug(log=_log)
 def process_and_plot_cmip6infer(data: xr.Dataset,
@@ -249,6 +251,12 @@ def process_and_plot_cmip6infer(data: xr.Dataset,
 		Array of longitudes.
 	model_name : str
 		Name of the model, used in the plot title.
+    scale_min : int
+        The minimum of the scale used for the plotting.
+    scale_max: int
+        The maximum of the scale used for the plotting.
+    sea_poles_mask: xr.DataArray=None
+        xr.DataArray object to mask the poles and sea in the final map.
 
 	"""
 	# TODO: Alot of redundant code here. CLEAN UP!
@@ -278,30 +286,9 @@ def process_and_plot_cmip6infer(data: xr.Dataset,
 			avg_on_time = avg_on_time.values
 			std_on_time = yearly_aggregate.std(dim='time', skipna=True).values
 		else:
-            # Check that parameter temporal_aggregate_scheme is not an str and is not an empty list
-			assert isinstance(temporal_aggregate_scheme, dict), "For multi-scale aggregate, a dictionary with keys 'monthly,  'year' and 'decadal' is required."
-			assert len(temporal_aggregate_scheme) > 0, "For multi-scale aggregate, more than one aggregate methods should be provided."
-			years_in_ds = np.unique(data.time.dt.year)
-            
-            # Monthly aggregate
-            
-            # Get aggreagated on monthly scale for the years in the dataset.
-            # Default date is in start of the month.
-			monthly_aggregate = eval(f"data.resample(time='{temporal_aggregate_scheme['monthly'][1]}',skipna=True).{temporal_aggregate_scheme['monthly'][0]}()")
-            
-            # Aggregate over the year
-            # Aggregate on the year
-			yearly_aggregate = eval(f"monthly_aggregate.resample(time='1Y',skipna=True).{temporal_aggregate_scheme['yearly']}()")
-            
-			if len(years_in_ds) > 1: # check if there are more than one year in the dataset - decadal scale prediction
-				# If there are more than on year, then there should be an aggregate method in the list which is not none or empty
-                # Do decadal aggregate
-				avg_on_time = eval(f"yearly_aggregate.{temporal_aggregate_scheme['decadal']}(dim='time',skipna=True)")
-				std_on_time = yearly_aggregate.std(dim='time', skipna=True).data
-			else:
-                # No decadal aggregate in case you only 
-				avg_on_time = yearly_aggregate 
-				std_on_time = yearly_aggregate.std(dim='time', skipna=True).data
+            # No decadal aggregate in case you only 
+			avg_on_time = yearly_aggregate 
+			std_on_time = yearly_aggregate.std(dim='time', skipna=True).data
 	else:
 		avg_on_time = np.nanmean(data, axis=0)
 		std_on_time = np.nanstd(data, axis=0)
@@ -332,7 +319,8 @@ def process_and_plot_cmip6infer(data: xr.Dataset,
 		title=f'{label} ({model_name.upper()})',
 		cmap='nipy_spectral_r'
 	)
-    
+
+
 def aggregate_var(dataarray: xr.DataArray, method:str, dim:str='time'):
     eval_str = f"dataarray.{method}(dim='{dim}',skipna=True,keep_attrs=True)"
     output = eval(eval_str)
@@ -341,7 +329,7 @@ def aggregate_var(dataarray: xr.DataArray, method:str, dim:str='time'):
 
 def _get_list_of_dates(year_range):
     n_prior_days = 8
-    str_dates = [f'{year_range.value[0]}-01-08',f'{year_range.value[1]}-12-24'] #[start_date, end_date] yyyy-mm-dd
+    str_dates = [f'{year_range.value[0]}-01-08', f'{year_range.value[1]}-12-24']  # ✅ fixed here
 
     np_dates = [np.datetime64(f"{str_date}T12:00:00.00") for str_date in str_dates]
     np_all_dates = [np_dates[0]]
@@ -367,7 +355,6 @@ def _get_cft_times_list(year_range):
                 single_np_date -= np.timedelta64(1, "D")
                 py_date.append(single_np_date.astype('datetime64[ms]').astype(object))
         units = "days since 0000-01-01"
-        # calendar_type = "standard" if calendar.isleap(int(str(single_date_range[0])[0:4])) else "noleap"
         calendar_type = "noleap"
         numeric_time = date2num(py_date, units, calendar_type, has_year_zero=True)
         dates_range_cfttime.append(num2date(numeric_time, units, calendar_type, has_year_zero=True))
@@ -375,73 +362,236 @@ def _get_cft_times_list(year_range):
     return dates_range_cfttime
 
 
-def _get_file_list(scenario, config, year_range):
-    import os
-    dates_range_np = _get_list_of_dates(year_range=year_range)
+def _get_file_list_directly(scenario, climate_model, infer_config, year_range):
     
+    dates_range_np = make_8day_windows(year_range)
     cmip6_var_filename = {}
-    for var_key, var_value in config.data.drivers.items():
+
+    for var_key, var_value in infer_config.data.drivers.items():
         cmip6_var_filename[var_key] = []
         if var_value.type == "dynamic":
-            if "[scenario]" in var_value.cmip6_path:
-                path_to_files = os.path.join(config.config.base_dir,var_value.cmip6_path.replace("[scenario]", scenario.value))
-            else:
-                path_to_files = os.path.join(config.config.base_dir,var_value.cmip6_path)
+            cmip6_path = var_value.cmip6_path.replace("[scenario]", scenario.value)
+            path_to_files = os.path.join(infer_config.config.base_dir, cmip6_path)
             list_of_files = [file for file in os.listdir(path_to_files) if file.endswith(".nc")]
             for file in list_of_files:
                 date = file.split("_")[-1].split(".")[0].split("-")
-                start_date = np.datetime64(f"{date[0][0:4]}-{date[0][4:6]}-{date[0][6:8]}")
-                end_date = np.datetime64(f"{date[1][0:4]}-{date[1][4:6]}-{date[1][6:8]}")
+                start_date = np.datetime64(f"{date[0][:4]}-{date[0][4:6]}-{date[0][6:]}")
+                end_date = np.datetime64(f"{date[1][:4]}-{date[1][4:6]}-{date[1][6:]}")
                 for date_range in dates_range_np:
-                    if min(date_range) >= start_date and max(date_range)<=end_date and os.path.join(path_to_files,file) not in cmip6_var_filename[var_key]:
-                        cmip6_var_filename[var_key].append(os.path.join(path_to_files,file))
+                    if min(date_range) >= start_date and max(date_range) <= end_date:
+                        full_path = os.path.join(path_to_files, file)
+                        if full_path not in cmip6_var_filename[var_key]:
+                            cmip6_var_filename[var_key].append(full_path)
         else:
-            path_to_file = os.path.join(config.config.base_dir,var_value.cmip6_path.replace("[scenario]", scenario.value))
-            file = [file for file in os.listdir(path_to_file) if file.endswith(".nc")]
-            cmip6_var_filename[var_key] = os.path.join(path_to_file,file[0])
-    
-    print("Loading the following CMIP6 data files...")
-    for key,value in cmip6_var_filename.items():
-        print(f"{key}: {value}")
-    
-    return cmip6_var_filename, dates_range_np
-            
-def _read_and_aggregate_cmip6_data(seafire_ds, scenario, config, year_range):
-    
-    cmip6_var_filename, dates_range_np = _get_file_list(scenario=scenario, config=config,year_range=year_range)
-    dates_range_cfttime = _get_cft_times_list(year_range=year_range)
-    
-    var_ds_list = []
-    for var_name, var_file in cmip6_var_filename.items():
-        print(f"Reading variable {var_name} and aggregating with method {config.data.drivers[var_name].aggregation}...")
-        if config.data.drivers[var_name].aggregation.lower() != "none":
-                ds_var = xr.open_mfdataset(var_file)[var_name]
-                ds_var_time_slices = []
-                for single_range_cfttime in dates_range_cfttime:
-                    var_time_slice = ds_var.sel(time=slice(single_range_cfttime[0],single_range_cfttime[1]))
-                    ds_var_time_slices.append(var_time_slice)
-        else:
-            ds_var = xr.open_dataset(var_file)[var_name]/100 # divide by 100 to get the same units as training dataset
-        if config.data.drivers[var_name].aggregation.lower() != "none":
-            for slice_idx, single_time_slice in enumerate(ds_var_time_slices):
-                if var_name == "pr":
-                    single_time_slice = single_time_slice*3600*24 # Convering flux to total precipitation
-                ds_var_time_slices[slice_idx] = aggregate_var(dataarray=single_time_slice,method=config.data.drivers[var_name].aggregation,dim='time')
-                ds_var_time_slices[slice_idx] = ds_var_time_slices[slice_idx].expand_dims({"time":[dates_range_np[slice_idx][-1]]})
+            path_to_file = os.path.join(infer_config.config.base_dir, var_value.cmip6_path.replace("[scenario]", scenario.value))
+            file = [f for f in os.listdir(path_to_file) if f.endswith(".nc")]
+            cmip6_var_filename[var_key] = [os.path.join(path_to_file, file[0])]
 
-            ds_var = xr.concat(ds_var_time_slices, dim="time")
-        print("Renaming variables for interpolation....")
-        ds_var = ds_var.assign_coords({"lon": ((ds_var.lon + 180) % 360) - 180}).sortby("lon") # translating the longitude values
-        ds_var = ds_var.rename({"lon":"longitude", "lat":"latitude"}) # renaming longitude and latitude for regridding
-        print("Interpolating on the grid....")
-        ds_var = ds_var.interp_like(seafire_ds[["longitude","latitude"]])
+    print("Loading the following CMIP6 data files from LOCAL:")
+    for key, value in cmip6_var_filename.items():
+        print(f"{key}: {value}")
+
+    return cmip6_var_filename, dates_range_np
+
+
+
+def make_8day_windows(year_range: tuple[int, int]) -> np.ndarray:
+    start = np.datetime64(f"{year_range.value[0]}-01-01")
+    end   = np.datetime64(f"{year_range.value[1]}-12-31")
+    windows = []
+    current = start
+    one_day = np.timedelta64(1, "D")
+    eight_days = np.timedelta64(8, "D")
+
+    while current <= end:
+        window_end = min(current + eight_days - one_day, end)
+        windows.append((current, window_end))
+        current = current + eight_days
+
+    return np.array(windows, dtype="datetime64[ns]")
+
+
+def _get_cmip6_files_rucio(scope,
+                          rse,
+                          dataset,
+                          scenario,
+                          climate_model,
+                          year_range,
+                          infer_config):
+    
+    """
+    Returns:
+      - cmip6_var_filename: dict[var_name, list[file_paths]]
+      - np_dates:       list of numpy.datetime64 stamps (one per 8-day window)
+    """
+    
+    # 1) build the 8-day windows
+    windows = make_8day_windows(year_range)      # array of shape (N,2)
+    # 2) our “time” stamps are simply the window-end dates:
+    # np_dates = [w[1] for w in windows]          # list of length N
+
+    # 3) now, exactly as before, discover your file paths via Rucio…
+    from rucio.client.client import Client
+    rucio = Client()
+    cmip6_var_filename: dict[str, list[str]] = {}
+
+    for var, cfg in infer_config.data.drivers.items():
+        cmip6_var_filename[var] = []
+        replicas = rucio.list_replicas(
+            dids=[{"scope": scope, "name": dataset}],
+            schemes=["file"],
+            rse_expression=rse
+        )
+
+        # find replicas at your chosen RSE
+        paths = []
+        for replica in replicas:
+            if (var in replica["name"] and climate_model.value in replica["name"] and scenario.value in replica["name"]) and rse in replica["rses"]:
+                lfilepath=replica["rses"][rse][0]
+                filepath = lfilepath.replace('file://localhost', '')
+                paths.append(filepath)
+        
+        assert paths, "No files were found for the query to RUCIO"
+        
+        # TODO: Finish this code do it in a nicer way
+        
+        if cfg.type == "dynamic":
+            # only keep those files that cover *any* of our windows
+            for p in sorted(paths):
+                fn = os.path.basename(p)
+                datestr = fn.rsplit("_", 1)[-1].removesuffix(".nc")
+                start_s, end_s = datestr.split("-")
+                start = np.datetime64(f"{start_s[:4]}-{start_s[4:6]}-{start_s[6:]}")
+                end   = np.datetime64(f"{end_s[:4]}-{end_s[4:6]}-{end_s[6:]}")
+                # if this file fully covers at least one 8-day window, keep it
+                if any((w[0] >= start and w[1] <= end) for w in windows):
+                    cmip6_var_filename[var].append(p)
+        else:
+            # static driver → only need the first match
+            if paths:
+                cmip6_var_filename[var] = [paths[0]]
+            else:
+                raise FileNotFoundError(
+                    f"No static file for '{var}' (pattern {pattern})"
+                )
+
+    print("Loading the following CMIP6 data files from RUCIO:")
+    for var, flist in cmip6_var_filename.items():
+        print(f"  {var}: {flist}")
+
+    # **Key change**: return np_dates (1-D list of window ends), not the (N,2) windows
+    return cmip6_var_filename, windows
+
+
+def _read_and_aggregate_cmip6_data(seafire_ds, scenario, climate_model, infer_config, year_range):
+  
+    if CONFIG.rucio.rse:
+        try:
+            #from rucio.client.uploadclient import UploadClient
+            from rucio.client.client import Client
+            rucio = Client()
+        except:
+            raise Exception("Rucio client could not be found. Make sure Rucio library is installed.")
+        cmip6_var_filename, dates_range_np = _get_cmip6_files_rucio(scope=CONFIG.rucio.scope,
+                                                                    rse=CONFIG.rucio.rse,
+                                                                    dataset=CONFIG.rucio.dataset,
+                                                                    scenario=scenario,
+                                                                    climate_model=climate_model,
+                                                                    year_range=year_range,
+                                                                    infer_config=infer_config)
+    else:
+        cmip6_var_filename, dates_range_np = _get_file_list_directly(scenario=scenario,
+                                                                     climate_model=climate_model,
+                                                                     infer_config=infer_config,
+                                                                     year_range=year_range)
+
+    dates_range_cftime = _get_cft_times_list(year_range=year_range)
+    var_ds_list = []
+    for var_name, var_cfg in infer_config.data.drivers.items():
+        print(f"Reading variable {var_name} and aggregating with method {infer_config.data.drivers[var_name].aggregation}...")
+        cmip6_path = var_cfg.cmip6_path.replace("[scenario]", scenario.value) 
+        full_dir = os.path.join(infer_config.config.base_dir, cmip6_path)
+        files = sorted(cmip6_var_filename[var_name])
+        assert files, f"There were no files found for {var_name}. Please double check configuration."
+        agg_method = var_cfg.aggregation.lower()
+        if agg_method != "none":
+            # Open all files along time
+            ds = xr.open_mfdataset(
+                files,
+                concat_dim="time",
+                combine="nested"
+            )[var_name]
+
+            slices = []
+            for idx, win in enumerate(dates_range_cftime):
+                chunk = ds.sel(time=slice(win[0], win[1]))
+                if chunk.time.size == 0:
+                    continue
+                if var_name == "pr":
+                    chunk = chunk * 3600 * 24
+
+                agg = aggregate_var(chunk, method=agg_method, dim="time")
+                stamp = np.datetime64(dates_range_np[idx][1])
+                
+                # Build a 1-element DataArray
+                agg_da = xr.DataArray(
+                    data=agg.values[np.newaxis, ...],
+                    dims=("time",) + agg.dims,
+                    coords={"time": [stamp], **{d: agg.coords[d] for d in agg.dims}},
+                    name=var_name,
+                )
+                slices.append(agg_da)
+
+            ds_var = xr.concat(slices, dim="time")
+
+        else:
+            # Static file
+            # Changing the 'unit' for the land sea mask 
+            ds_var = xr.open_dataset(files[0])[var_name] / 100.0
+
+        # Regrid & rename
+        ds_var = (
+            ds_var
+            .assign_coords(lon=((ds_var.lon + 180) % 360) - 180)
+            .sortby("lon")
+            .rename(lon="longitude", lat="latitude")
+            .interp_like(seafire_ds[["longitude", "latitude"]])
+        )
+
         var_ds_list.append(ds_var)
 
-    merged_ds_var = xr.merge(var_ds_list)
-    merged_ds_var = merged_ds_var.isel(plev=0) # This is selected for the variable which also dependso on the pressure - this selects the sea level pressure
-    
-    ds_array = merged_ds_var.to_array().transpose("time", "variable", "latitude", "longitude").values
-    return ds_array, merged_ds_var.time.values
+    assert var_ds_list, "No local variables found or processed."
+    merged = xr.merge(var_ds_list)
+    if "plev" in merged.dims:
+        merged = merged.isel(plev=0)
+
+    # Sort and extract array + time vector
+    merged = merged.sortby("time")
+    time_vec = merged.time.values
+    data = merged.to_array().transpose("time", "variable", "latitude", "longitude").values
+   
+    return data, time_vec
+
+def get_cmip6_inference(
+    seafire_ds,
+    run_name,
+    scenario,
+    climate_model,
+    year_range,
+    model,
+    infer_config
+):
+ 
+    print(f"📘 Running inference for scenario: {scenario.value}, years: {year_range.value[0]}–{year_range.value[1]}")
+
+    ds_array, time_vec = _read_and_aggregate_cmip6_data(
+        seafire_ds=seafire_ds,
+        scenario=scenario,
+        climate_model=climate_model,
+        infer_config=infer_config,
+        year_range=year_range
+    )
+
 
 def do_inference(dataset: xr.Dataset,
                  model):
@@ -452,30 +602,57 @@ def do_inference(dataset: xr.Dataset,
             prediction_cpu.append(prediction.cpu().detach().numpy())
     return np.vstack(prediction_cpu).squeeze()
     
-    
-def get_cmip6_inference(seafire_ds, run_name, scenario, year_range, config, model):
-    
-    print(f"Reading CMIP6 data for scenario {scenario.value} for year range {year_range.value[0]}-{year_range.value[1]}")
-    ds_array, np_dates = _read_and_aggregate_cmip6_data(seafire_ds=seafire_ds,scenario=scenario, config=config, year_range=year_range)
-    print(f"Dimensions of the input: ", ds_array.shape)
-                                                               
+def get_cmip6_inference(
+    seafire_ds,
+    run_name,
+    scenario,
+    climate_model,
+    year_range,
+    model,
+    infer_config
+):
+ 
+    print(f"📘 Running inference for scenario: {scenario.value}, years: {year_range.value[0]}–{year_range.value[1]}")
+
+    ds_array, time_vec = _read_and_aggregate_cmip6_data(
+        seafire_ds=seafire_ds,
+        scenario=scenario,
+        climate_model=climate_model,
+        infer_config=infer_config,
+        year_range=year_range
+    )
+
+    print("🧮 Input shape:", ds_array.shape)
+
+    # ── Run the model ──
     scaler = get_scaler(run_name=run_name)
-    transformed_ds = scaler.transform(torch.as_tensor(ds_array))
-    transformed_ds = transformed_ds.float()
-    transformed_ds = torch.nan_to_num(transformed_ds,nan=0)
-    
-    print("Passing the processed CMIP6 data to the ML model for inference...")    
-    predictions = do_inference(dataset=transformed_ds,
-                               model=model)
-    
-    print("Creating predicton dataset...")
-    ds_predictions = xr.Dataset(data_vars={"global_burned_areas":(("time","latitude","longitude"),predictions)},
-                            coords={"time":("time", np_dates),
-                                    "longitude":("longitude", seafire_ds.longitude.values),
-                                    "latitude":("latitude", seafire_ds.latitude.values)},
-                           attrs={"Details": f"CMIP6 prediction for the scenario {scenario.value} from {year_range.value[0]} to {year_range.value[0]}. Prediction is made for the InterTwin Project.",
-                                  "Processing": "No information",
-                                 "Source": "CMCC Foundation."})
-    ds_predictions = ds_predictions.sortby(variables="time")    
-    
-    return ds_predictions
+    X = torch.tensor(ds_array)
+    X = scaler.transform(X).float()
+    X = torch.nan_to_num(X, nan=0)
+
+    print("⚙️  Running model inference...")
+    preds = []
+    with torch.no_grad():
+        for t in range(X.shape[0]):
+            out = model(X[t : t + 1].to("cuda:0"))
+            preds.append(out.cpu().numpy())
+    predictions = np.vstack(preds).squeeze()
+
+    print("📦 Building prediction dataset...")
+    ds_pred = xr.Dataset(
+        data_vars={
+            "global_burned_areas": (("time", "latitude", "longitude"), predictions)
+        },
+        coords={
+            "time": ("time", time_vec),
+            "latitude": seafire_ds.latitude,
+            "longitude": seafire_ds.longitude,
+        },
+        attrs={
+            "Details": f"Inference for {scenario.value}, {year_range.value[0]}–{year_range.value[1]}",
+            "Source": "CMCC Foundation",
+            "Processed_by": "ML4Fires",
+        },
+    ).sortby("time")
+
+    return ds_pred
