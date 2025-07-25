@@ -4,6 +4,14 @@ import os
 import joblib
 import torch
 import pydot
+import matplotlib.pyplot as plt
+import cartopy.crs as ccrs
+import cartopy.feature as cfeature
+from skimage.metrics import structural_similarity as ssim
+import matplotlib.colors as mcolors
+
+
+
 
 from Fires._datasets.torch_dataset import FireDataset
 from Fires._macros.macros import DRIVERS, TARGETS, MAX_HECTARES_100KM, LOGS_DIR, CONFIG
@@ -337,3 +345,200 @@ def compute_aggregated_mape_smape(input_tensor, preds_tensor):
     )
 
     return mape.item(), smape.item()
+
+
+
+
+def plot_burned_area_difference_map(input_data, preds_array):
+    # Extract latitude and longitude
+    lats = input_data.latitude.values
+    lons = input_data.longitude.values
+
+    # Get actual and predicted burned area data
+    actual = input_data["fcci_ba"].values
+    predicted = preds_array.squeeze(1)  # Shape should match (time, lat, lon)
+
+    # Replace NaNs with 0 for clean visualization
+    actual = np.nan_to_num(actual)
+    predicted = np.nan_to_num(predicted)
+
+    # Compute the difference over time
+    diff = predicted - actual  # Shape: (time, lat, lon)
+    diff_sum = np.mean(diff, axis=0)  # Sum across time dimension
+
+    # Set up the map
+    fig = plt.figure(figsize=(15, 7))
+    ax = plt.axes(projection=ccrs.PlateCarree())
+    ax.set_global()
+
+    # Add features
+    ax.coastlines()  # Keep coastlines
+    ax.add_feature(cfeature.LAND, alpha=0.3)  # Land shading without edge border
+
+    # Optional: Keep or remove gridlines
+    gl = ax.gridlines(draw_labels=True, linewidth=0.5, color='gray', alpha=0.5, linestyle='--')
+    gl.top_labels = False
+    gl.right_labels = False
+
+    # Plot the difference map
+    mesh = ax.pcolormesh(
+        lons,
+        lats,
+        diff_sum,
+        cmap="RdBu",
+        transform=ccrs.PlateCarree(),
+        shading="auto",
+        vmin=-np.max(np.abs(diff_sum)),
+        vmax=np.max(np.abs(diff_sum))
+    )
+
+    # Add title
+    plt.title("Global Burned Area Difference (Predicted - Actual)", fontsize=14)
+
+    # Add colorbar on the right side
+    cbar = plt.colorbar(
+        mesh,
+        orientation="vertical",
+        pad=0.02,
+        aspect=30,
+        shrink=0.8
+    )
+    cbar.set_label("Difference in Burned Area")
+
+    plt.tight_layout()
+    plt.show()
+
+
+    
+    
+
+def compute_values(input_data, preds_array):
+    # Extract only fcci_ba for comparison
+    input_tensor = torch.tensor(input_data["fcci_ba"].values, dtype=torch.float32)
+    preds_tensor = torch.tensor(preds_array, dtype=torch.float32)
+
+    # Ensure preds_tensor has the correct shape by squeezing singleton dimension
+    preds_tensor = preds_tensor.squeeze(1)  # Removes the extra dimension
+
+    # Create a mask for non-NaN values in fcci_ba
+    nan_mask = ~torch.isnan(input_tensor)  # True for valid values, False for NaNs
+
+    # Apply the mask to remove NaN locations from both input and predictions
+    input_tensor = input_tensor[nan_mask]
+    preds_tensor = preds_tensor[nan_mask]
+
+    # Ensure shape consistency after masking
+    if input_tensor.shape != preds_tensor.shape:
+        raise ValueError(f"Shape mismatch after masking: input {input_tensor.shape} vs preds {preds_tensor.shape}")
+
+    # Apply Min-Max Normalization
+    #input_tensor = normalize_data(input_tensor)
+    #preds_tensor = normalize_data(preds_tensor)
+
+    # Compute Metrics
+   
+    mae_value = compute_mae(input_tensor, preds_tensor)    
+    ssim_value = compute_ssim(input_tensor, preds_tensor)
+
+    return {
+       
+        "MAE": mae_value,
+        "SSIM": ssim_value
+        
+    }    
+    
+def compute_mae(y_true, y_pred):
+    return torch.mean(torch.abs(y_true - y_pred)).item()
+
+
+def compute_ssim(input_tensor, preds_tensor):
+    return ssim(input_tensor.numpy(), preds_tensor.numpy(), data_range=preds_tensor.max().item() - preds_tensor.min().item())
+
+
+
+def plot_accumulated_weighted_map(data_path, mask_path):
+    """
+    Loads a monthly 3D field from Zarr, applies basis‐region weights from mask.nc,
+    accumulates to 2D, masks out ocean & class 0, then plots with a rainbow colormap.
+    
+    Parameters
+    ----------
+    data_path : str
+        Path to your Zarr dataset (3D: time × lat × lon).
+    mask_path : str
+        Path to mask.nc containing `basis_regions` (cl × lat × lon).
+    """
+    # ─── Load / Recompute your 2D result ─────────────────────────────────────────
+    df_mask = xr.open_dataset(mask_path)
+    df1     = xr.open_zarr(data_path)
+    # if it's a Dataset, pick its first variable
+    if isinstance(df1, xr.Dataset):
+        df1 = df1[list(df1.data_vars)[0]]
+    
+    # accumulate weighted sums
+    k = xr.zeros_like(df1)
+    for c in df_mask.cl.values:
+        msl = df_mask["basis_regions"].isel(cl=c)
+        a1, m1 = xr.align(df1, msl, join="inner")
+        w = (a1 * m1).sum().compute().item()
+        k += w * m1
+    k = k.compute()
+    k2d = k.isel(time=0)  # pick one time slice
+    
+    # ─── Build masks ──────────────────────────────────────────────────────────────
+    # land mask (any class > 0)
+    land_mask = (df_mask["basis_regions"].sum(dim="cl") > 0)
+    _, land_mask = xr.align(k2d, land_mask, join="inner")
+    land_mask_arr = land_mask.values
+    
+    # class 0 mask
+    cls0 = df_mask["basis_regions"].isel(cl=0) > 0
+    _, cls0 = xr.align(k2d, cls0, join="inner")
+    cls0_arr = cls0.values
+    
+    # ─── Prepare the 2D data array ────────────────────────────────────────────────
+    data2d = k2d.values.astype(float)
+    
+    # determine linear min/max (only over land)
+    vmin = 0.0
+    vmax = float(np.nanmax(data2d[land_mask_arr]))
+    
+    # start masked array: ocean + class 0 → NaN (white)
+    data2d_masked = np.full_like(data2d, np.nan, dtype=float)
+    data2d_masked[land_mask_arr] = data2d[land_mask_arr]
+    data2d_masked[cls0_arr]     = np.nan
+    
+    # ─── Set up rainbow colormap & norm ──────────────────────────────────────────
+    cmap = plt.cm.rainbow.copy()
+    cmap.set_bad("white")
+    norm = mcolors.Normalize(vmin=vmin, vmax=vmax)
+    
+    # ─── Plot on a world map ─────────────────────────────────────────────────────
+    fig = plt.figure(figsize=(12, 6))
+    ax  = plt.axes(projection=ccrs.PlateCarree())
+    ax.set_global()
+    ax.coastlines(resolution="110m", linewidth=1)
+    ax.add_feature(cfeature.BORDERS, linewidth=0.5)
+    
+    lon2d, lat2d = np.meshgrid(k2d.longitude, k2d.latitude)
+    im = ax.pcolormesh(
+        lon2d, lat2d, data2d_masked,
+        transform=ccrs.PlateCarree(),
+        cmap=cmap,
+        norm=norm,
+        shading="auto"
+    )
+    
+    # ─── Colorbar with linear ticks ───────────────────────────────────────────────
+    ticks = np.linspace(vmin, vmax, num=6)
+    cbar = plt.colorbar(
+        im, ax=ax,
+        orientation="vertical",
+        shrink=0.6, pad=0.02,
+        ticks=ticks
+    )
+    cbar.set_label("Accumulated weighted value (linear scale)")
+    
+    ax.set_title("Accumulated Result – rainbow colormap, linear scale, class 0/ocean white")
+    plt.tight_layout()
+    plt.show()
