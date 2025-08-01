@@ -598,7 +598,7 @@ def do_inference(dataset: xr.Dataset,
     prediction_cpu = []
     with torch.no_grad():
         for idx in range(dataset.dims["time"]):
-            prediction = model(dataset[idx].unsqueeze(0).to('cuda:0'))
+            prediction = model(dataset.isel(time=idx).unsqueeze(0).to('cuda:0'))
             prediction_cpu.append(prediction.cpu().detach().numpy())
     return np.vstack(prediction_cpu).squeeze()
     
