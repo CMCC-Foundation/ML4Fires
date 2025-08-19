@@ -13,6 +13,7 @@ from Fires._plots.plot_utils import plot_dataset_map
 from Fires._scalers.standard import StandardScaler
 from Fires._utilities.logger import Logger as logger
 from Fires._utilities.decorators import debug, export
+from Fires._utilities.utils_general import check_backend
 
 
 import toml
@@ -581,7 +582,7 @@ def do_inference_from_ds(dataset: xr.Dataset,
         for idx in range(dataset.dims["time"]):
             input_tensor = torch.tensor(dataset.isel(time=idx).to_array().transpose("variable", "lat", "lon").values)
             input_tensor = torch.nan_to_num(input_tensor, nan=0)
-            prediction = model(input_tensor.to("cuda:0").unsqueeze(0))
+            prediction = model(input_tensor.to(check_backend()).unsqueeze(0))
             prediction_cpu.append(prediction.cpu().detach().numpy())
     return np.vstack(prediction_cpu).squeeze()
     
