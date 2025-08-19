@@ -575,7 +575,8 @@ def _read_and_aggregate_cmip6_data(seafire_ds, scenario, climate_model, infer_co
 def do_inference_from_ds(dataset: xr.Dataset,
                  model):
     prediction_cpu = []
-    dataset = dataset.isel(plev=0)
+    if "plev" in dataset.dims:
+        dataset = dataset.isel(plev=0)
     with torch.no_grad():
         for idx in range(dataset.dims["time"]):
             input_tensor = torch.tensor(dataset.isel(time=idx).to_array().transpose("variable", "lat", "lon").values)
