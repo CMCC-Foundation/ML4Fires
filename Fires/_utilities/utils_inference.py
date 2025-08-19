@@ -572,33 +572,15 @@ def _read_and_aggregate_cmip6_data(seafire_ds, scenario, climate_model, infer_co
    
     return data, time_vec
 
-def get_cmip6_inference(
-    seafire_ds,
-    run_name,
-    scenario,
-    climate_model,
-    year_range,
-    model,
-    infer_config
-):
- 
-    print(f"📘 Running inference for scenario: {scenario.value}, years: {year_range.value[0]}–{year_range.value[1]}")
-
-    ds_array, time_vec = _read_and_aggregate_cmip6_data(
-        seafire_ds=seafire_ds,
-        scenario=scenario,
-        climate_model=climate_model,
-        infer_config=infer_config,
-        year_range=year_range
-    )
-
-
-def do_inference(dataset: xr.Dataset,
+def do_inference_from_ds(dataset: xr.Dataset,
                  model):
     prediction_cpu = []
+    dataset = dataset.isel(plev=0)
     with torch.no_grad():
         for idx in range(dataset.dims["time"]):
-            prediction = model(torch.as_tensor(dataset.isel(time=idx).values).unsqueeze(0).to('cuda:0'))
+            input_tensor = torch.tensor(dataset.isel(time=idx).to_array().transpose("variable", "lat", "lon").values)
+            input_tensor = torch.nan_to_num(input_tensor, nan=0)
+            prediction = model(input_tensor.to("cuda:0").unsqueeze(0))
             prediction_cpu.append(prediction.cpu().detach().numpy())
     return np.vstack(prediction_cpu).squeeze()
     
