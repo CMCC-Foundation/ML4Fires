@@ -574,7 +574,8 @@ def _read_and_aggregate_cmip6_data(seafire_ds, scenario, climate_model, infer_co
     return data, time_vec
 
 def do_inference_from_ds(dataset: xr.Dataset,
-                         model):
+                         model,
+                         output="global_burned_areas"):
     prediction_cpu = []
     if "plev" in dataset.dims:
         dataset = dataset.isel(plev=0)
