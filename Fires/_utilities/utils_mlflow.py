@@ -58,7 +58,7 @@ def load_model_from_mlflow_registry(model_name, version=1, tag=None):
 @export
 @debug(log=_log)
 def load_model_from_local_path(path: str):
-    return torch.load(path)
+    return torch.load(path,map_location=torch.device(check_backend()))
 
 @export
 @debug(log=_log)

@@ -574,7 +574,7 @@ def _read_and_aggregate_cmip6_data(seafire_ds, scenario, climate_model, infer_co
     return data, time_vec
 
 def do_inference_from_ds(dataset: xr.Dataset,
-                 model):
+                         model):
     prediction_cpu = []
     if "plev" in dataset.dims:
         dataset = dataset.isel(plev=0)
@@ -584,7 +584,22 @@ def do_inference_from_ds(dataset: xr.Dataset,
             input_tensor = torch.nan_to_num(input_tensor, nan=0)
             prediction = model(input_tensor.to(check_backend()).unsqueeze(0))
             prediction_cpu.append(prediction.cpu().detach().numpy())
-    return np.vstack(prediction_cpu).squeeze()
+    predictions = np.vstack(prediction_cpu).squeeze()
+    ds_pred = xr.Dataset(
+        data_vars={
+            output: (("time", "lat", "lon"), predictions)
+        },
+        coords={
+            "time": dataset.time,
+            "lat": dataset.lat,
+            "lon": dataset.lon,
+        },
+        attrs={
+            "Source": "CMCC Foundation",
+            "Processed_by": "ML4Fires",
+        },
+    ).sortby("time")
+    return ds_pred
     
 def get_cmip6_inference(
     seafire_ds,
@@ -618,7 +633,7 @@ def get_cmip6_inference(
     preds = []
     with torch.no_grad():
         for t in range(X.shape[0]):
-            out = model(X[t : t + 1].to("cuda:0"))
+            out = model(X[t : t + 1].to(check_backend()))
             preds.append(out.cpu().numpy())
     predictions = np.vstack(preds).squeeze()
 

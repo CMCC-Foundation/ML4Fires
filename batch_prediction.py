@@ -9,9 +9,12 @@ from Fires._utilities.utils_general import check_backend
 
 def get_prediction_for_data(dataset_path: str,
                             model_path,
-                           verbose=False):
+                            verbose=False,
+                            output_name="global_burned_areas"):
     model = load_model_from_local_path(path=model_path).to(check_backend())
     if verbose:
         print(model)
     return do_inference_from_ds(dataset=xr.open_dataset(dataset_path),
-                        model=model)
+                                model=model,
+                                output=output_name)
+
