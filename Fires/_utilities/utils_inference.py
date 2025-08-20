@@ -426,12 +426,8 @@ def _get_cmip6_files_rucio(scope,
       - np_dates:       list of numpy.datetime64 stamps (one per 8-day window)
     """
     
-    # 1) build the 8-day windows
-    windows = make_8day_windows(year_range)      # array of shape (N,2)
-    # 2) our “time” stamps are simply the window-end dates:
-    # np_dates = [w[1] for w in windows]          # list of length N
+    windows = make_8day_windows(year_range)     
 
-    # 3) now, exactly as before, discover your file paths via Rucio…
     from rucio.client.client import Client
     rucio = Client()
     cmip6_var_filename: dict[str, list[str]] = {}
@@ -573,6 +569,26 @@ def _read_and_aggregate_cmip6_data(seafire_ds, scenario, climate_model, infer_co
    
     return data, time_vec
 
+def _make_xr_ds_of_prediction(np_predicton: np.ndarray,
+                              org_ds: xr.Dataset,
+                              attrs = None 
+                              ):
+    xr_dataset = xr.Dataset(
+        data_vars={
+            "global_burned_areas": (("time", "latitude", "longitude"), np_predicton)
+        },
+        coords={
+            "time": ("time", org_ds.time),
+            "latitude": org_ds.latitude,
+            "longitude": org_ds.longitude,
+        },
+    ).sortby("time")
+
+    if attrs:
+        xr_dataset.attrs.update(attrs)
+    
+    return xr_dataset
+    
 def do_inference_from_ds(dataset: xr.Dataset,
                          model,
                          output="global_burned_areas"):
@@ -586,20 +602,13 @@ def do_inference_from_ds(dataset: xr.Dataset,
             prediction = model(input_tensor.to(check_backend()).unsqueeze(0))
             prediction_cpu.append(prediction.cpu().detach().numpy())
     predictions = np.vstack(prediction_cpu).squeeze()
-    ds_pred = xr.Dataset(
-        data_vars={
-            output: (("time", "lat", "lon"), predictions)
-        },
-        coords={
-            "time": dataset.time,
-            "lat": dataset.lat,
-            "lon": dataset.lon,
-        },
-        attrs={
+    ds_attrs={
             "Source": "CMCC Foundation",
             "Processed_by": "ML4Fires",
-        },
-    ).sortby("time")
+        }
+    
+    ds_pred = _make_xr_ds_of_prediction(np_predicton=predictions, org_ds=dataset,attrs=ds_attrs)
+    
     return ds_pred
     
 def get_cmip6_inference(
@@ -639,20 +648,13 @@ def get_cmip6_inference(
     predictions = np.vstack(preds).squeeze()
 
     print("📦 Building prediction dataset...")
-    ds_pred = xr.Dataset(
-        data_vars={
-            "global_burned_areas": (("time", "latitude", "longitude"), predictions)
-        },
-        coords={
-            "time": ("time", time_vec),
-            "latitude": seafire_ds.latitude,
-            "longitude": seafire_ds.longitude,
-        },
-        attrs={
+    
+    attrs={
             "Details": f"Inference for {scenario.value}, {year_range.value[0]}–{year_range.value[1]}",
             "Source": "CMCC Foundation",
             "Processed_by": "ML4Fires",
-        },
-    ).sortby("time")
+        }
+    
+    ds_pred = _make_xr_ds_of_prediction(np_predicton=predictions, org_ds=seafire_ds, attrss=attrs)
 
     return ds_pred
