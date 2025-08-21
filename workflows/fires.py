@@ -1,6 +1,6 @@
 #!/usr/bin/env python
     
-def main():
+def fires():
 
     import os
     from pyophidia import Client, Workflow, Experiment, Cube
@@ -248,5 +248,5 @@ def main():
     cli.submit("oph_delete cube=[*]", display = display)
     
 if __name__ == "__main__":
-    main()
+    fires()
 
