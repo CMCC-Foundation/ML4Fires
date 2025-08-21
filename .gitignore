@@ -15,6 +15,9 @@ digital_twin_notebooks/model_conversion_pytorch_to_onnx.ipynb
 transfer.sh
 .ipynb_checkpoints
 config/credentials.toml
+workflows/Fires
+workflows/Fires.json
+workflows/Fires.pdf
 
 # folders
 experiments
