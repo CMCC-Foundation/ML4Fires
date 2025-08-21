@@ -569,19 +569,32 @@ def _read_and_aggregate_cmip6_data(seafire_ds, scenario, climate_model, infer_co
    
     return data, time_vec
 
-def _make_xr_ds_of_prediction(np_predicton: np.ndarray,
+def _make_xr_ds_of_prediction(np_prediction: np.ndarray,
                               org_ds: xr.Dataset,
-                              attrs = None 
-                              ):
+                              coords = None,
+                              attrs = None,
+                              global_burned_areas = "global_burned_areas"):
+    if coords is None:
+        latitude = "latitude"
+        longitude = "longitude"
+        xr_coords = {
+            "time": ("time", org_ds.time),
+            latitude: org_ds.latitude,
+            longitude: org_ds.longitude,
+        }
+    else:
+        latitude = coords[0]
+        longitude = coords[1]
+        xr_coords = {
+            "time": org_ds.time,
+            latitude: org_ds.lat,
+            latitude: org_ds.lon,
+        }
     xr_dataset = xr.Dataset(
         data_vars={
-            "global_burned_areas": (("time", "latitude", "longitude"), np_predicton)
+            "global_burned_areas": (("time", latitude, longitude), np_prediction)
         },
-        coords={
-            "time": ("time", org_ds.time),
-            "latitude": org_ds.latitude,
-            "longitude": org_ds.longitude,
-        },
+        coords=xr_coords
     ).sortby("time")
 
     if attrs:
@@ -591,7 +604,7 @@ def _make_xr_ds_of_prediction(np_predicton: np.ndarray,
     
 def do_inference_from_ds(dataset: xr.Dataset,
                          model,
-                         output="global_burned_areas"):
+                         global_burned_areas = "global_burned_areas"):
     prediction_cpu = []
     if "plev" in dataset.dims:
         dataset = dataset.isel(plev=0)
@@ -607,7 +620,7 @@ def do_inference_from_ds(dataset: xr.Dataset,
             "Processed_by": "ML4Fires",
         }
     
-    ds_pred = _make_xr_ds_of_prediction(np_predicton=predictions, org_ds=dataset,attrs=ds_attrs)
+    ds_pred = _make_xr_ds_of_prediction(np_prediction=predictions, org_ds=dataset, coords=["lat", "lon"], attrs=ds_attrs, global_burned_areas=global_burned_areas)
     
     return ds_pred
     
@@ -655,6 +668,6 @@ def get_cmip6_inference(
             "Processed_by": "ML4Fires",
         }
     
-    ds_pred = _make_xr_ds_of_prediction(np_predicton=predictions, org_ds=seafire_ds, attrss=attrs)
+    ds_pred = _make_xr_ds_of_prediction(np_prediction=predictions, org_ds=seafire_ds, attrss=attrs)
 
     return ds_pred

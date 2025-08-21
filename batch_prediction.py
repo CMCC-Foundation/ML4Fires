@@ -16,5 +16,5 @@ def get_prediction_for_data(dataset_path: str,
         print(model)
     return do_inference_from_ds(dataset=xr.open_dataset(dataset_path),
                                 model=model,
-                                output=output_name)
+                                global_burned_areas=output_name)
 
