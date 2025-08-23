@@ -1,6 +1,6 @@
 #!/usr/bin/env python
     
-def fires():
+def fires(time_range = "2030-01-01_2031-01-01"):
 
     import os
     from pyophidia import Client, Workflow, Experiment, Cube
@@ -20,7 +20,6 @@ def fires():
     input_format = base_format + "*.nc"
     lat_range = "-90:90"
     lon_range = "0:360"
-    time_range = "2090-01-01_2090-01-15"
     output_folder = home_dir + "/work/fires/output/"
     output_format = base_format + "_" + time_range.replace(':','') + ".nc"
     clear_script = home_dir + "/work/fires/clear.sh"
