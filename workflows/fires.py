@@ -54,30 +54,28 @@ def fires(time_range = "2030-01-01_2031-01-01"):
                     nthreads=threads,
                     ncores=cores)
     
-    ti0 = exp.newTask(name="Clear output folder",
-                    operator="oph_generic",
-                    arguments={"command": clear_script, "input": output_folder, "output": "null"})
-    
     ti1 = exp.newTask(name="Init frequency",
                     operator="oph_set",
-                    arguments={"key": "frequency", "value": frequencies},
-                    dependencies={ti0:''})
+                    arguments={"key": "frequency", "value": frequencies})
     
     ti2 = exp.newTask(name="Init measure",
                     operator="oph_set",
-                    arguments={"key": "measure", "value": measures},
-                    dependencies={ti0:''})
+                    arguments={"key": "measure", "value": measures})
     
     ti3 = exp.newTask(name="Init institutes",
                     operator="oph_set",
-                    arguments={"key": "institute", "value": institutes},
-                    dependencies={ti0:''})
+                    arguments={"key": "institute", "value": institutes})
+
+    ti4 = exp.newTask(name="Clear output folder",
+                    operator="oph_generic",
+                    arguments={"command": clear_script, "input": output_folder, "output": "null"},
+                    dependencies={ti1:'', ti2:'', ti3:''})
     
     tc = exp.newTask(name="Create a work container",
                     operator="oph_createcontainer",
                     on_error="skip",
                     arguments={"container": container, "dim": "time|plev|lat|lon", "hierarchy": "oph_time|oph_base|oph_base|oph_base"},
-                    dependencies={ti1:'', ti2:'', ti3:''})
+                    dependencies={ti4:''})
     
     tmask = exp.newTask(name="Import mask",
                     operator="oph_importnc2",

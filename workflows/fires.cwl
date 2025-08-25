@@ -19,7 +19,7 @@ inputs:
 outputs:
   outputexperiment:
     type: File
-    outputSource: End_iteration_on_scenarios/experiment
+    outputSource: Destroy_the_work_container/experiment
 
 steps:
   Init_frequency:
@@ -36,7 +36,7 @@ steps:
   Init_measure:
     run: tasks/set.cwl
     in:
-      experiment: Init_frequency/experiment
+      experiment: inputexperiment
       name:
         default: "Init measure"
       key:
@@ -44,10 +44,36 @@ steps:
       value:
         default: "lai|lst_day|rel_hum|t2m_min|pr|lsm"
     out: [experiment]
+  Init_institutes:
+    run: tasks/set.cwl
+    in:
+      experiment: inputexperiment
+      name:
+        default: "Init institutes"
+      key:
+        default: "institute"
+      value:
+        default: "CMCC|NCC"
+    out: [experiment]
+  Clear_output_folder:
+    run: tasks/generic.cwl
+    in:
+      experiment: [ Init_frequency/experiment, Init_measure/experiment, Init_institutes/experiment ]
+      name:
+        default: "Clear output folder"
+      command:
+        default: "/home/jovyan/work/fires/clear.sh"
+      input:
+        default: "/home/jovyan/work/fires/output/"
+      output:
+        default: "null"
+      on_error:
+        default: "skip"
+    out: [experiment]
   Create_a_work_container:
     run: tasks/createcontainer.cwl
     in:
-      experiment: Init_measure/experiment
+      experiment: Clear_output_folder/experiment
       name:
         default: "Create a work container"
       container: container
@@ -101,7 +127,7 @@ steps:
       key:
         default: "model"
       values:
-        default: "CMCC-ESM2"
+        default: "CMCC-ESM2|NorESM2-MM"
     out: [experiment]
 
   Iterate_on_variables:
@@ -130,10 +156,22 @@ steps:
         default: "yes"
     out: [experiment]
 
+  Check_for_selection_operation:
+    run: tasks/if.cwl
+    in:
+      experiment: Check_for_reduction_operation/experiment
+      name:
+        default: "Check for selection operation"
+      condition:
+        default: "&{variable}-3"
+      forward:
+        default: "yes"
+    out: [experiment]
+
   Import_variable:
     run: tasks/importncs.cwl
     in:
-      experiment: Check_for_reduction_operation/experiment
+      experiment: Check_for_selection_operation/experiment
       name:
         default: "Import variable"
       imp_dim:
@@ -141,7 +179,7 @@ steps:
       measure:
         default: "@variable"
       src_path:
-        default: "/home/jovyan/data/CMIP6/ScenarioMIP/CMCC/@{model}/@{scenario}/r1i1p1f1/@{frequency_&{variable}}/@{variable}/gn/*/@{variable}_@{frequency_&{variable}}_@{model}_@{scenario}_r1i1p1f1_gn*.nc"
+        default: "/home/jovyan/data/CMIP6/ScenarioMIP/@{institute_&{model}}/@{model}/@{scenario}/r1i1p1f1/@{frequency_&{variable}}/@{variable}/gn/*/@{variable}_@{frequency_&{variable}}_@{model}_@{scenario}_r1i1p1f1_gn*.nc"
       container: container
       subset_dims:
         default: "time"
@@ -151,10 +189,50 @@ steps:
       nfrag: nthreads
       nthreads: nthreads
     out: [experiment]
+
+  Else_selection:
+    run: tasks/else.cwl
+    in:
+      experiment: Check_for_selection_operation/experiment
+      name:
+        default: "Else selection"
+    out: [experiment]
+
+  Import_hur:
+    run: tasks/importncs.cwl
+    in:
+      experiment: Else_selection/experiment
+      name:
+        default: "Import hur"
+      imp_dim:
+        default: "time"
+      measure:
+        default: "@variable"
+      src_path:
+        default: "/home/jovyan/data/CMIP6/ScenarioMIP/@{institute_&{model}}/@{model}/@{scenario}/r1i1p1f1/@{frequency_&{variable}}/@{variable}/gn/*/@{variable}_@{frequency_&{variable}}_@{model}_@{scenario}_r1i1p1f1_gn*.nc"
+      container: container
+      subset_dims:
+        default: "plev|time"
+      time_range: time_range
+      subset_filter: { valueFrom: '$("1|" + inputs.time_range)' }
+      subset_type:
+        default: "index|coord"
+      nfrag: nthreads
+      nthreads: nthreads
+    out: [experiment]
+
+  End_check_selection:
+    run: tasks/endif.cwl
+    in:
+      experiment: [Import_variable/experiment, Import_hur/experiment]
+      name:
+        default: "End check selection"
+    out: [experiment]
+
   Reduction_on_octets:
     run: tasks/reduce2.cwl
     in:
-      experiment: Import_variable/experiment
+      experiment: End_check_selection/experiment
       name:
         default: "Reduction on octets"
       operation:
@@ -163,41 +241,41 @@ steps:
         default: "o"
     out: [experiment]
 
-  Else:
+  Else_reduction:
     run: tasks/else.cwl
     in:
       experiment: Check_for_reduction_operation/experiment
       name:
-        default: "Else"
+        default: "Else reduction"
     out: [experiment]
 
   Import_sftlf:
     run: tasks/importncs.cwl
     in:
-      experiment: Else/experiment
+      experiment: Else_reduction/experiment
       name:
         default: "Import sftlf"
       measure:
         default: "@variable"
       src_path:
-        default: "/home/jovyan/data/CMIP6/ScenarioMIP/CMCC/@{model}/@{scenario}/r1i1p1f1/@{frequency_&{variable}}/@{variable}/gn/*/@{variable}_@{frequency_&{variable}}_@{model}_@{scenario}_r1i1p1f1_gn.nc"
+        default: "/home/jovyan/data/CMIP6/ScenarioMIP/@{institute_&{model}}/@{model}/@{scenario}/r1i1p1f1/@{frequency_&{variable}}/@{variable}/gn/*/@{variable}_@{frequency_&{variable}}_@{model}_@{scenario}_r1i1p1f1_gn.nc"
       container: container
       nfrag:
         default: 1
     out: [experiment]
 
-  End_check:
+  End_check_reduction:
     run: tasks/endif.cwl
     in:
       experiment: [Reduction_on_octets/experiment, Import_sftlf/experiment]
       name:
-        default: "End check"
+        default: "End check reduction"
     out: [experiment]
 
   Rename_measure:
     run: tasks/apply.cwl
     in:
-      experiment: End_check/experiment
+      experiment: End_check_reduction/experiment
       name:
         default: "Rename measure"
       measure:
@@ -254,8 +332,6 @@ steps:
         default: "/home/jovyan/work/fires/output/regridded_@{model}_@{scenario}.nc"
       output:
         default: "/home/jovyan/work/fires/output/fires_@{model}_@{scenario}.nc"
-      on_error:
-        default: "repeat 10"
     out: [experiment]
   Import_model:
     run: tasks/importnc2.cwl
@@ -379,5 +455,18 @@ steps:
         valueFrom: ${ return [ self ]; }
       name:
         default: "End iteration on scenarios"
+    out: [experiment]
+
+  Destroy_the_work_container:
+    run: tasks/deletecontainer.cwl
+    in:
+      experiment: End_iteration_on_scenarios/experiment
+      name:
+        default: "Destroy the work container"
+      container: container
+      force:
+        default: "yes"
+      on_error:
+        default: "skip"
     out: [experiment]
 
