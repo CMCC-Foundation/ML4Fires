@@ -23,11 +23,13 @@
 import inspect
 import numpy as np
 from typing import Any
+import xarray as xr
 
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import matplotlib.markers as markers
-from mpl_toolkits.axes_grid1 import make_axes_locatable    
+import matplotlib.colors as mcolors
+from mpl_toolkits.axes_grid1 import make_axes_locatable	
 
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
@@ -56,15 +58,15 @@ def draw_features(ax:Any):
 	"""
 	This function adds several geographical features to the map using Cartopy features:
 
-    * Political borders: outlines country borders with a solid black line style (':') and a linewidth of 0.5.
-    * Oceans: outlines the ocean regions with a solid black line style ('-') and a linewidth of 0.8.
-    * Lakes: outlines lakes with a solid black line style ('-') and a linewidth of 0.8.
-    * Rivers: outlines rivers with a solid black line style ('-') and a linewidth of 0.8.
-    * Coastlines: adds high-resolution coastlines (50 meters) to the map with a higher zorder (3) for better visibility.
+	* Political borders: outlines country borders with a solid black line style (':') and a linewidth of 0.5.
+	* Oceans: outlines the ocean regions with a solid black line style ('-') and a linewidth of 0.8.
+	* Lakes: outlines lakes with a solid black line style ('-') and a linewidth of 0.8.
+	* Rivers: outlines rivers with a solid black line style ('-') and a linewidth of 0.8.
+	* Coastlines: adds high-resolution coastlines (50 meters) to the map with a higher zorder (3) for better visibility.
 
-    **Note:** 
-        * Land is not explicitly added in this function. 
-        * Adding a background image using `ax.stock_img()` is not implemented. 
+	**Note:** 
+		* Land is not explicitly added in this function. 
+		* Adding a background image using `ax.stock_img()` is not implemented. 
 
 	Parameters
 	----------
@@ -77,7 +79,7 @@ def draw_features(ax:Any):
 		The modified matplotlib axis object.
 
 	
-    
+	
 	"""
 	# define function name
 	fn_name = inspect.currentframe().f_code.co_name
@@ -238,15 +240,16 @@ def draw_tropics_and_equator(ax):
 @debug(log=_log)
 def plot_dataset_map(
 	avg_target_data:np.array,
-	avg_data_on_lats:np.array,
-	lowerbound_data:np.array,
-	upperbound_data:np.array,
-    scale_min: int,
-    scale_max: int,
+	scale_min: int,
+	scale_max: int,
 	lats:list,
 	lons:list,
 	title:str,
-	cmap:str) -> None:
+	cmap:str,
+	plot_lat:bool=True,
+	avg_data_on_lats:np.array=None,
+	lowerbound_data:np.array=None,
+	upperbound_data:np.array=None) -> None:
 	"""
 	Generates a comprehensive map visualization of a dataset, highlighting 
 	minimum and maximum values alongside their confidence intervals.
@@ -256,18 +259,6 @@ def plot_dataset_map(
 	avg_target_data : np.array
 		2D array containing the core data to be visualized as color intensity on the map.
 		Missing values (NaN) are handled by setting the color to transparent.
-
-	avg_data_on_lats : np.array
-		1D array containing the average of the target data for each latitude value.
-		This data is plotted as a line in a secondary subplot.
-
-	lowerbound_data : np.array
-		2D array containing the lower bound of the data (e.g., standard deviation or confidence interval) for each latitude and longitude.
-		This data is used to shade the area around the average line in the secondary subplot.
-
-	upperbound_data : np.array
-		2D array containing the upper bound of the data for each latitude and longitude.
-		Similar to `lowerbound_data`, it's used for shading the confidence interval in the secondary subplot.
 
 	lats : list
 		List containing the latitude values corresponding to the data.
@@ -281,11 +272,23 @@ def plot_dataset_map(
 	cmap : str
 		The name of the colormap to use for visualizing the data on the map.
 	
-    scale_min : int
-        The minimum of the scale used for the plotting.
-    
-    scale_max: int
-        The maximum of the scale used for the plotting.
+	scale_min : int
+		The minimum of the scale used for the plotting.
+	
+	scale_max: int
+		The maximum of the scale used for the plotting.
+
+	avg_data_on_lats : np.array
+		1D array containing the average of the target data for each latitude value.
+		This data is plotted as a line in a secondary subplot.
+
+	lowerbound_data : np.array
+		2D array containing the lower bound of the data (e.g., standard deviation or confidence interval) for each latitude and longitude.
+		This data is used to shade the area around the average line in the secondary subplot.
+
+	upperbound_data : np.array
+		2D array containing the upper bound of the data for each latitude and longitude.
+		Similar to `lowerbound_data`, it's used for shading the confidence interval in the secondary subplot.
 
 	Returns
 	-------
@@ -362,11 +365,55 @@ def plot_dataset_map(
 
 	# add subplot
 	divider = make_axes_locatable(ax1)
-	
+	_log.info(f"{fn_name} | Added divider between the main plot and the subplot")
+
+	if plot_lat is True and avg_data_on_lats is not None and lowerbound_data is not None and upperbound_data is not None:
+		# add subplot
+		ax2 = divider.append_axes("right", size="10%", pad=0.5, axes_class=plt.Axes)
+
+		# plot data
+		ax2.plot(avg_data_on_lats, lats, color='red', linewidth=1)
+		ax2.plot(upperbound_data, lats, alpha=0.3, color='black', linewidth=0.5)
+		ax2.plot(lowerbound_data, lats, alpha=0.3, color='black', linewidth=0.5)
+		_log.info(f"{fn_name} | Plotted fires distribution along latitudes")
+
+		# fill space between lines
+		ax2.fill_betweenx(y=lats, x1=avg_data_on_lats, x2=upperbound_data, color='gray', alpha=0.15)
+		ax2.fill_betweenx(y=lats, x1=avg_data_on_lats, x2=lowerbound_data, color='gray', alpha=0.15)
+
+		# define latitudes for tropics (in degrees) and equator
+		ax2 = draw_tropics_and_equator(ax=ax2)
+
+		# plot max position
+		ax2.axhline(max_val_latitude, color=color, linewidth=3)
+
+		# plot min position
+		ax2.axhline(min_val_latitude, color='green', linewidth=3)
+
+		# set x label	
+		ax2.set_xlabel(' Mean ', fontweight='bold', size=50, labelpad=50)
+
+		# create list of max values
+		ax2_vals = np.around([np.nanmin(lowerbound_data, axis=0), np.nanmax(avg_data_on_lats, axis=0), np.nanmax(upperbound_data, axis=0)], 2)
+
+		# plot axes tick lines§
+		for tick in ax2_vals:
+			ax2.axvline(x=tick, color='blue', alpha=1, linewidth=1, linestyle=':')
+			ax2.text(round(tick), -.005, f'{round(tick)}', color='blue', fontweight='bold', size=50, transform=ax2.get_xaxis_transform(), ha='center', va='top')
+
+		ax2.text(0, -.005, '0', color='black', fontweight='bold', size=50, transform=ax2.get_xaxis_transform(), ha='center', va='top') 
+
+		ax2.set_xticks([])
+		ax2.set_yticks([])
+		ax2.set_ylim(bottom=-90, top=90)
+		ax2.margins(y=0)
+		# ax2.autoscale_view(scaley=True)
+		
 	# add colorbar plot
 	ax_cb = divider.append_axes("right", size="2%", pad=0.3, axes_class=plt.Axes)
-	cbar = plt.colorbar(h, ax_cb)
-	cbar.ax.tick_params(labelsize=30)
+	cbar = plt.colorbar(h, ax_cb) 
+
+	cbar.ax.tick_params(labelsize=50)
 	cbar.ax.set_ylabel('Hectares', color='black', fontweight='bold', size=50, labelpad=50, rotation=270)
 	_log.info(f"{fn_name} | Added colorbar")
 	
@@ -375,3 +422,107 @@ def plot_dataset_map(
 	# plt.clf()
 	_log.info(f"{fn_name} | Saved plot in ./images/fcci {title}.png")
 
+@export
+@debug(log=_log)
+def plot_burned_area_difference_map(
+	obs_data, 
+	pred_data, 
+	lats:list,
+	lons:list,
+	title:str,
+	scale_min: int=None,
+	scale_max: int=None) -> None:
+	"""
+	Generates the difference map between two array of maps.
+
+	Parameters
+	----------
+	obs_data : np.array
+		3D array containing the observation data as color intensity on the map.
+		Missing values (NaN) are handled by setting the color to transparent.
+
+	pred_data : np.array
+		2D array containing the predicted data as color intensity on the map.
+		Missing values (NaN) are handled by setting the color to transparent.
+
+	lats : list
+		List containing the latitude values corresponding to the data.
+
+	lons : list
+		List containing the longitude values corresponding to the data.
+
+	title : str
+		The title to be displayed at the top of the plot.
+
+	scale_min : int
+		The minimum of the scale used for the plotting.
+	
+	scale_max: int
+		The maximum of the scale used for the plotting.
+
+	Returns
+	-------
+	None
+		Saves the figure as a high-resolution PNG image (300 dpi) but does not return anything.
+	"""
+
+	# Verify data type and compute mean and standard deviation along time axis
+	if isinstance(obs_data, xr.DataArray):
+		obs_data = obs_data.data
+	else:
+		obs_data = obs_data.squeeze(1)
+	if isinstance(pred_data, xr.DataArray):
+		pred_data = pred_data.data
+	else:
+		pred_data = pred_data.squeeze(1)
+
+	# Replace NaNs with 0 for clean visualization
+	obs_data = np.nan_to_num(obs_data)
+	pred_data = np.nan_to_num(pred_data)
+
+	# compute the difference between real and predicted data
+	difference = pred_data - obs_data  # Shape: (time, lat, lon)
+	avg_difference = np.mean(difference, axis=0)  # Sum across time dimension
+	avg_diff_max = np.max(np.abs(avg_difference))
+
+	# Set up the map
+	fig = plt.figure(figsize=(15, 7))
+	ax = plt.axes(projection=ccrs.PlateCarree())
+	ax.set_global()
+
+	# Add features
+	ax.coastlines()  # Keep coastlines
+	ax.add_feature(cfeature.LAND, alpha=0.3)  # Land shading without edge border
+
+	# Optional: Keep or remove gridlines
+	gl = ax.gridlines(draw_labels=True, linewidth=0.5, color='gray', alpha=0.5, linestyle='--')
+	gl.top_labels = False
+	gl.right_labels = False
+
+	# Plot the difference map
+	mesh = ax.pcolormesh(
+		lons,
+		lats,
+		avg_difference,
+		cmap="RdBu",
+		transform=ccrs.PlateCarree(),
+		shading="auto",
+		vmin=-avg_diff_max,
+		vmax=avg_diff_max
+	)
+
+	# Add title
+	plt.title(title, fontsize=14)
+
+	# Add colorbar on the right side
+	cbar = plt.colorbar(
+		mesh,
+		orientation="vertical",
+		pad=0.02,
+		aspect=30,
+		shrink=0.8
+	)
+	cbar.set_label("Difference in Burned Area")
+
+	plt.tight_layout()
+	plt.savefig(f"./images/fcci_difference_{title}.png")#, dpi=300)
