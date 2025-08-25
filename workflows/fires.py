@@ -242,8 +242,10 @@ def fires(time_range = "2030-01-01_2031-01-01"):
     
     Cube.cluster(action = 'undeploy', host_partition = partition, exec_mode = 'sync')
     
-    cli.submit("oph_delete cube=[*]", display = display)
+    cli.submit("oph_delete cube=[*]", display = False)
     
+    print("Workflow completed")
+
 if __name__ == "__main__":
     fires()
 
