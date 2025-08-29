@@ -558,16 +558,16 @@ def _read_and_aggregate_cmip6_data(seafire_ds, scenario, climate_model, infer_co
         var_ds_list.append(ds_var)
 
     assert var_ds_list, "No local variables found or processed."
-    merged = xr.merge(var_ds_list)
-    if "plev" in merged.dims:
-        merged = merged.isel(plev=0)
+    merged_data = xr.merge(var_ds_list)
+    if "plev" in merged_data.dims:
+        merged_data = merged_data.isel(plev=0)
 
     # Sort and extract array + time vector
-    merged = merged.sortby("time")
-    time_vec = merged.time.values
-    data = merged.to_array().transpose("time", "variable", "latitude", "longitude").values
+    merged_data = merged_data.sortby("time")
+    time_vec = merged_data.time.values
+    
    
-    return data, time_vec
+    return merged_data, time_vec
 
 def _make_xr_ds_of_prediction(np_prediction: np.ndarray,
                               org_ds: xr.Dataset,
@@ -578,17 +578,17 @@ def _make_xr_ds_of_prediction(np_prediction: np.ndarray,
         latitude = "latitude"
         longitude = "longitude"
         xr_coords = {
-            "time": ("time", org_ds.time),
-            latitude: org_ds.latitude,
-            longitude: org_ds.longitude,
+            "time": ("time", org_ds.time.values),
+            latitude: org_ds.latitude.values,
+            longitude: org_ds.longitude.values,
         }
     else:
         latitude = coords[0]
         longitude = coords[1]
         xr_coords = {
-            "time": org_ds.time,
-            latitude: org_ds.lat,
-            longitude: org_ds.lon,
+            "time": org_ds.time.values,
+            latitude: org_ds.lat.values,
+            longitude: org_ds.lon.values,
         }
     xr_dataset = xr.Dataset(
         data_vars={
@@ -608,10 +608,16 @@ def do_inference_from_ds(dataset: xr.Dataset,
     prediction_cpu = []
     if "plev" in dataset.dims:
         dataset = dataset.isel(plev=0)
+
+    if "longitude" in dataset.dims:
+        dataset = dataset.rename({"longitude":"lon"})
+    if "latitude" in dataset.dims:
+        dataset = dataset.rename({"latitude":"lat"})
+
     with torch.no_grad():
         for idx in range(dataset.dims["time"]):
             input_tensor = torch.tensor(dataset.isel(time=idx).to_array().transpose("variable", "lat", "lon").values)
-            input_tensor = torch.nan_to_num(input_tensor, nan=0)
+            input_tensor = torch.nan_to_num(input_tensor, nan=0).float()
             prediction = model(input_tensor.to(check_backend()).unsqueeze(0))
             prediction_cpu.append(prediction.cpu().detach().numpy())
     predictions = np.vstack(prediction_cpu).squeeze()
@@ -636,14 +642,19 @@ def get_cmip6_inference(
  
     print(f"📘 Running inference for scenario: {scenario.value}, years: {year_range.value[0]}–{year_range.value[1]}")
 
-    ds_array, time_vec = _read_and_aggregate_cmip6_data(
+    xr_ds, _ = _read_and_aggregate_cmip6_data(
         seafire_ds=seafire_ds,
         scenario=scenario,
         climate_model=climate_model,
         infer_config=infer_config,
         year_range=year_range
     )
-
+    
+    if "longitude" in xr_ds.dims and "latitude" in xr_ds.dims:
+        ds_array = xr_ds.to_array().transpose("time", "variable", "latitude", "longitude").values
+    else:
+        ds_array = xr_ds.to_array().transpose("time", "variable", "lat", "lon").values    
+    
     print("🧮 Input shape:", ds_array.shape)
 
     # ── Run the model ──
@@ -668,6 +679,6 @@ def get_cmip6_inference(
             "Processed_by": "ML4Fires",
         }
     
-    ds_pred = _make_xr_ds_of_prediction(np_prediction=predictions, org_ds=seafire_ds, attrss=attrs)
+    ds_pred = _make_xr_ds_of_prediction(np_prediction=predictions, org_ds=xr_ds, attrs=attrs)
 
     return ds_pred
