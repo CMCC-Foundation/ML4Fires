@@ -59,7 +59,10 @@ def get_scaler(run_name:str):
     # define scaler
     local_path = os.path.join(os.getcwd(), 'MLFLOW', f"{run_name}/scaler/scaler.dump")
     return joblib.load(local_path)
-    
+
+def get_scaler_from_path(scaler_path):
+    return joblib.load(scaler_path)
+
 @export
 @debug(log=_log)
 def create_data_loader(data_path, run_name):
@@ -573,26 +576,26 @@ def _make_xr_ds_of_prediction(np_prediction: np.ndarray,
                               org_ds: xr.Dataset,
                               coords = None,
                               attrs = None,
-                              global_burned_areas = "global_burned_areas"):
+                              var_name = "global_burned_areas"):
     if coords is None:
         latitude = "latitude"
         longitude = "longitude"
         xr_coords = {
-            "time": ("time", org_ds.time.values),
-            latitude: org_ds.latitude.values,
-            longitude: org_ds.longitude.values,
+            "time": ("time", org_ds.time),
+            latitude: org_ds.latitude,
+            longitude: org_ds.longitude,
         }
     else:
         latitude = coords[0]
         longitude = coords[1]
         xr_coords = {
-            "time": org_ds.time.values,
-            latitude: org_ds.lat.values,
-            longitude: org_ds.lon.values,
+            "time": org_ds.time,
+            latitude: org_ds.lat,
+            longitude: org_ds.lon,
         }
     xr_dataset = xr.Dataset(
         data_vars={
-            "global_burned_areas": (("time", latitude, longitude), np_prediction)
+            var_name: (("time", latitude, longitude), np_prediction)
         },
         coords=xr_coords
     ).sortby("time")
@@ -604,7 +607,8 @@ def _make_xr_ds_of_prediction(np_prediction: np.ndarray,
     
 def do_inference_from_ds(dataset: xr.Dataset,
                          model,
-                         global_burned_areas = "global_burned_areas"):
+                         scaler,
+                         var_name = "global_burned_areas"):
     prediction_cpu = []
     if "plev" in dataset.dims:
         dataset = dataset.isel(plev=0)
@@ -616,9 +620,10 @@ def do_inference_from_ds(dataset: xr.Dataset,
 
     with torch.no_grad():
         for idx in range(dataset.dims["time"]):
-            input_tensor = torch.tensor(dataset.isel(time=idx).to_array().transpose("variable", "lat", "lon").values)
-            input_tensor = torch.nan_to_num(input_tensor, nan=0).float()
-            prediction = model(input_tensor.to(check_backend()).unsqueeze(0))
+            X = torch.tensor(dataset.isel(time=idx).to_array().transpose("variable", "lat", "lon").values)
+            X = scaler.transform(X)
+            X = torch.nan_to_num(X, nan=0).float()
+            prediction = model(X.to(check_backend()).unsqueeze(0))
             prediction_cpu.append(prediction.cpu().detach().numpy())
     predictions = np.vstack(prediction_cpu).squeeze()
     ds_attrs={
@@ -626,10 +631,15 @@ def do_inference_from_ds(dataset: xr.Dataset,
             "Processed_by": "ML4Fires",
         }
     
-    ds_pred = _make_xr_ds_of_prediction(np_prediction=predictions, org_ds=dataset, coords=["lat", "lon"], attrs=ds_attrs, global_burned_areas=global_burned_areas)
+    ds_pred = _make_xr_ds_of_prediction(np_prediction=predictions, 
+                                        org_ds=dataset,
+                                        coords=["lat", "lon"],
+                                        attrs=ds_attrs,
+                                        var_name=var_name)
     
     return ds_pred
-    
+
+
 def get_cmip6_inference(
     seafire_ds,
     run_name,
@@ -659,6 +669,7 @@ def get_cmip6_inference(
 
     # ── Run the model ──
     scaler = get_scaler(run_name=run_name)
+    
     X = torch.tensor(ds_array)
     X = scaler.transform(X).float()
     X = torch.nan_to_num(X, nan=0)
