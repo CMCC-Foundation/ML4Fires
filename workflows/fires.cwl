@@ -55,10 +55,21 @@ steps:
       value:
         default: "CMCC|NCC"
     out: [experiment]
+  Init_reduction_operations:
+    run: tasks/set.cwl
+    in:
+      experiment: inputexperiment
+      name:
+        default: "Init reduction operations"
+      key:
+        default: "reduction_op"
+      value:
+        default: "median|median|median|median|sum|none"
+    out: [experiment]
   Clear_output_folder:
     run: tasks/generic.cwl
     in:
-      experiment: [ Init_frequency/experiment, Init_measure/experiment, Init_institutes/experiment ]
+      experiment: [ Init_frequency/experiment, Init_measure/experiment, Init_institutes/experiment, Init_reduction_operations/experiment ]
       name:
         default: "Clear output folder"
       command:
@@ -141,7 +152,7 @@ steps:
       key:
         default: "variable"
       values:
-        default: "lai|tas|hur|tasmin|pr|sftlf"
+        default: "lai|tasmax|hur|tasmin|pr|sftlf"
     out: [experiment]
 
   Check_for_reduction_operation:
@@ -190,6 +201,38 @@ steps:
       nthreads: nthreads
     out: [experiment]
 
+  Check_for_rescaling_operation:
+    run: tasks/if.cwl
+    in:
+      experiment: Import_variable/experiment
+      name:
+        default: "Check for rescaling operation"
+      condition:
+        default: "step(&{variable}-5)*step(5-&{variable})"
+      forward:
+        default: "yes"
+    out: [experiment]
+  Rescale_pr:
+    run: tasks/apply.cwl
+    in:
+      experiment: Check_for_rescaling_operation/experiment
+      name:
+        default: "Rescale pr"
+      query:
+        default: "oph_matheval(measure,'x*3600*24')"
+      measure_type:
+        default: "auto"
+    out: [experiment]
+  End_rescaling_selection:
+    run: tasks/endif.cwl
+    in:
+      experiment:
+        source: Rescale_pr/experiment
+        valueFrom: ${ return [ self ]; }
+      name:
+        default: "End rescaling selection"
+    out: [experiment]
+
   Else_selection:
     run: tasks/else.cwl
     in:
@@ -224,7 +267,7 @@ steps:
   End_check_selection:
     run: tasks/endif.cwl
     in:
-      experiment: [Import_variable/experiment, Import_hur/experiment]
+      experiment: [End_rescaling_selection/experiment, Import_hur/experiment]
       name:
         default: "End check selection"
     out: [experiment]
@@ -236,7 +279,7 @@ steps:
       name:
         default: "Reduction on octets"
       operation:
-        default: "median"
+        default: "@{reduction_op_&{variable}}"
       concept_level:
         default: "o"
     out: [experiment]
@@ -264,10 +307,22 @@ steps:
         default: 1
     out: [experiment]
 
+  Rescale_sftlf:
+    run: tasks/apply.cwl
+    in:
+      experiment: Import_sftlf/experiment
+      name:
+        default: "Rescale sftlf"
+      query:
+        default: "oph_matheval(measure,'x/100')"
+      measure_type:
+        default: "auto"
+    out: [experiment]
+
   End_check_reduction:
     run: tasks/endif.cwl
     in:
-      experiment: [Reduction_on_octets/experiment, Import_sftlf/experiment]
+      experiment: [Reduction_on_octets/experiment, Rescale_sftlf/experiment]
       name:
         default: "End check reduction"
     out: [experiment]
@@ -327,11 +382,13 @@ steps:
       name:
         default: "Infer data"
       command:
-        default: "/home/jovyan/work/fires/fires.sh"
+        default: "/home/jovyan/work/fires/inference.py"
       input:
         default: "/home/jovyan/work/fires/output/regridded_@{model}_@{scenario}.nc"
       output:
         default: "/home/jovyan/work/fires/output/fires_@{model}_@{scenario}.nc"
+      args:
+        default: "global_burned_areas"
     out: [experiment]
   Import_model:
     run: tasks/importnc2.cwl
@@ -342,7 +399,7 @@ steps:
       imp_dim:
         default: "time"
       measure:
-        default: "tos"
+        default: "global_burned_areas"
       src_path:
         default: "/home/jovyan/work/fires/output/fires_@{model}_@{scenario}.nc"
       container: container

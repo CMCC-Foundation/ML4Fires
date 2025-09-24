@@ -39,6 +39,17 @@
     },
     {
       "type": "ophidia",
+      "name": "Init reduction operations",
+      "operator": "oph_set",
+      "arguments": [
+        "key=reduction_op",
+        "value=median|median|median|median|sum|none"
+      ],
+      "dependencies": [],
+      "extra": {}
+    },
+    {
+      "type": "ophidia",
       "name": "Clear output folder",
       "operator": "oph_generic",
       "arguments": [
@@ -55,6 +66,9 @@
         },
         {
           "task": "Init institutes"
+        },
+        {
+          "task": "Init reduction operations"
         }
       ],
       "extra": {},
@@ -134,7 +148,7 @@
       "arguments": [
         "parallel=yes",
         "key=variable",
-        "values=lai|tas|hur|tasmin|pr|sftlf"
+        "values=lai|tasmax|hur|tasmin|pr|sftlf"
       ],
       "dependencies": [
         {
@@ -182,12 +196,57 @@
         "container=fires",
         "nfrag=1",
         "subset_dims=time",
-        "subset_filter=2030-01-01_2031-01-01",
+        "subset_filter=2030-01-01_2030-12-31",
         "subset_type=coord"
       ],
       "dependencies": [
         {
           "task": "Check for selection operation"
+        }
+      ],
+      "extra": {}
+    },
+    {
+      "type": "ophidia",
+      "name": "Check for rescaling operation",
+      "operator": "oph_if",
+      "arguments": [
+        "condition=step(&{variable}-5)*step(5-&{variable})",
+        "forward=yes"
+      ],
+      "dependencies": [
+        {
+          "argument": "cube",
+          "task": "Import variable"
+        }
+      ],
+      "extra": {}
+    },
+    {
+      "type": "ophidia",
+      "name": "Rescale pr",
+      "operator": "oph_apply",
+      "arguments": [
+        "query=oph_matheval(measure,'x*3600*24')",
+        "measure_type=auto"
+      ],
+      "dependencies": [
+        {
+          "argument": "cube",
+          "task": "Check for rescaling operation"
+        }
+      ],
+      "extra": {}
+    },
+    {
+      "type": "ophidia",
+      "name": "End rescaling selection",
+      "operator": "oph_endif",
+      "arguments": [],
+      "dependencies": [
+        {
+          "argument": "cube",
+          "task": "Rescale pr"
         }
       ],
       "extra": {}
@@ -215,7 +274,7 @@
         "container=fires",
         "nfrag=1",
         "subset_dims=plev|time",
-        "subset_filter=1|2030-01-01_2031-01-01",
+        "subset_filter=1|2030-01-01_2030-12-31",
         "subset_type=index|coord"
       ],
       "dependencies": [
@@ -233,7 +292,7 @@
       "dependencies": [
         {
           "argument": "cube",
-          "task": "Import variable"
+          "task": "End rescaling selection"
         },
         {
           "argument": "cube",
@@ -247,7 +306,7 @@
       "name": "Reduction on octets",
       "operator": "oph_reduce2",
       "arguments": [
-        "operation=median",
+        "operation=@{reduction_op_&{variable}}",
         "concept_level=o"
       ],
       "dependencies": [
@@ -289,6 +348,22 @@
     },
     {
       "type": "ophidia",
+      "name": "Rescale sftlf",
+      "operator": "oph_apply",
+      "arguments": [
+        "query=oph_matheval(measure,'x/100')",
+        "measure_type=auto"
+      ],
+      "dependencies": [
+        {
+          "argument": "cube",
+          "task": "Import sftlf"
+        }
+      ],
+      "extra": {}
+    },
+    {
+      "type": "ophidia",
       "name": "End check reduction",
       "operator": "oph_endif",
       "arguments": [],
@@ -299,7 +374,7 @@
         },
         {
           "argument": "cube",
-          "task": "Import sftlf"
+          "task": "Rescale sftlf"
         }
       ],
       "extra": {}
@@ -324,7 +399,7 @@
       "name": "Export variable",
       "operator": "oph_exportnc2",
       "arguments": [
-        "output=/home/jovyan/work/fires/output/@{variable}_@{frequency_&{variable}}_@{model}_@{scenario}_r1i1p1f1_gn_2030-01-01_2031-01-01.nc"
+        "output=/home/jovyan/work/fires/output/@{variable}_@{frequency_&{variable}}_@{model}_@{scenario}_r1i1p1f1_gn_2030-01-01_2030-12-31.nc"
       ],
       "dependencies": [
         {

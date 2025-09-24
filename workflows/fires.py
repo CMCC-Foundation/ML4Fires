@@ -13,6 +13,7 @@ def fires(time_range = "2030-01-01_2031-01-01"):
     variables = "lai|tas|hur|tasmin|pr|sftlf" # "lai|tas|hur|tasmin|pr|sftlf"
     measures = "lai|lst_day|rel_hum|t2m_min|pr|lsm" # "lai|lst_day|rel_hum|t2m_min|pr|lsm"
     frequencies = "Eday|day|day|day|day|fx" # "Eday|day|day|day|day|fx"
+    reduction_ops = "median|median|median|median|sum|none" # "median|median|median|median|sum|none"
     
     # Input parameters
     input_folder = home_dir + "/data/CMIP6/ScenarioMIP/@{institute_&{model}}/@{model}/@{scenario}/r1i1p1f1/@{frequency_&{variable}}/@{variable}/gn/*/"
@@ -66,16 +67,20 @@ def fires(time_range = "2030-01-01_2031-01-01"):
                     operator="oph_set",
                     arguments={"key": "institute", "value": institutes})
 
-    ti4 = exp.newTask(name="Clear output folder",
+    ti4 = exp.newTask(name="Init reduction operations",
+                    operator="oph_set",
+                    arguments={"key": "reduction_op", "value": reduction_ops})
+
+    ti5 = exp.newTask(name="Clear output folder",
                     operator="oph_generic",
                     arguments={"command": clear_script, "input": output_folder, "output": "null"},
-                    dependencies={ti1:'', ti2:'', ti3:''})
+                    dependencies={ti1:'', ti2:'', ti3:'', ti4:''})
     
     tc = exp.newTask(name="Create a work container",
                     operator="oph_createcontainer",
                     on_error="skip",
                     arguments={"container": container, "dim": "time|plev|lat|lon", "hierarchy": "oph_time|oph_base|oph_base|oph_base"},
-                    dependencies={ti4:''})
+                    dependencies={ti5:''})
     
     tmask = exp.newTask(name="Import mask",
                     operator="oph_importnc2",
@@ -129,7 +134,7 @@ def fires(time_range = "2030-01-01_2031-01-01"):
     
     tp1c = exp.newTask(name="Reduction on octets",
                     operator="oph_reduce2",
-                    arguments={"operation": "median", "concept_level": "o"},
+                    arguments={"operation": "@{reduction_op_&{variable}}", "concept_level": "o"},
                     dependencies={tp1b5:'cube'})
     
     tp1d = exp.newTask(name="Else reduction",
