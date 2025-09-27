@@ -618,7 +618,7 @@ def do_inference_from_ds(dataset: xr.Dataset,
     if "latitude" in dataset.dims:
         dataset = dataset.rename({"latitude":"lat"})
 
-    dataset = dataset.assign_coords({"lon": (((dataset.lon + 180) % 360) - 180)}).sortby("lon")
+    dataset = dataset.assign_coords({"lon": (((dataset.lon + 180) % 360) - 180)}).sortby("lon").sortby("lat", False)
 
     with torch.no_grad():
         for idx in range(dataset.dims["time"]):
