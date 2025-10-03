@@ -608,7 +608,8 @@ def _make_xr_ds_of_prediction(np_prediction: np.ndarray,
 def do_inference_from_ds(dataset: xr.Dataset,
                          model,
                          scaler,
-                         var_name = "global_burned_areas"):
+                         var_name = "global_burned_areas",
+                         move_latlon = False):
     prediction_cpu = []
     if "plev" in dataset.dims:
         dataset = dataset.isel(plev=0)
@@ -618,7 +619,8 @@ def do_inference_from_ds(dataset: xr.Dataset,
     if "latitude" in dataset.dims:
         dataset = dataset.rename({"latitude":"lat"})
 
-    dataset = dataset.assign_coords({"lon": (((dataset.lon + 180) % 360) - 180)}).sortby("lon").sortby("lat", False)
+    if move_latlon:
+        dataset = dataset.assign_coords({"lon": (((dataset.lon + 180) % 360) - 180)}).sortby("lon").sortby("lat", False)
 
     with torch.no_grad():
         for idx in range(dataset.dims["time"]):
