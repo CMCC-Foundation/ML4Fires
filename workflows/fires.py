@@ -172,15 +172,10 @@ def fires(time_range = "2030-01-01_2031-01-01"):
                     arguments={},
                     dependencies={tp4:''})
 
-    te4 = exp.newTask(name="Move latlon",
-                    operator="oph_generic",
-                    arguments={"command": moving_script, "input": output_folder + "regridded_" + model_format, "output": output_folder + "moved_" + model_format},
-                    dependencies={te3:''})
-
     tm0 = exp.newTask(name="Infer data",
                     operator="oph_generic",
                     arguments={"command": python_script, "output": output_folder + "fires_" + model_format, "args": fires_index},
-                    dependencies={te4:'input'})
+                    dependencies={te3:'input'})
     
     tm1 = exp.newTask(name="Import model",
                     operator="oph_importnc2",

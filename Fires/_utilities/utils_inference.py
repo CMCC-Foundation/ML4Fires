@@ -609,8 +609,8 @@ def do_inference_from_ds(dataset: xr.Dataset,
                          model,
                          scaler,
                          var_name = "global_burned_areas",
-                         move_latlon = False):
-    prediction_cpu = []
+                         move_latlon = True):
+
     if "plev" in dataset.dims:
         dataset = dataset.isel(plev=0)
 
@@ -622,14 +622,19 @@ def do_inference_from_ds(dataset: xr.Dataset,
     if move_latlon:
         dataset = dataset.assign_coords({"lon": (((dataset.lon + 180) % 360) - 180)}).sortby("lon").sortby("lat", False)
 
+    dataset = dataset[['lai', 'lst_day', 'rel_hum', 't2m_min', 'pr', 'lsm']]
+
+    X = torch.tensor(dataset.to_array().transpose("time", "variable", "lat", "lon").values)
+    X = scaler.transform(X).float()
+    X = torch.nan_to_num(X, nan=0)
+
+    preds = []
     with torch.no_grad():
-        for idx in range(dataset.dims["time"]):
-            X = torch.tensor(dataset.isel(time=idx).to_array().transpose("variable", "lat", "lon").values)
-            X = scaler.transform(X)
-            X = torch.nan_to_num(X, nan=0).float()
-            prediction = model(X.to(check_backend()).unsqueeze(0))
-            prediction_cpu.append(prediction.cpu().detach().numpy())
-    predictions = np.vstack(prediction_cpu).squeeze()
+        for t in range(X.shape[0]):
+            out = model(X[t : t + 1].to(check_backend()))
+            preds.append(out.cpu().numpy())
+    predictions = np.vstack(preds).squeeze()
+
     ds_attrs={
             "Source": "CMCC Foundation",
             "Processed_by": "ML4Fires",

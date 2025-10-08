@@ -373,26 +373,11 @@ steps:
         default: "End iteration on variables"
     out: [experiment]
 
-  Move_latlon:
-    run: tasks/generic.cwl
-    in:
-      experiment:
-        source: End_iteration_on_variables/experiment
-        valueFrom: ${ return [ self ]; }
-      name:
-        default: "Move latlon"
-      command:
-        default: "/home/jovyan/work/fires/move_latlon.sh"
-      input:
-        default: "/home/jovyan/work/fires/output/regridded_@{model}_@{scenario}.nc"
-      output:
-        default: "/home/jovyan/work/fires/output/moved_@{model}_@{scenario}.nc"
-    out: [experiment]
   Infer_data:
     run: tasks/generic.cwl
     in:
       experiment:
-        source: Move_latlon/experiment
+        source: End_iteration_on_variables/experiment
         valueFrom: ${ return [ self ]; }
       name:
         default: "Infer data"
