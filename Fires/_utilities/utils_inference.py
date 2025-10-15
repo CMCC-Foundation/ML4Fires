@@ -593,6 +593,8 @@ def _make_xr_ds_of_prediction(np_prediction: np.ndarray,
             latitude: org_ds.lat,
             longitude: org_ds.lon,
         }
+	if np_prediction.ndim != 2
+		np_prediction = np.expand_dims(a=np_prediction,axis=0)
     xr_dataset = xr.Dataset(
         data_vars={
             var_name: (("time", latitude, longitude), np_prediction)
