@@ -484,7 +484,7 @@ def _get_cmip6_files_rucio(scope,
 
 
 def _read_and_aggregate_cmip6_data(seafire_ds, scenario, climate_model, infer_config, year_range):
-  
+
     if CONFIG.rucio.rse:
         try:
             #from rucio.client.uploadclient import UploadClient
@@ -504,6 +504,11 @@ def _read_and_aggregate_cmip6_data(seafire_ds, scenario, climate_model, infer_co
                                                                      climate_model=climate_model,
                                                                      infer_config=infer_config,
                                                                      year_range=year_range)
+
+    if "lon" in seafire_ds.dims:
+        seafire_ds = seafire_ds.rename({"lon":"longitude"})
+    if "lat" in seafire_ds.dims:
+        seafire_ds = seafire_ds.rename({"lat":"latitude"})
 
     dates_range_cftime = _get_cft_times_list(year_range=year_range)
     var_ds_list = []
