@@ -586,7 +586,7 @@ def _make_xr_ds_of_prediction(np_prediction: np.ndarray,
         latitude = "latitude"
         longitude = "longitude"
         xr_coords = {
-            "time": ("time", org_ds.time),
+            "time": org_ds.time,
             latitude: org_ds.latitude,
             longitude: org_ds.longitude,
         }
