@@ -510,6 +510,11 @@ def _read_and_aggregate_cmip6_data(seafire_ds, scenario, climate_model, infer_co
     if "lat" in seafire_ds.dims:
         seafire_ds = seafire_ds.rename({"lat":"latitude"})
 
+    if infer_config.config.temp_dir:
+        from cdo import Cdo
+        cdo_obj = Cdo()
+        grid_spec = infer_config.config.temp_dir + "/grid.grid"
+
     dates_range_cftime = _get_cft_times_list(year_range=year_range)
     var_ds_list = []
     for var_name, var_cfg in infer_config.data.drivers.items():
@@ -554,26 +559,38 @@ def _read_and_aggregate_cmip6_data(seafire_ds, scenario, climate_model, infer_co
             # Changing the 'unit' for the land sea mask 
             ds_var = xr.open_dataset(files[0])[var_name] / 100.0
 
-        # Regrid & rename
+        # Regrid
+        if infer_config.config.temp_dir:
+            tmp_input = infer_config.config.temp_dir + var_name + "_tmp_in.nc"
+            output_path = infer_config.config.temp_dir + var_name + "_tmp_out.nc"
+            ds_var.to_netcdf(tmp_input)
+            getattr(cdo_obj, "remapcon")(
+                grid_spec,
+                input=tmp_input,
+                output=output_path
+            )
+            ds_var = xr.open_dataset(output_path)
+
+        # Rename
         ds_var = (
             ds_var
             .assign_coords(lon=((ds_var.lon + 180) % 360) - 180)
-            .sortby("lon")
+            .sortby("lon").sortby("lat", False)
             .rename(lon="longitude", lat="latitude")
-            .interp_like(seafire_ds[["longitude", "latitude"]])
         )
+        if not infer_config.config.temp_dir:
+            ds_var = ds_var.interp_like(seafire_ds[["longitude", "latitude"]])
 
         var_ds_list.append(ds_var)
 
     assert var_ds_list, "No local variables found or processed."
     merged_data = xr.merge(var_ds_list)
     if "plev" in merged_data.dims:
-        merged_data = merged_data.isel(plev=0)
+        merged_data = merged_data.isel(plev=0).drop_vars("plev", errors="ignore")
 
     # Sort and extract array + time vector
     merged_data = merged_data.sortby("time")
     time_vec = merged_data.time.values
-    
    
     return merged_data, time_vec
 
@@ -619,7 +636,7 @@ def do_inference_from_ds(dataset: xr.Dataset,
                          move_latlon = True):
 
     if "plev" in dataset.dims:
-        dataset = dataset.isel(plev=0)
+        dataset = dataset.isel(plev=0).drop_vars("plev", errors="ignore")
 
     if "longitude" in dataset.dims:
         dataset = dataset.rename({"longitude":"lon"})
@@ -709,3 +726,4 @@ def get_cmip6_inference(
     ds_pred = _make_xr_ds_of_prediction(np_prediction=predictions, org_ds=xr_ds, attrs=attrs)
 
     return ds_pred
+
