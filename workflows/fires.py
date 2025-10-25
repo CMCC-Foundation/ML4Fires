@@ -25,7 +25,7 @@ def fires(time_range = "2030-01-01_2031-01-01"):
     output_format = base_format + "_" + time_range.replace(':','') + ".nc"
     clear_script = home_dir + "/work/fires/clear.sh"
     regrid_script = home_dir + "/work/fires/regrid.sh"
-    new_grid = "r360x180"
+    new_grid = "interp_like" # "r360x180"
     python_script = home_dir + "/work/fires/inference.py"
     model_format = "@{model}_@{scenario}.nc"
     inference_format = "inferenced_@{model}_@{scenario}.nc"
@@ -174,8 +174,8 @@ def fires(time_range = "2030-01-01_2031-01-01"):
 
     tm0 = exp.newTask(name="Infer data",
                     operator="oph_generic",
-                    arguments={"command": python_script, "output": output_folder + "fires_" + model_format, "args": fires_index},
-                    dependencies={te3:'input'})
+                    arguments={"command": python_script, "input": output_folder + "regridded_" + model_format, "output": output_folder + "fires_" + model_format, "args": fires_index},
+                    dependencies={te3:''})
     
     tm1 = exp.newTask(name="Import model",
                     operator="oph_importnc2",

@@ -18,8 +18,14 @@ AbsWorkDir="`( cd \"$RelWorkDir\" && pwd )`"
 LATS=180
 LONS=360
 
+# Python-based regridding
+if [ "$NewGrid" == "interp_like" ]; then
+
+rm -f $TempFile
+$AbsWorkDir/regrid.py $InFile $TempFile
+
 # Bilinear regridding
-if [ "$NewGrid" != "" ]; then
+elif [ "$NewGrid" != "" ]; then
 
 XSIZE=${NewGrid%%x*}
 XSIZE=${XSIZE##*r}
@@ -72,6 +78,14 @@ mv $tmp $TempFile
 
 rm -f $FileName.grid
 
+else
+
+if [ "$InFile" != "$OutFile" ]; then
+cp $InFile $TempFile
+fi
+
+fi
+
 while
     if { set -C; 2>/dev/null >~/manlocktest.lock; }; then
         trap "rm -f ~/manlocktest.lock" EXIT
@@ -88,14 +102,6 @@ while
     fi
 do true; done
 rm -f $TempFile
-
-else
-
-if [ "$InFile" != "$OutFile" ]; then
-cp $InFile $OutFile
-fi
-
-fi
 
 exit 0
 

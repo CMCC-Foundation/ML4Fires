@@ -356,7 +356,7 @@ steps:
       command:
         default: "/home/jovyan/work/fires/regrid.sh"
       args:
-        default: "-90:90 0:360 r360x180 @{measure_&{variable}}"
+        default: "-90:90 0:360 interp_like @{measure_&{variable}}"
       input:
         default: "/home/jovyan/work/fires/output/@{variable}_@{frequency_&{variable}}_@{model}_@{scenario}_r1i1p1f1_gn.nc"
       output:
