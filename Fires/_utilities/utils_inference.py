@@ -653,7 +653,8 @@ def do_inference_from_ds(dataset: xr.Dataset,
     X = torch.nan_to_num(X, nan=0)
 
     preds = []
-    with torch.no_grad():
+    model.eval()
+    with torch.inference_mode():
         for t in range(X.shape[0]):
             out = model(X[t : t + 1].to(check_backend()))
             preds.append(out.cpu().numpy())
@@ -708,8 +709,10 @@ def get_cmip6_inference(
     X = torch.nan_to_num(X, nan=0)
 
     print("⚙️  Running model inference...")
+
     preds = []
-    with torch.no_grad():
+    model.eval()
+    with torch.inference_mode():
         for t in range(X.shape[0]):
             out = model(X[t : t + 1].to(check_backend()))
             preds.append(out.cpu().numpy())
