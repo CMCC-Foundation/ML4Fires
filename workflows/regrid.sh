@@ -87,15 +87,15 @@ fi
 fi
 
 while
-    if { set -C; 2>/dev/null >~/manlocktest.lock; }; then
-        trap "rm -f ~/manlocktest.lock" EXIT
+    if { set -C; 2>/dev/null >$OutFile.lock; }; then
+        trap "rm -f $OutFile.lock" EXIT
     	ncks -A -v $Variable $TempFile $OutFile
         ncatted -h -O -a CDO,global,d,, $OutFile
         ncatted -h -O -a NCO,global,d,, $OutFile
         ncatted -h -O -a history_of_appended_files,global,d,, $OutFile
         ncatted -h -O -a history,global,d,, $OutFile
         rm -f $OutFile.*.ncks.tmp
-    	rm -f ~/manlocktest.lock
+    	rm -f $OutFile.lock
     	break
     else
         sleep 1
