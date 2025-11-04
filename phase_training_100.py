@@ -331,7 +331,7 @@ def check_cli_args():
 	cli_base_filter_dim = cli_args.base_filter_dim
 
 	model_config = {
-		'input_shape':(180, 360, 7),
+		'input_shape':(180, 360, len(drivers)),
 		'base_filter_dim':cli_base_filter_dim,
 		'activation':activation_fn
 	}

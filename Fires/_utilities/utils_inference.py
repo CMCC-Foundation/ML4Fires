@@ -138,12 +138,13 @@ def compute_aggregated_data(data, other_data=None, operation="mean") -> tuple[np
 
 	descaled_on_lats = np.nanmean(data, axis=1)
 	descaled_on_lons = np.nanmean(data, axis=0)
+	descaled_max = np.nanmax(data)
 
 	print(f" {operation.capitalize()} of data: {data.shape}")
 	print(f" Max: {round(np.nanmax(data), 2)} \t Min: {round(np.nanmin(data), 2)}")
 	print(f" Lats Max: {round(np.nanmax(descaled_on_lats), 2)} \t Lons Max: {round(np.nanmax(descaled_on_lons), 2)}")
 
-	return data, descaled_on_lats, descaled_on_lons
+	return data, descaled_on_lats, descaled_on_lons, descaled_max
 
 
 @export
@@ -202,31 +203,86 @@ def process_and_plot_data(data,
 	if isinstance(data, xr.DataArray):
 		avg_on_time = data.mean(dim='time', skipna=True).data
 		std_on_time = data.std(dim='time', skipna=True).data
-		print(f"Is DataArray - AVG: {avg_on_time.shape} STD: {std_on_time.shape}")
+		#print(f"Is DataArray - AVG: {avg_on_time.shape} STD: {std_on_time.shape}")
 	else:
 		avg_on_time = np.nanmean(data, axis=0)[0, ...]
 		std_on_time = np.nanstd(data, axis=0)[0, ...]
-		print(f"NOT DataArray - AVG: {avg_on_time.shape} STD: {std_on_time.shape}")
+		#print(f"NOT DataArray - AVG: {avg_on_time.shape} STD: {std_on_time.shape}")
 
 	# Aggregate data
-	avg_descaled, avg_on_lats, _ = compute_aggregated_data(data=avg_on_time)
-	_, std_on_lats, _ = compute_aggregated_data(data=std_on_time)
+	avg_descaled, avg_on_lats, _, avg_max = compute_aggregated_data(data=avg_on_time)
+	_, std_on_lats, _, _ = compute_aggregated_data(data=std_on_time)
 
 	# Compute upper and lower boundaries
 	upperbound, lowerbound = up_and_lower_bounds(avg_value=avg_on_lats, std_value=std_on_lats)
-
+	
 	# Plot data
 	plot_dataset_map(
 		avg_target_data=avg_descaled,
-		avg_data_on_lats=avg_on_lats,
-		lowerbound_data=lowerbound,
-		upperbound_data=upperbound,
-		scale_min=scale_min if scale_min else np.nanmin(avg_descaled),
-		scale_max=scale_max if scale_max else np.nanmax(avg_descaled),
+		scale_min=scale_min if scale_min else 0,
+		scale_max=scale_max if scale_max else avg_max,
 		lats=lats,
 		lons=lons,
 		title=f'{label} ({model_name.upper()})',
-		cmap='nipy_spectral_r'
+		cmap='nipy_spectral_r',
+		plot_lat = False,
+		avg_data_on_lats=avg_on_lats,
+		lowerbound_data=lowerbound,
+		upperbound_data=upperbound
+	)
+	
+def process_and_plot_difference_map(
+                          obs_data, 
+                          pred_data, 
+                          label,
+                          lats,
+                          lons,
+                          scale_min: int=None,
+                          scale_max: int=None):
+	"""
+	Process the data and generate plots with difference between 2 datasets.
+
+	Parameters
+	----------
+	obs_data : xarray.DataArray or np.ndarray
+		Ground truth data to process; can be an xarray.DataArray for real data or a numpy.ndarray for predictions.
+	pred_data : xarray.DataArray or np.ndarray
+		Predicted data to process; can be an xarray.DataArray for real data or a numpy.ndarray for predictions.
+	label : str
+		Label to use in the plot title.
+	lats : np.ndarray
+		Array of latitudes.
+	lons : np.ndarray
+		Array of longitudes.
+
+	"""
+	# Verify data type and compute mean and standard deviation along time axis
+	if isinstance(obs_data, xr.DataArray):
+		obs_data = obs_data.data
+	else:
+		obs_data = obs_data.squeeze(1)
+	if isinstance(pred_data, xr.DataArray):
+		pred_data = pred_data.data
+	else:
+		pred_data = pred_data.squeeze(1)
+
+	obs_data = np.nan_to_num(obs_data)
+	pred_data = np.nan_to_num(pred_data)
+
+	# compute the difference between real and predicted data
+	difference = pred_data - obs_data  # Shape: (time, lat, lon)
+	avg_difference = np.mean(difference, axis=0)  # Sum across time dimension
+	avg_diff_max = np.max(np.abs(avg_difference))
+
+	plot_dataset_map(
+		avg_target_data=avg_difference,
+		scale_min=scale_min if scale_min else -avg_diff_max,
+		scale_max=scale_max if scale_max else avg_diff_max,
+        lats=lats,
+		lons=lons,
+		title=f'{label}',
+		cmap="RdBu",
+		plot_lat = False
 	)
 
 @export
@@ -299,8 +355,8 @@ def process_and_plot_cmip6infer(data: xr.Dataset,
 		print(f"NOT DataArray - AVG: {avg_on_time.shape} STD: {std_on_time.shape}")
 
 	# Aggregate data
-	avg_descaled, avg_on_lats, _ = compute_aggregated_data(data=avg_on_time)
-	_, std_on_lats, _ = compute_aggregated_data(data=std_on_time)
+	avg_descaled, avg_on_lats, _, _ = compute_aggregated_data(data=avg_on_time)
+	_, std_on_lats, _, _ = compute_aggregated_data(data=std_on_time)
 
 	if isinstance(sea_poles_mask,xr.DataArray):
 		sea_poles_idxs = np.where(~(sea_poles_mask == 0))
@@ -313,15 +369,16 @@ def process_and_plot_cmip6infer(data: xr.Dataset,
 	# Plot data
 	plot_dataset_map(
 		avg_target_data=avg_descaled,
-		avg_data_on_lats=avg_on_lats,
-		lowerbound_data=lowerbound,
-		upperbound_data=upperbound,
         scale_max=scale_max,
         scale_min=scale_min,
 		lats=lats,
 		lons=lons,
 		title=f'{label} ({model_name.upper()})',
-		cmap='nipy_spectral_r'
+		cmap='nipy_spectral_r',
+		plot_lat = False,
+        avg_data_on_lats=avg_on_lats,
+		lowerbound_data=lowerbound,
+		upperbound_data=upperbound,
 	)
 
 
