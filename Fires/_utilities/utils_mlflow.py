@@ -57,6 +57,11 @@ def load_model_from_mlflow_registry(model_name, version=1, tag=None):
 
 @export
 @debug(log=_log)
+def load_model_from_local_path(path: str):
+    return torch.load(path,map_location=torch.device(check_backend()))
+
+@export
+@debug(log=_log)
 def load_model_from_mlflow(run_name, scaler=True, provenance=False):
 	# set tracking uri
 	mlflow.set_tracking_uri(os.getenv('MLFLOW_TRACKING_URI'))

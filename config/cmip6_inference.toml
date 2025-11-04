@@ -1,6 +1,7 @@
 [config]
 	base_dir="/dcache/sling.si/projects/intertwin/cmip6_scenarios/"
     cmip6_scenario="ssp126"
+    temp_dir=""
 [data]
 	[data.drivers]
 		[data.drivers.lai]

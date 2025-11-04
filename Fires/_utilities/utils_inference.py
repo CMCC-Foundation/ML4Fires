@@ -13,6 +13,7 @@ from Fires._plots.plot_utils import plot_dataset_map
 from Fires._scalers.standard import StandardScaler
 from Fires._utilities.logger import Logger as logger
 from Fires._utilities.decorators import debug, export
+from Fires._utilities.utils_general import check_backend
 
 
 import toml
@@ -58,7 +59,10 @@ def get_scaler(run_name:str):
     # define scaler
     local_path = os.path.join(os.getcwd(), 'MLFLOW', f"{run_name}/scaler/scaler.dump")
     return joblib.load(local_path)
-    
+
+def get_scaler_from_path(scaler_path):
+    return joblib.load(scaler_path)
+
 @export
 @debug(log=_log)
 def create_data_loader(data_path, run_name):
@@ -293,7 +297,7 @@ def process_and_plot_cmip6infer(data: xr.Dataset,
                                 scale_max: int=None,
                                 sea_poles_mask: xr.DataArray=None):
 	"""
-	Process the data and generate plots for the inference from the cmip6 dataset.
+	Process the data and generate plots for CMIP6 data.
 
 	Parameters
 	----------
@@ -315,7 +319,8 @@ def process_and_plot_cmip6infer(data: xr.Dataset,
         xr.DataArray object to mask the poles and sea in the final map.
 
 	"""
-	
+	# TODO: Alot of redundant code here. CLEAN UP!
+ 
 	# Verify data type and compute mean and standard deviation along time axis
 	if isinstance(data, xr.DataArray):
 		print("Data type xr.DataArray...")
@@ -481,12 +486,8 @@ def _get_cmip6_files_rucio(scope,
       - np_dates:       list of numpy.datetime64 stamps (one per 8-day window)
     """
     
-    # 1) build the 8-day windows
-    windows = make_8day_windows(year_range)      # array of shape (N,2)
-    # 2) our “time” stamps are simply the window-end dates:
-    # np_dates = [w[1] for w in windows]          # list of length N
+    windows = make_8day_windows(year_range)     
 
-    # 3) now, exactly as before, discover your file paths via Rucio…
     from rucio.client.client import Client
     rucio = Client()
     cmip6_var_filename: dict[str, list[str]] = {}
@@ -540,7 +541,7 @@ def _get_cmip6_files_rucio(scope,
 
 
 def _read_and_aggregate_cmip6_data(seafire_ds, scenario, climate_model, infer_config, year_range):
-  
+
     if CONFIG.rucio.rse:
         try:
             #from rucio.client.uploadclient import UploadClient
@@ -560,6 +561,16 @@ def _read_and_aggregate_cmip6_data(seafire_ds, scenario, climate_model, infer_co
                                                                      climate_model=climate_model,
                                                                      infer_config=infer_config,
                                                                      year_range=year_range)
+
+    if "lon" in seafire_ds.dims:
+        seafire_ds = seafire_ds.rename({"lon":"longitude"})
+    if "lat" in seafire_ds.dims:
+        seafire_ds = seafire_ds.rename({"lat":"latitude"})
+
+    if infer_config.config.temp_dir:
+        from cdo import Cdo
+        cdo_obj = Cdo()
+        grid_spec = infer_config.config.temp_dir + "/grid.grid"
 
     dates_range_cftime = _get_cft_times_list(year_range=year_range)
     var_ds_list = []
@@ -605,28 +616,120 @@ def _read_and_aggregate_cmip6_data(seafire_ds, scenario, climate_model, infer_co
             # Changing the 'unit' for the land sea mask 
             ds_var = xr.open_dataset(files[0])[var_name] / 100.0
 
-        # Regrid & rename
+        # Regrid
+        if infer_config.config.temp_dir:
+            tmp_input = infer_config.config.temp_dir + var_name + "_tmp_in.nc"
+            output_path = infer_config.config.temp_dir + var_name + "_tmp_out.nc"
+            ds_var.to_netcdf(tmp_input)
+            getattr(cdo_obj, "remapcon")(
+                grid_spec,
+                input=tmp_input,
+                output=output_path
+            )
+            ds_var = xr.open_dataset(output_path)
+
+        # Rename
         ds_var = (
             ds_var
             .assign_coords(lon=((ds_var.lon + 180) % 360) - 180)
-            .sortby("lon")
+            .sortby("lon").sortby("lat", False)
             .rename(lon="longitude", lat="latitude")
-            .interp_like(seafire_ds[["longitude", "latitude"]])
         )
+        if not infer_config.config.temp_dir:
+            ds_var = ds_var.interp_like(seafire_ds[["longitude", "latitude"]])
 
         var_ds_list.append(ds_var)
 
     assert var_ds_list, "No local variables found or processed."
-    merged = xr.merge(var_ds_list)
-    if "plev" in merged.dims:
-        merged = merged.isel(plev=0)
+    merged_data = xr.merge(var_ds_list)
+    if "plev" in merged_data.dims:
+        merged_data = merged_data.isel(plev=0).drop_vars("plev", errors="ignore")
 
     # Sort and extract array + time vector
-    merged = merged.sortby("time")
-    time_vec = merged.time.values
-    data = merged.to_array().transpose("time", "variable", "latitude", "longitude").values
+    merged_data = merged_data.sortby("time")
+    time_vec = merged_data.time.values
    
-    return data, time_vec
+    return merged_data, time_vec
+
+def _make_xr_ds_of_prediction(np_prediction: np.ndarray,
+                              org_ds: xr.Dataset,
+                              coords = None,
+                              attrs = None,
+                              var_name = "global_burned_areas"):
+    if coords is None:
+        latitude = "latitude"
+        longitude = "longitude"
+        xr_coords = {
+            "time": org_ds.time,
+            latitude: org_ds.latitude,
+            longitude: org_ds.longitude,
+        }
+    else:
+        latitude = coords[0]
+        longitude = coords[1]
+        xr_coords = {
+            "time": org_ds.time,
+            latitude: org_ds.lat,
+            longitude: org_ds.lon,
+        }
+    if np_prediction.ndim < 3:
+        np_prediction = np.expand_dims(a=np_prediction, axis=0)
+    xr_dataset = xr.Dataset(
+        data_vars={
+            var_name: (("time", latitude, longitude), np_prediction)
+        },
+        coords=xr_coords
+    ).sortby("time")
+
+    if attrs:
+        xr_dataset.attrs.update(attrs)
+    
+    return xr_dataset
+    
+def do_inference_from_ds(dataset: xr.Dataset,
+                         model,
+                         scaler,
+                         var_name = "global_burned_areas",
+                         move_latlon = True):
+
+    if "plev" in dataset.dims:
+        dataset = dataset.isel(plev=0).drop_vars("plev", errors="ignore")
+
+    if "longitude" in dataset.dims:
+        dataset = dataset.rename({"longitude":"lon"})
+    if "latitude" in dataset.dims:
+        dataset = dataset.rename({"latitude":"lat"})
+
+    if move_latlon:
+        dataset = dataset.assign_coords({"lon": (((dataset.lon + 180) % 360) - 180)}).sortby("lon").sortby("lat", False)
+
+    dataset = dataset[['lai', 'lst_day', 'rel_hum', 't2m_min', 'pr', 'lsm']]
+
+    X = torch.tensor(dataset.to_array().transpose("time", "variable", "lat", "lon").values)
+    X = scaler.transform(X).float()
+    X = torch.nan_to_num(X, nan=0)
+
+    preds = []
+    model.eval()
+    with torch.inference_mode():
+        for t in range(X.shape[0]):
+            out = model(X[t : t + 1].to(check_backend()))
+            preds.append(out.cpu().numpy())
+    predictions = np.vstack(preds).squeeze()
+
+    ds_attrs={
+            "Source": "CMCC Foundation",
+            "Processed_by": "ML4Fires",
+        }
+    
+    ds_pred = _make_xr_ds_of_prediction(np_prediction=predictions, 
+                                        org_ds=dataset,
+                                        coords=["lat", "lon"],
+                                        attrs=ds_attrs,
+                                        var_name=var_name)
+    
+    return ds_pred
+
 
 def get_cmip6_inference(
     seafire_ds,
@@ -640,46 +743,47 @@ def get_cmip6_inference(
  
     print(f"📘 Running inference for scenario: {scenario.value}, years: {year_range.value[0]}–{year_range.value[1]}")
 
-    ds_array, time_vec = _read_and_aggregate_cmip6_data(
+    xr_ds, _ = _read_and_aggregate_cmip6_data(
         seafire_ds=seafire_ds,
         scenario=scenario,
         climate_model=climate_model,
         infer_config=infer_config,
         year_range=year_range
     )
-
+    
+    if "longitude" in xr_ds.dims and "latitude" in xr_ds.dims:
+        ds_array = xr_ds.to_array().transpose("time", "variable", "latitude", "longitude").values
+    else:
+        ds_array = xr_ds.to_array().transpose("time", "variable", "lat", "lon").values    
+    
     print("🧮 Input shape:", ds_array.shape)
 
     # ── Run the model ──
     scaler = get_scaler(run_name=run_name)
+    
     X = torch.tensor(ds_array)
     X = scaler.transform(X).float()
     X = torch.nan_to_num(X, nan=0)
 
     print("⚙️  Running model inference...")
+
     preds = []
-    with torch.no_grad():
+    model.eval()
+    with torch.inference_mode():
         for t in range(X.shape[0]):
-            out = model(X[t : t + 1].to("cuda:0"))
+            out = model(X[t : t + 1].to(check_backend()))
             preds.append(out.cpu().numpy())
     predictions = np.vstack(preds).squeeze()
 
     print("📦 Building prediction dataset...")
-    ds_pred = xr.Dataset(
-        data_vars={
-            "global_burned_areas": (("time", "latitude", "longitude"), predictions)
-        },
-        coords={
-            "time": ("time", time_vec),
-            "latitude": seafire_ds.latitude,
-            "longitude": seafire_ds.longitude,
-        },
-        attrs={
+    
+    attrs={
             "Details": f"Inference for {scenario.value}, {year_range.value[0]}–{year_range.value[1]}",
             "Source": "CMCC Foundation",
             "Processed_by": "ML4Fires",
-        },
-    ).sortby("time")
+        }
+    
+    ds_pred = _make_xr_ds_of_prediction(np_prediction=predictions, org_ds=xr_ds, attrs=attrs)
 
     return ds_pred
 
