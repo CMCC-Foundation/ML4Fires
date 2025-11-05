@@ -20,7 +20,7 @@
 <p align="justify"> The workflow can be started by the following Python command. </p>
 
 ```
-$ fires(time_range = "2030-01-01_2031-01-01")
+$ fires(time_range = "2030-01-01_2031-01-01", scenarios = ["ssp126"], models = ["CMCC-ESM2"])
 ```
 <p align="justify"> CWL and JSON implemetations are also provided. Provenance information can be produced by PyOphidia, once the execution is completed. </p>
 

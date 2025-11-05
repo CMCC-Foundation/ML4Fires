@@ -1,19 +1,34 @@
 #!/usr/bin/env python
     
-def fires(time_range = "2030-01-01_2031-01-01"):
-
+def fires(time_range = "2030-01-01_2031-01-01", scenarios = ["ssp126"], models = ["CMCC-ESM2"]):
+    
     import os
     from pyophidia import Client, Workflow, Experiment, Cube
     home_dir = os.path.expanduser('~')
     
+    # Select the institutions
+    institutes = ""
+    next_item = False
+    for model in models:
+        if next_item:
+            institutes += "|"
+        if model == "CMCC-ESM2":
+            institutes += "CMCC"
+        if model == "NorESM2-MM":
+            institutes += "NCC"
+        next_item = True
+
     # Input configurations
-    scenarios = "ssp126" # "ssp126|ssp245|ssp370|ssp585"
-    models = "CMCC-ESM2|NorESM2-MM" # "CMCC-ESM2|NorESM2-MM|CESM2|MPI-ESM1-2-HR"
-    institutes = "CMCC|NCC" # "CMCC|NCC|NCAR|MPI-M"
-    variables = "lai|tas|hur|tasmin|pr|sftlf" # "lai|tas|hur|tasmin|pr|sftlf"
-    measures = "lai|lst_day|rel_hum|t2m_min|pr|lsm" # "lai|lst_day|rel_hum|t2m_min|pr|lsm"
-    frequencies = "Eday|day|day|day|day|fx" # "Eday|day|day|day|day|fx"
-    reduction_ops = "median|median|median|median|sum|none" # "median|median|median|median|sum|none"
+    scenarios = "|".join(scenarios)
+    print("Scenarios: " + scenarios)
+    models = "|".join(models)
+    print("Models: " + models)
+
+    # Other configurations
+    variables = "lai|tas|hur|tasmin|pr|sftlf"
+    measures = "lai|lst_day|rel_hum|t2m_min|pr|lsm"
+    frequencies = "Eday|day|day|day|day|fx"
+    reduction_ops = "median|median|median|median|sum|none"
     
     # Input parameters
     input_folder = home_dir + "/data/CMIP6/ScenarioMIP/@{institute_&{model}}/@{model}/@{scenario}/r1i1p1f1/@{frequency_&{variable}}/@{variable}/gn/*/"
@@ -253,4 +268,5 @@ def fires(time_range = "2030-01-01_2031-01-01"):
 
 if __name__ == "__main__":
     fires()
+
 
