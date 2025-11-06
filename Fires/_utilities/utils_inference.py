@@ -91,7 +91,7 @@ def create_data_loader(data_path, run_name):
 
 @export
 @debug(log=_log)
-def compute_aggregated_data(data, other_data=None, operation="mean") -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+def compute_aggregated_data(data, other_data=None, operation="mean", verbose=False) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
 	"""
 	Compute the mean or difference between data, and aggregate along latitudes and longitudes
 
@@ -140,9 +140,10 @@ def compute_aggregated_data(data, other_data=None, operation="mean") -> tuple[np
 	descaled_on_lons = np.nanmean(data, axis=0)
 	descaled_max = np.nanmax(data)
 
-	print(f" {operation.capitalize()} of data: {data.shape}")
-	print(f" Max: {round(np.nanmax(data), 2)} \t Min: {round(np.nanmin(data), 2)}")
-	print(f" Lats Max: {round(np.nanmax(descaled_on_lats), 2)} \t Lons Max: {round(np.nanmax(descaled_on_lons), 2)}")
+	if verbose:
+		print(f" {operation.capitalize()} of data: {data.shape}")
+		print(f" Max: {round(np.nanmax(data), 2)} \t Min: {round(np.nanmin(data), 2)}")
+		print(f" Lats Max: {round(np.nanmax(descaled_on_lats), 2)} \t Lons Max: {round(np.nanmax(descaled_on_lons), 2)}")
 
 	return data, descaled_on_lats, descaled_on_lons, descaled_max
 
@@ -347,7 +348,7 @@ def process_and_plot_cmip6infer(data: xr.Dataset,
 			std_on_time = yearly_aggregate.std(dim='time', skipna=True).values
 		else:
             # No decadal aggregate in case you only 
-			avg_on_time = yearly_aggregate 
+			avg_on_time = yearly_aggregate.values.squeeze(0) 
 			std_on_time = yearly_aggregate.std(dim='time', skipna=True).data
 	else:
 		avg_on_time = np.nanmean(data, axis=0)

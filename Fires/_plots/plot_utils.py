@@ -418,9 +418,10 @@ def plot_dataset_map(
 	_log.info(f"{fn_name} | Added colorbar")
 	
 	plt.tight_layout()
-	plt.savefig(f"./images/fcci {title}.png")#, dpi=300)
+    
+	plt.savefig(f"fcci {title}.png")#, dpi=300)
 	# plt.clf()
-	_log.info(f"{fn_name} | Saved plot in ./images/fcci {title}.png")
+	_log.info(f"{fn_name} | Saved plot in fcci {title}.png")
 
 @export
 @debug(log=_log)
@@ -525,4 +526,4 @@ def plot_burned_area_difference_map(
 	cbar.set_label("Difference in Burned Area")
 
 	plt.tight_layout()
-	plt.savefig(f"./images/fcci_difference_{title}.png")#, dpi=300)
+	plt.savefig(f"fcci_difference_{title}.png")#, dpi=300)
