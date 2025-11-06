@@ -16,6 +16,10 @@ def fires(time_range = "2030-01-01_2035-12-31", scenarios = ["ssp126"], models =
             institutes += "CMCC"
         if model == "NorESM2-MM":
             institutes += "NCC"
+        if model == "CESM2":
+            institutes += "NCAR"
+        if model == "MPI-ESM1-2-HR":
+            institutes += "MPI-M"
         next_item = True
 
     # Input configurations
