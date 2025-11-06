@@ -5,7 +5,7 @@
 ## Ophidia workflow
 
 <p align="justify"> Ophidia (https://ophidia.cmcc.it) is an open-source HPC framework for data-intensive analysis, exploiting advanced parallel computing techniques and smart data distribution methods. Ophidia exploits a client-server approach; the user can interact by means a Python module, called PyOphidia (https://pyophidia.readthedocs.io/en/latest/), using a JSON interface. </p>
-<p align="justify"> A sample workflow is coded in "fires.py" and a Python notebook 'fires.ipynb' is also provided. It allows to evaluate burned areas results across an ensemble of different climate models. </p>
+<p align="justify"> A sample workflow is coded in "fires.py" and a Python notebook 'fires.ipynb' is also provided. It allows to evaluate burned areas results across an ensemble of different climate models. The notebook allows also producing the maps with the results from the workflow. </p>
 <p align="justify"> The workflow includes a number of tasks for data preparation, ML model execution and data post-processing. In particular, given a set of input parameters (e.g. "time domain" can be set through the command line), the workflow: </p>
 
 <ul>
