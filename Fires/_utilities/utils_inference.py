@@ -788,3 +788,60 @@ def get_cmip6_inference(
 
     return ds_pred
 
+
+def create_masked_array(observation_data, prediction_data, lsm_data):
+
+    import xarray as xr
+    if isinstance(observation_data, xr.DataArray):
+        observation_data = observation_data.data
+    else:
+        observation_data = observation_data.squeeze(1)
+    if isinstance(prediction_data, xr.DataArray):
+        pred_data = prediction_data.data
+    else:
+        prediction_data = prediction_data.squeeze(1)
+    
+    lsm_data[lsm_data == 0] = np.nan
+
+    observation_data = np.ma.masked_invalid(observation_data*lsm_data)
+    prediction_data = np.ma.masked_invalid(prediction_data*lsm_data)
+
+    merged_mask = np.ma.mask_or(observation_data.mask, prediction_data.mask)
+
+    obs_masked = np.ma.array(observation_data, mask=merged_mask)
+    pred_masked = np.ma.array(prediction_data, mask=merged_mask)
+
+    return obs_masked, pred_masked
+
+def compute_metrics(observation_data, prediction_data, lsm_data, acc_threshold):
+    from skimage.metrics import structural_similarity as ssim
+    import torch
+
+    obs, pred = create_masked_array(observation_data, prediction_data, lsm_data)
+
+    rmse = np.sqrt(np.ma.mean((obs - pred) ** 2))
+    print("RMSE is:" + str(rmse))
+    
+    mae = np.ma.mean(np.ma.absolute((obs - pred)))
+    print("MAE is:" + str(mae))
+
+    input_tensor = torch.tensor(observation_data.values, dtype=torch.float32)
+    preds_tensor = torch.tensor(prediction_data, dtype=torch.float32)
+    
+    # Ensure preds_tensor has the correct shape by squeezing singleton dimension
+    preds_tensor = preds_tensor.squeeze(1)  # Removes the extra dimension
+    
+    # Create a mask for non-NaN values in fcci_ba
+    nan_mask = ~torch.isnan(input_tensor)  # True for valid values, False for NaNs
+    
+    # Apply the mask to remove NaN locations from both input and predictions
+    input_tensor = input_tensor[nan_mask]
+    preds_tensor = preds_tensor[nan_mask]
+    ssim = ssim(input_tensor.numpy(), preds_tensor.numpy(), data_range=preds_tensor.max().item() - preds_tensor.min().item())
+    print("SSIM is:" + str(ssim))
+    
+    obs[obs != 0] = 1
+    pred[pred > acc_threshold] = 1
+    pred[pred <= acc_threshold] = 0
+    accuracy = np.ma.mean(obs == pred)
+    print("ACCURACY with threshold " +str(acc_threshold) + " is: " + str(accuracy))

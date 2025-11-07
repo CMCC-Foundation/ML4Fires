@@ -105,3 +105,17 @@ class FocalLoss(nn.Module):
 			return F_loss.sum()
 		else:
 			return F_loss
+
+@export
+class WeightedBCE_L1Loss(nn.Module):
+	def __init__(self, weight_bce=0.8, weight_l1=0.2):
+		super().__init__()
+		self.bce = nn.BCELoss()
+		self.l1 = nn.L1Loss()
+		self.weight_bce = weight_bce
+		self.weight_l1 = weight_l1
+
+	def forward(self, preds, targets):
+		loss_bce = self.bce(preds, targets)
+		loss_l1 = self.l1(preds, targets)
+		return self.weight_bce * loss_bce + self.weight_l1 * loss_l1
