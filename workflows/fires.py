@@ -1,6 +1,6 @@
 #!/usr/bin/env python
     
-def fires(time_range = "2030-01-01_2035-12-31", scenarios = ["ssp126"], models = ["CMCC-ESM2"]):
+def fires(time_range = "2030-01-01_2035-12-31", scenarios = ["ssp126"], models = ["CMCC-ESM2"], monitor = False):
     
     import os
     from pyophidia import Client, Workflow, Experiment, Cube
@@ -281,9 +281,9 @@ def fires(time_range = "2030-01-01_2035-12-31", scenarios = ["ssp126"], models =
     
     Workflow.setclient(cli)
     wf = Workflow(exp)
-    wf.submit(exec_mode = "sync")
+    wf.submit(exec_mode = "async" if monitor else "sync")
     
-    wf.monitor(iterative = False, display = display, save = True)
+    wf.monitor(frequency = 5, iterative = monitor, display = display)
     json_prov = wf.build_provenance("Fires", output_format = "json", display = display)
     
     Cube.cluster(action = 'undeploy', host_partition = partition, exec_mode = 'sync')
