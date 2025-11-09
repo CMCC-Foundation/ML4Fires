@@ -46,7 +46,7 @@ def fires(time_range = "2030-01-01_2035-12-31", scenarios = ["ssp126"], models =
     clear_script = home_dir + "/work/fires/clear.sh"
     regrid_script = home_dir + "/work/fires/regrid.sh"
     new_grid = "interp_like" # "r360x180"
-    python_script = home_dir + "/work/fires/inference.py"
+    python_script = home_dir + "/work/fires/inference.sh"
     model_format = "@{model}_@{scenario}.nc"
     inference_format = "inferenced_@{model}_@{scenario}.nc"
     scenario_format = "@{operation}_@{scenario}.nc"
